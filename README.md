@@ -95,9 +95,22 @@ TODO
 
 ### Correctness tests
 
+TODO
+
+
 ### Performance tests
 
-### Figure of merit
+TODO
+
+### Suggested performance test configuration
+
+
+### Figures of merit
+
+TODO
+
+
+### Old text
 
 The DOLFINx timers provide information about the CPU portion of the
 code, which creates the mesh, e.g.
@@ -129,7 +142,6 @@ Multi-GPU performance test (40M dofs)
 ```bash
 mpirun -n 4 bench_dolfinx --order=6 --ndofs=10000000 --qmode=1 --use_gauss
 ```
-
 
 ## License
 
