@@ -5,6 +5,9 @@ on:
   push:
     branches:
       - "**"
+  merge_group:
+    branches:
+      - main
   # schedule:
   #   # '*' is a special character in YAML, so string must be quoted
   #   - cron: "0 2 * * THU"
