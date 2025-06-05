@@ -105,7 +105,7 @@ TODO
 ### Suggested performance test configuration
 
 
-### Figure of merit
+### Figures of merit
 
 TODO
 
