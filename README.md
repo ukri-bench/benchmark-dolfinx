@@ -97,7 +97,21 @@ TODO
 
 ### Performance tests
 
-### Recommended test configuration
+### Figure of merit
+
+The DOLFINx timers provide information about the CPU portion of the
+code, which creates the mesh, e.g.
+- `Build BoxMesh (hexahedra)`: time taken to build the initial mesh
+
+The GPU performance is presented as the number of GigaDOFs processed per
+second: e.g. `Mat-free action Gdofs/s: 3.88691`
+
+The norms of the input and output vectors are also provided, which can
+be checked against the matrix (CSR) implementation be using the
+`--mat_comp` option. In this case the norm of the error should be around
+machine precision, i.e. about 1e-15 for float64.
+
+### OLD: Recommended test configuration
 
 Suggested options for running the test are listed below.
 
@@ -116,19 +130,6 @@ Multi-GPU performance test (40M dofs)
 mpirun -n 4 bench_dolfinx --order=6 --ndofs=10000000 --qmode=1 --use_gauss
 ```
 
-### Interpreting the output
-
-The dolfinx timers provide information about the CPU portion of the
-code, which creates the mesh, e.g.
-- `Build BoxMesh (hexahedra)`: time taken to build the initial mesh
-
-The GPU performance is presented as the number of GigaDOFs processed per
-second: e.g. `Mat-free action Gdofs/s: 3.88691`
-
-The norms of the input and output vectors are also provided, which can
-be checked against the matrix (CSR) implementation be using the
-`--mat_comp` option. In this case the norm of the error should be around
-machine precision, i.e. about 1e-15 for float64.
 
 ## License
 
