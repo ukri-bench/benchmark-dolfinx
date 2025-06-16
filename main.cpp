@@ -193,12 +193,15 @@ int main(int argc, char* argv[])
       fp_type += "64";
 
     Json::Value root;
-    root["p"] = order;
-    root["mpi_size"] = size;
-    root["ncells"] = ncells;
-    root["ndofs"] = ndofs_global;
-    root["nreps"] = nreps;
-    root["scalar_type"] = fp_type;
+    Json::Value& in_root = root["input"];
+    Json::Value& out_root = root["results"];
+    in_root["p"] = order;
+    in_root["mpi_size"] = size;
+    in_root["ncells"] = ncells;
+    in_root["ndofs"] = ndofs_global;
+    in_root["nreps"] = nreps;
+    in_root["scalar_type"] = fp_type;
+    in_root["mat_comp"] = matrix_comparison;
     
     if (rank == 0)
     {
@@ -220,10 +223,6 @@ int main(int argc, char* argv[])
       std::cout << "Scalar Type: " << fp_type << "\n";
       std::cout << "-----------------------------------\n";
       std::cout << std::flush;
-      Json::StreamWriterBuilder builder;
-      const std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
-      std::ofstream strm("out.json", std::ofstream::out);
-      writer->write(root, &strm);
     }
 
     // Prepare and set Constants for the bilinear form
@@ -412,6 +411,8 @@ int main(int argc, char* argv[])
       std::cout << "Mat-free action Gdofs/s: "
                 << ndofs_global * nreps / (1e9 * duration.count()) << std::endl;
 
+      out_root["gdofs"] = ndofs_global * nreps / (1e9 * duration.count());
+      
       std::cout << "Norm of u = " << unorm << std::endl;
       std::cout << "Norm of y = " << ynorm << std::endl;
     }
@@ -441,6 +442,7 @@ int main(int argc, char* argv[])
         std::cout << "Norm of z = " << znorm << "\n";
         std::cout << "Norm of error = " << enorm << "\n";
         std::cout << "Relative norm of error = " << enorm / znorm << "\n";
+	out_root["error_norm"] = enorm;
       }
 
       // Compute error in diagonal computation
@@ -454,9 +456,21 @@ int main(int argc, char* argv[])
       T dnorm = acc::norm(e_diag);
 
       if (rank == 0)
+      {
         std::cout << "Norm of diagonal error = " << dnorm << "\n";
+	out_root["diagonal_error_norm"] = dnorm;
+      }
     }
-
+    
+    if (rank == 0)
+    {
+      Json::StreamWriterBuilder builder;
+      builder["indentation"] = "  ";
+      const std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+      std::ofstream strm("out.json", std::ofstream::out);
+      writer->write(root, &strm);
+    }
+    
     // Display timings
     dolfinx::list_timings(MPI_COMM_WORLD);
   }
