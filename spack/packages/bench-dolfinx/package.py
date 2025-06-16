@@ -11,6 +11,7 @@ class BenchDolfinx(CMakePackage, CudaPackage, ROCmPackage):
     git = "https://github.com/ukri-bench/benchmark-dolfinx.git"
 
     version("main", tag="main")
+    version("chris", tag="chris/clean-up")
 
     depends_on("c", type="build")
     depends_on("cxx", type="build")
@@ -23,6 +24,7 @@ class BenchDolfinx(CMakePackage, CudaPackage, ROCmPackage):
     depends_on("mpi")
     depends_on("hip", when="+rocm")
     depends_on("cuda", when="+cuda")
+    depends_on("jsoncpp")
 
     conflicts("+cuda", when="+rocm", msg="Cannot build for both ROCm and CUDA")
 
