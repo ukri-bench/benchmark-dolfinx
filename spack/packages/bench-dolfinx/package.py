@@ -11,7 +11,6 @@ class BenchDolfinx(CMakePackage, CudaPackage, ROCmPackage):
     git = "https://github.com/ukri-bench/benchmark-dolfinx.git"
 
     version("main", tag="main")
-    version("chris", tag="chris/clean-up")
 
     depends_on("c", type="build")
     depends_on("cxx", type="build")
