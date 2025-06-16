@@ -25,7 +25,7 @@ jobs:
       run: |
         df -h
         apt-get update
-        apt-get -y install rsync wget python3-setuptools python3-wheel libboost-program-options-dev
+        apt-get -y install rsync wget python3-setuptools python3-wheel libboost-program-options-dev libjsoncpp-dev
         wget https://repo.radeon.com/amdgpu-install/6.3.3/ubuntu/noble/amdgpu-install_6.3.60303-1_all.deb
         apt -y install ./amdgpu-install_6.3.60303-1_all.deb
         DEBIAN_FRONTEND=noninteractive amdgpu-install --accept-eula -y --usecase=rocmdev --no-dkms
