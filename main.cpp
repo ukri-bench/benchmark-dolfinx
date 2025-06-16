@@ -35,21 +35,23 @@ namespace po = boost::program_options;
 int main(int argc, char* argv[])
 {
   po::options_description desc("Allowed options");
-  desc.add_options()("help,h", "print usage message")(
+  desc.add_options()("help,h", "Print usage message")(
       "ndofs", po::value<std::size_t>()->default_value(1000),
-      "number of dofs per rank")("qmode",
-                                 po::value<std::size_t>()->default_value(1),
-                                 "quadrature mode (0=p+1, 1=p+2)")(
+      "Requested number of degrees-of-freedom per MPI process")(
+      "qmode", po::value<std::size_t>()->default_value(1),
+      "Quadrature mode (0 or 1): qmode=0 has P+1 points in each direction,"
+      "qmode=1 has P+2 points in each direction.")(
       "nreps", po::value<std::size_t>()->default_value(1000),
-      "number of repetitions")("order",
+      "Number of repetitions")("order",
                                po::value<std::size_t>()->default_value(3),
-                               "Polynomial degree (Q)")(
+                               "Polynomial degree \"P\" (2-7)")(
       "mat_comp", po::bool_switch()->default_value(false),
-      "Compare result to matrix operator")(
-      "geom_perturb_fact", po::value<T>()->default_value(0.0),
-      "Factor of cell diameter to perturb the geometry by")(
+      "Compare result to matrix operator (slow with large ndofs) - default "
+      "off")("geom_perturb_fact", po::value<T>()->default_value(0.125),
+             "Adds a random perturbation to the geometry, useful to check "
+             "correctness")(
       "use_gauss", po::bool_switch()->default_value(false),
-      "Use Gauss quadrature");
+      "Use Gauss quadrature rather than GLL quadrature - default off");
 
   po::variables_map vm;
   po::store(po::command_line_parser(argc, argv)

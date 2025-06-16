@@ -75,8 +75,6 @@ Once this is the case, remove the below.
 
 Options for the test are:
 
-- Number of degrees-of-freedom (`--ndofs`): per MPI process
-- Order (`--order`): polynomial degree `P` (2-7)
 - Quadrature mode (`--qmode`): quadrature mode (0 or 1), `qmode=0 `has
   `P+1` points in each direction, `qmode=1` has `P+2` points in each
   direction
@@ -86,8 +84,7 @@ Options for the test are:
   perturbation to the geometry, useful to check correctness
 - Matrix comparison (`--mat_comp`) Compare solution with CSR matrix
   (only useable for small `ndofs`)
-- Geometry batch size (`--batch_size`) Geometry precomputation batch
-  size (defaults to all precomputed)
+
 
 ## Benchmarks
 
