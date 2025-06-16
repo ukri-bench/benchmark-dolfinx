@@ -579,29 +579,19 @@ __launch_bounds__(Q* Q* Q) __global__
     atomicAdd(&b[dof], yd);
 }
 
-template <typename T, int P>
+template <typename T, int P, int Q>
 __global__ void mat_diagonal(const T* entity_constants, T* b, const T* G_entity,
                              const std::int32_t* entity_dofmap,
                              const int* entities, int n_entities,
                              const std::int8_t* bc_marker)
 {
   constexpr int nd = P + 1; // Number of dofs per direction in 1D
-  constexpr int nq
-      = nd; // Number of quadrature points in 1D (must be the same as nd)
-
-  assert(blockDim.x == nd);
-  assert(blockDim.y == nd);
-  assert(blockDim.z == nd);
-
-  constexpr int cube_nd = nd * nd * nd;
-  constexpr int square_nd = nd * nd;
+  constexpr int nq = Q;     // Number of quadrature points in 1D
 
   int tx = threadIdx.x; // 1d dofs x direction
   int ty = threadIdx.y; // 1d dofs y direction
   int tz = threadIdx.z; // 1d dofs z direction
 
-  // thread_id represents the dof index in 3D
-  int thread_id = tx * square_nd + ty * nd + tz;
   // block_id is the cell (or facet) index
   int block_id = blockIdx.x;
 
@@ -612,40 +602,52 @@ __global__ void mat_diagonal(const T* entity_constants, T* b, const T* G_entity,
   // Get transform at quadrature point (thread)
   constexpr int nq3 = nq * nq * nq;
 
-  int offset = (block_id * nq3 * 6) + thread_id;
-  T G1 = G_entity[offset + 1 * nq3];
-  T G2 = G_entity[offset + 2 * nq3];
-  T G4 = G_entity[offset + 4 * nq3];
-
   // DG-0 Coefficient
   T coeff = entity_constants[block_id];
 
   T val = 0.0;
 
-  auto dphi_
-      = [&](int ix, int iy) { return dphi1_const<T, P + 1>[ix * nq + iy]; };
-  auto G_ = [&](int r, int ix, int iy, int iz)
+  auto dphi_ = [&](int ix, int iy)
   {
-    int qid = ix * square_nd + iy * nd + iz;
-    const int offset = block_id * cube_nd * 6 + qid;
-    return G_entity[offset + r * cube_nd];
+    T w = 0.0;
+    for (int i = 0; i < nq; ++i)
+      w += phi0_const<T, P, Q>[i * nd + iy] * dphi1_const<T, Q>[ix * nq + i];
+    return w;
   };
 
-  for (int iq0 = 0; iq0 < nq; ++iq0)
-    val += G_(0, iq0, ty, tz) * dphi_(iq0, tx) * dphi_(iq0, tx);
-  for (int iq1 = 0; iq1 < nq; ++iq1)
-    val += G_(3, tx, iq1, tz) * dphi_(iq1, ty) * dphi_(iq1, ty);
+  auto phi_ = [&](int ix, int iy) { return phi0_const<T, P, Q>[ix * nd + iy]; };
+  auto G_ = [&](int r, int ix, int iy, int iz)
+  {
+    int qid = ix * nq * nq + iy * nq + iz;
+    const int offset = block_id * nq3 * 6 + qid;
+    return G_entity[offset + r * nq3];
+  };
+
   for (int iq2 = 0; iq2 < nq; ++iq2)
-    val += G_(5, tx, ty, iq2) * dphi_(iq2, tz) * dphi_(iq2, tz);
+  {
+    for (int iq1 = 0; iq1 < nq; ++iq1)
+    {
+      for (int iq0 = 0; iq0 < nq; ++iq0)
+      {
+        T w1 = dphi_(iq0, tx) * phi_(iq1, ty) * phi_(iq2, tz);
+        T w2 = phi_(iq0, tx) * dphi_(iq1, ty) * phi_(iq2, tz);
+        T w3 = phi_(iq0, tx) * phi_(iq1, ty) * dphi_(iq2, tz);
+        val += G_(0, iq0, iq1, iq2) * w1 * w1;
+        val += G_(3, iq0, iq1, iq2) * w2 * w2;
+        val += G_(5, iq0, iq1, iq2) * w3 * w3;
 
-  val += G1 * dphi_(tx, tx) * dphi_(ty, ty);
-  val += G2 * dphi_(tx, tx) * dphi_(tz, tz);
-  val += G1 * dphi_(ty, ty) * dphi_(tx, tx);
-  val += G4 * dphi_(ty, ty) * dphi_(tz, tz);
-  val += G2 * dphi_(tz, tz) * dphi_(tx, tx);
-  val += G4 * dphi_(tz, tz) * dphi_(ty, ty);
+        w1 = dphi_(iq0, tx) * phi_(iq1, ty) * phi_(iq2, tz);
+        w2 = phi_(iq0, tx) * dphi_(iq1, ty) * phi_(iq2, tz);
+        w3 = phi_(iq0, tx) * phi_(iq1, ty) * dphi_(iq2, tz);
+        val += 2 * G_(1, iq0, iq1, iq2) * w1 * w2;
+        val += 2 * G_(2, iq0, iq1, iq2) * w1 * w3;
+        val += 2 * G_(4, iq0, iq1, iq2) * w2 * w3;
+      }
+    }
+  }
 
-  int dof = entity_dofmap[entities[block_id] * cube_nd + thread_id];
+  int dof_thread_id = tx * nd * nd + ty * nd + tz;
+  int dof = entity_dofmap[entities[block_id] * nd * nd * nd + dof_thread_id];
   if (bc_marker[dof])
     b[dof] = T(1.0);
   else
@@ -891,20 +893,26 @@ public:
       throw std::runtime_error("Unsupported degree [geometry]");
   }
 
-  /// @brief Compute matrix diagonal entries
-  /// @param out Vector containing diagonal entries of the matrix
-  /// @note Only works for qmode=0, i.e. when Q=P+1
-  template <int P, typename Vector>
+  /// Compute matrix diagonal entries
+  template <int P, int Q, typename Vector>
   void compute_mat_diag_inv(Vector& out)
   {
+    T* geometry_ptr = thrust::raw_pointer_cast(G_entity.data());
+
     if (!lcells_device.empty())
     {
       spdlog::debug("mat_diagonal doing lcells. lcells size = {}",
                     lcells_device.size());
       std::span<int> cell_list_d(thrust::raw_pointer_cast(lcells_device.data()),
                                  lcells_device.size());
-      compute_geometry(P + 1, cell_list_d);
-      device_synchronize();
+
+      if (batch_size > 0)
+      {
+        spdlog::debug("Calling compute_geometry on local cells [{}]",
+                      cell_list_d.size());
+        compute_geometry(Q, cell_list_d);
+        device_synchronize();
+      }
 
       out.set(T{0.0});
       T* y = out.mutable_array().data();
@@ -912,10 +920,9 @@ public:
       dim3 block_size(P + 1, P + 1, P + 1);
       dim3 grid_size(cell_list_d.size());
       spdlog::debug("Calling mat_diagonal");
-      mat_diagonal<T, P><<<grid_size, block_size, 0>>>(
-          cell_constants.data(), y, thrust::raw_pointer_cast(G_entity.data()),
-          cell_dofmap.data(), cell_list_d.data(), cell_list_d.size(),
-          bc_marker.data());
+      mat_diagonal<T, P, Q><<<grid_size, block_size, 0>>>(
+          cell_constants.data(), y, geometry_ptr, cell_dofmap.data(),
+          cell_list_d.data(), cell_list_d.size(), bc_marker.data());
       check_device_last_error();
     }
 
@@ -925,17 +932,22 @@ public:
                     bcells_device.size());
       std::span<int> cell_list_d(thrust::raw_pointer_cast(bcells_device.data()),
                                  bcells_device.size());
-      compute_geometry(P + 1, cell_list_d);
-      device_synchronize();
+
+      if (batch_size > 0)
+      {
+        compute_geometry(Q, cell_list_d);
+        device_synchronize();
+      }
+      else
+        geometry_ptr += 6 * Q * Q * Q * lcells_device.size();
 
       T* y = out.mutable_array().data();
 
       dim3 block_size(P + 1, P + 1, P + 1);
       dim3 grid_size(cell_list_d.size());
-      mat_diagonal<T, P><<<grid_size, block_size, 0>>>(
-          cell_constants.data(), y, thrust::raw_pointer_cast(G_entity.data()),
-          cell_dofmap.data(), cell_list_d.data(), cell_list_d.size(),
-          bc_marker.data());
+      mat_diagonal<T, P, Q><<<grid_size, block_size, 0>>>(
+          cell_constants.data(), y, geometry_ptr, cell_dofmap.data(),
+          cell_list_d.data(), cell_list_d.size(), bc_marker.data());
       check_device_last_error();
     }
 
@@ -1097,22 +1109,58 @@ public:
   {
     spdlog::debug("Mat diagonal operator start");
 
-    if (degree == 1)
-      compute_mat_diag_inv<1>(diag_inv);
-    else if (degree == 2)
-      compute_mat_diag_inv<2>(diag_inv);
-    else if (degree == 3)
-      compute_mat_diag_inv<3>(diag_inv);
-    else if (degree == 4)
-      compute_mat_diag_inv<4>(diag_inv);
-    else if (degree == 5)
-      compute_mat_diag_inv<5>(diag_inv);
-    else if (degree == 6)
-      compute_mat_diag_inv<6>(diag_inv);
-    else if (degree == 7)
-      compute_mat_diag_inv<7>(diag_inv);
+    if (op_nq == degree + 1)
+    {
+      if (degree == 1)
+        compute_mat_diag_inv<1, 2>(diag_inv);
+      else if (degree == 2)
+        compute_mat_diag_inv<2, 3>(diag_inv);
+      else if (degree == 3)
+        compute_mat_diag_inv<3, 4>(diag_inv);
+      else if (degree == 4)
+        compute_mat_diag_inv<4, 5>(diag_inv);
+      else if (degree == 5)
+        compute_mat_diag_inv<5, 6>(diag_inv);
+      else if (degree == 6)
+        compute_mat_diag_inv<6, 7>(diag_inv);
+      else if (degree == 7)
+        compute_mat_diag_inv<7, 8>(diag_inv);
+      else if (degree == 8)
+        compute_mat_diag_inv<8, 9>(diag_inv);
+      else if (degree == 9)
+        compute_mat_diag_inv<9, 10>(diag_inv);
+      else if (degree == 10)
+        compute_mat_diag_inv<10, 11>(diag_inv);
+      else
+        throw std::runtime_error("Unsupported degree [mat diag]");
+    }
+    else if (op_nq == degree + 2)
+    {
+      if (degree == 1)
+        compute_mat_diag_inv<1, 3>(diag_inv);
+      else if (degree == 2)
+        compute_mat_diag_inv<2, 4>(diag_inv);
+      else if (degree == 3)
+        compute_mat_diag_inv<3, 5>(diag_inv);
+      else if (degree == 4)
+        compute_mat_diag_inv<4, 6>(diag_inv);
+      else if (degree == 5)
+        compute_mat_diag_inv<5, 7>(diag_inv);
+      else if (degree == 6)
+        compute_mat_diag_inv<6, 8>(diag_inv);
+      else if (degree == 7)
+        compute_mat_diag_inv<7, 9>(diag_inv);
+      else if (degree == 8)
+        compute_mat_diag_inv<8, 10>(diag_inv);
+      else if (degree == 9)
+        compute_mat_diag_inv<9, 11>(diag_inv);
+      else if (degree == 10)
+        compute_mat_diag_inv<10, 12>(diag_inv);
+      else
+        throw std::runtime_error("Unsupported degree [mat diag]");
+    }
     else
-      throw std::runtime_error("Unsupported degree [mat diag]");
+      throw std::runtime_error("Unsupported qmode [mat diag]");
 
     spdlog::debug("Mat diagonal operator end");
   }
