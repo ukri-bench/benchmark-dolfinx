@@ -65,26 +65,10 @@ benchmark-specific CMake options are available:
 
 ## Command line options
 
-TODO: The program should give the options with the `-h` option.
+The program lists the available options with the `-h` option.
 ```bash
 bench_dolfinx -h
 ```
-
-Once this is the case, remove the below.
-
-
-Options for the test are:
-
-- Quadrature mode (`--qmode`): quadrature mode (0 or 1), `qmode=0 `has
-  `P+1` points in each direction, `qmode=1` has `P+2` points in each
-  direction
-- Gauss quadrature (`--use_gauss`): use Gauss rather than GLL quadrature
-- Number of repetitions (`--nreps`)
-- Geometry perturbation (`--geom_perturb_fact`) Adds a random
-  perturbation to the geometry, useful to check correctness
-- Matrix comparison (`--mat_comp`) Compare solution with CSR matrix
-  (only useable for small `ndofs`)
-
 
 ## Benchmarks
 
@@ -93,7 +77,6 @@ TODO
 ### Correctness tests
 
 TODO
-
 
 ### Performance tests
 
