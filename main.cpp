@@ -36,6 +36,9 @@ int main(int argc, char* argv[])
 {
   po::options_description desc("Allowed options");
   desc.add_options()("help,h", "Print usage message")(
+      "benchmark,b", po::value<std::size_t>()->default_value(0),
+      "Overrides other options to run predefined tests: 0=off, 1=correctness, "
+      "2=performance")(
       "ndofs", po::value<std::size_t>()->default_value(1000),
       "Requested number of degrees-of-freedom per MPI process")(
       "qmode", po::value<std::size_t>()->default_value(1),
@@ -72,17 +75,29 @@ int main(int argc, char* argv[])
     return 0;
   }
 
-  const std::size_t ndofs = vm["ndofs"].as<std::size_t>();
-  const std::size_t nreps = vm["nreps"].as<std::size_t>();
-  const std::size_t order = vm["order"].as<std::size_t>();
-  const bool matrix_comparison = vm["mat_comp"].as<bool>();
-  const T geom_perturb_fact = vm["geom_perturb_fact"].as<T>();
-  const bool use_gauss = vm["use_gauss"].as<bool>();
+  std::size_t ndofs = vm["ndofs"].as<std::size_t>();
+  std::size_t nreps = vm["nreps"].as<std::size_t>();
+  std::size_t order = vm["order"].as<std::size_t>();
+  bool matrix_comparison = vm["mat_comp"].as<bool>();
+  T geom_perturb_fact = vm["geom_perturb_fact"].as<T>();
+  bool use_gauss = vm["use_gauss"].as<bool>();
 
   // Quadrature mode (qmode=0: nq = P + 1, qmode=1: nq = P + 2)
-  const std::size_t qmode = vm["qmode"].as<std::size_t>();
+  std::size_t qmode = vm["qmode"].as<std::size_t>();
   if (qmode > 1)
     throw std::runtime_error("Invalid qmode");
+
+  const std::size_t benchmark = vm["benchmark"].as<std::size_t>();
+  if (benchmark == 1)
+  {
+    ndofs = 15625;
+    nreps = 1;
+    order = 6;
+    qmode = 1;
+    matrix_comparison = true;
+    geom_perturb_fact = 0.125;
+    use_gauss = true;
+  }
 
   init_logging(argc, argv);
   MPI_Init(&argc, &argv);
