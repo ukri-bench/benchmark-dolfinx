@@ -25,10 +25,10 @@
 #include <dolfinx/mesh/generation.h>
 #include <fstream>
 #include <iostream>
+#include <json/json.h>
 #include <memory>
 #include <mpi.h>
 #include <random>
-#include <json/json.h>
 
 using namespace dolfinx;
 using T = SCALAR_TYPE;
@@ -202,7 +202,7 @@ int main(int argc, char* argv[])
     in_root["nreps"] = nreps;
     in_root["scalar_type"] = fp_type;
     in_root["mat_comp"] = matrix_comparison;
-    
+
     if (rank == 0)
     {
       std::cout << device_information();
@@ -412,7 +412,7 @@ int main(int argc, char* argv[])
                 << ndofs_global * nreps / (1e9 * duration.count()) << std::endl;
 
       out_root["gdofs"] = ndofs_global * nreps / (1e9 * duration.count());
-      
+
       std::cout << "Norm of u = " << unorm << std::endl;
       std::cout << "Norm of y = " << ynorm << std::endl;
     }
@@ -442,7 +442,7 @@ int main(int argc, char* argv[])
         std::cout << "Norm of z = " << znorm << "\n";
         std::cout << "Norm of error = " << enorm << "\n";
         std::cout << "Relative norm of error = " << enorm / znorm << "\n";
-	out_root["error_norm"] = enorm;
+        out_root["error_norm"] = enorm;
       }
 
       // Compute error in diagonal computation
@@ -458,19 +458,20 @@ int main(int argc, char* argv[])
       if (rank == 0)
       {
         std::cout << "Norm of diagonal error = " << dnorm << "\n";
-	out_root["diagonal_error_norm"] = dnorm;
+        out_root["diagonal_error_norm"] = dnorm;
       }
     }
-    
+
     if (rank == 0)
     {
       Json::StreamWriterBuilder builder;
       builder["indentation"] = "  ";
-      const std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+      const std::unique_ptr<Json::StreamWriter> writer(
+          builder.newStreamWriter());
       std::ofstream strm("out.json", std::ofstream::out);
       writer->write(root, &strm);
     }
-    
+
     // Display timings
     dolfinx::list_timings(MPI_COMM_WORLD);
   }
