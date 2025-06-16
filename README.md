@@ -1,13 +1,13 @@
 # DOLFINx benchmark
 
-This benchmark tests the performance of an unstructured grid finite element
-solver. It solves the Poisson equation on a mesh of hexahedral cells
-using a matrix-free method. Low- and high-degree finite elements bases
-are supported. Being matrix-free and supporting high-degree finite
+This benchmark tests the performance of an unstructured grid finite
+element solver. It solves the Poisson equation on a mesh of hexahedral
+cells using a matrix-free method. Low- and high-degree finite elements
+bases are supported. Being matrix-free and supporting high-degree finite
 elements makes this benchmark suitable for CPU and GPU architectures.
+The finite element implementation uses sum factorisation.
 
-Parallel communication between nodes/devices used MPI. The finite
-element implementation uses sum factorisation.
+Parallel communication between nodes/devices uses MPI.
 
 ## Status
 
@@ -31,9 +31,15 @@ CPU (in progress), GPU.
 
 C++, CUDA, HIP, MPI.
 
-### 'Dwarfs'
+### Seven 'dwarfs'
 
-Unstructured grids, dense linear algebra.
+- [x] Dense linear algebra
+- [x] Sparse linear algebra
+- [ ] Spectral methods
+- [ ] N-body methods
+- [ ] Structured grids
+- [x] Unstructured grids
+- [ ] Monte Carlo
 
 ## Building
 
@@ -42,11 +48,14 @@ The benchmark can be built using Spack or manually using CMake.
 ### Spack
 
 A Spack package is provided in `spack/`. To view the package options:
+
 ```bash
 spack repo add ./spack
 spack info bench-dolfinx
 ```
-The benchmark builds an executable `bench_dolfinx`.
+
+Options are used tp specify CPU and GPU (AMD or CUDA) builds. The
+benchmark builds an executable `bench_dolfinx`.
 
 
 ### CMake
@@ -59,9 +68,9 @@ dependencies for a comprehensive list of dependencies.
 
 When building the benchmark using CMake, the following
 benchmark-specific CMake options are available:
-* `-DHIP_ARCH=[target]` builds using HIP for GPU architecture `[target]`
-* `-DCUDA_ARCH=[target]` builds using CUDA for GPU architecture `[target]`
-* `-DSCALAR_TYPE=float32` will build a 32-bit version
+* `-DHIP_ARCH=[target]` builds using HIP for the specific GPU architecture `[target]`
+* `-DCUDA_ARCH=[target]` builds using CUDA for the specific GPU architecture `[target]`
+* `-DSCALAR_TYPE=float32` set the float type to 32-bit
 
 ## Command line options
 
@@ -90,8 +99,6 @@ Options for the test are:
   size (defaults to all precomputed)
 
 ## Benchmarks
-
-TODO
 
 ### Correctness tests
 
