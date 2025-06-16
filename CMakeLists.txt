@@ -99,6 +99,8 @@ if(DEFINED ENV{BOOST_ROOT} OR DEFINED BOOST_ROOT)
 endif()
 find_package(Boost 1.70 REQUIRED program_options)
 
+find_package(jsoncpp REQUIRED)
+
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 add_custom_command(
@@ -116,7 +118,7 @@ endif()
 add_executable(${PROJECT_NAME} main.cpp poisson.c)
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
 target_link_libraries(${PROJECT_NAME} dolfinx Basix::basix
-                      Boost::program_options)
+                      Boost::program_options jsoncpp_lib)
 if(amd)
   target_link_libraries(${PROJECT_NAME} roc::rocthrust)
 endif()

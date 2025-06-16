@@ -125,98 +125,19 @@ public:
     _values = thrust::device_vector<T>(nnz);
 
     // Copy data from host to device
-    spdlog::warn("Creating Device matrix with {} non zeros", _nnz);
-    spdlog::warn("Creating row_ptr with {} to {}", num_rows + 1,
+    spdlog::info("Creating Device matrix with {} non zeros", _nnz);
+    spdlog::info("Creating row_ptr with {} to {}", num_rows + 1,
                  _row_ptr.size());
     thrust::copy(_A->row_ptr().begin(), _A->row_ptr().begin() + num_rows + 1,
                  _row_ptr.begin());
-    spdlog::warn("Creating off_diag with {} to {}",
+    spdlog::info("Creating off_diag with {} to {}",
                  _A->off_diag_offset().size(), _off_diag_offset.size());
     thrust::copy(_A->off_diag_offset().begin(),
                  _A->off_diag_offset().begin() + num_rows,
                  _off_diag_offset.begin());
-    spdlog::warn("Creating cols with {} to {}", nnz, _cols.size());
+    spdlog::info("Creating cols with {} to {}", nnz, _cols.size());
     thrust::copy(_A->cols().begin(), _A->cols().begin() + nnz, _cols.begin());
-    spdlog::warn("Creating values with {} to {}", nnz, _values.size());
-    thrust::copy(_A->values().begin(), _A->values().begin() + nnz,
-                 _values.begin());
-  }
-
-  MatrixOperator(const fem::FunctionSpace<T>& V0,
-                 const fem::FunctionSpace<T>& V1)
-  {
-    dolfinx::common::Timer t0("~setup phase Interpolation Operators");
-    _comm = V0.mesh()->comm();
-    assert(V0.mesh());
-    auto mesh = V0.mesh();
-    assert(V1.mesh());
-    assert(mesh == V1.mesh());
-
-    std::shared_ptr<const fem::DofMap> dofmap0 = V0.dofmap();
-    assert(dofmap0);
-    std::shared_ptr<const fem::DofMap> dofmap1 = V1.dofmap();
-    assert(dofmap1);
-
-    // Create and build  sparsity pattern
-    assert(dofmap0->index_map);
-    assert(dofmap1->index_map);
-
-    la::SparsityPattern pattern(
-        _comm, {dofmap1->index_map, dofmap0->index_map},
-        {dofmap1->index_map_bs(), dofmap0->index_map_bs()});
-
-    int tdim = mesh->topology()->dim();
-    auto map = mesh->topology()->index_map(tdim);
-    assert(map);
-    std::vector<std::int32_t> c(map->size_local(), 0);
-    std::iota(c.begin(), c.end(), 0);
-    fem::sparsitybuild::cells(pattern, {c, c}, {*dofmap1, *dofmap0});
-    pattern.finalize();
-
-    // Build operator
-    _A = std::make_unique<
-        la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
-                      std::vector<std::int32_t>>>(pattern);
-
-    // FIXME: should this be mat_add or mat_set?
-    fem::interpolation_matrix<T>(V0, V1, _A->mat_set_values());
-
-    // Create HIP/CUDA matrix
-    _col_map
-        = std::make_shared<const common::IndexMap>(pattern.column_index_map());
-    _row_map = V1.dofmap()->index_map;
-    std::int32_t num_rows = _row_map->size_local();
-    std::int32_t nnz = _A->row_ptr()[num_rows];
-    _nnz = nnz;
-
-    spdlog::warn("Operator Number of non zeros {}", _nnz);
-    spdlog::warn("Operator Number of rows {}", num_rows);
-    spdlog::warn("Operator dm0 size {}", V0.dofmap()->index_map->size_global());
-    spdlog::warn("Operator dm1 size {}", V1.dofmap()->index_map->size_global());
-    spdlog::warn("Max column = {}",
-                 *std::max_element(_A->cols().begin(), _A->cols().end()));
-
-    T norm = 0.0;
-    auto v = _A->values();
-    for (int i = 0; i < nnz; ++i)
-      norm += v[i] * v[i];
-
-    double global_norm = 0;
-    MPI_Allreduce(&norm, &global_norm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    spdlog::info("A interp norm = {}", std::sqrt(global_norm));
-
-    _row_ptr = thrust::device_vector<std::int32_t>(num_rows + 1);
-    _off_diag_offset = thrust::device_vector<std::int32_t>(num_rows);
-    _cols = thrust::device_vector<std::int32_t>(nnz);
-    _values = thrust::device_vector<T>(nnz);
-
-    // Copy data from host to device
-    thrust::copy(_A->row_ptr().begin(), _A->row_ptr().begin() + num_rows + 1,
-                 _row_ptr.begin());
-    thrust::copy(_A->off_diag_offset().begin(),
-                 _A->off_diag_offset().begin() + num_rows,
-                 _off_diag_offset.begin());
-    thrust::copy(_A->cols().begin(), _A->cols().begin() + nnz, _cols.begin());
+    spdlog::info("Creating values with {} to {}", nnz, _values.size());
     thrust::copy(_A->values().begin(), _A->values().begin() + nnz,
                  _values.begin());
   }

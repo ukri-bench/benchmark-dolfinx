@@ -23,6 +23,7 @@ class BenchDolfinx(CMakePackage, CudaPackage, ROCmPackage):
     depends_on("mpi")
     depends_on("hip", when="+rocm")
     depends_on("cuda", when="+cuda")
+    depends_on("jsoncpp")
 
     conflicts("+cuda", when="+rocm", msg="Cannot build for both ROCm and CUDA")
 
