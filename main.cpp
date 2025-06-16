@@ -23,10 +23,12 @@
 #include <dolfinx/la/MatrixCSR.h>
 #include <dolfinx/la/SparsityPattern.h>
 #include <dolfinx/mesh/generation.h>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <mpi.h>
 #include <random>
+#include <json/json.h>
 
 using namespace dolfinx;
 using T = SCALAR_TYPE;
@@ -190,6 +192,14 @@ int main(int argc, char* argv[])
     else if (std::is_same_v<T, double>)
       fp_type += "64";
 
+    Json::Value root;
+    root["p"] = order;
+    root["mpi_size"] = size;
+    root["ncells"] = ncells;
+    root["ndofs"] = ndofs_global;
+    root["nreps"] = nreps;
+    root["scalar_type"] = fp_type;
+    
     if (rank == 0)
     {
       std::cout << device_information();
@@ -210,6 +220,10 @@ int main(int argc, char* argv[])
       std::cout << "Scalar Type: " << fp_type << "\n";
       std::cout << "-----------------------------------\n";
       std::cout << std::flush;
+      Json::StreamWriterBuilder builder;
+      const std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+      std::ofstream strm("out.json", std::ofstream::out);
+      writer->write(root, &strm);
     }
 
     // Prepare and set Constants for the bilinear form
