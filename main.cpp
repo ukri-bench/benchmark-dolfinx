@@ -414,15 +414,20 @@ int main(int argc, char* argv[])
         mat_op(u, z);
       mtimer.stop();
 
-      std::cout << "Norm of u = " << acc::norm(u) << "\n";
-      std::cout << "Norm of z = " << acc::norm(z) << "\n";
-
+      T unorm = acc::norm(u);
+      T znorm = acc::norm(z);
       // Compute error
       DeviceVector e(map, 1);
       acc::axpy(e, T{-1.0}, y, z);
-      std::cout << "Norm of error = " << acc::norm(e) << "\n";
-      std::cout << "Relative norm of error = " << acc::norm(e) / acc::norm(z)
-                << "\n";
+      T enorm = acc::norm(e);
+
+      if (rank == 0)
+      {
+        std::cout << "Norm of u = " << unorm << "\n";
+        std::cout << "Norm of z = " << znorm << "\n";
+        std::cout << "Norm of error = " << enorm << "\n";
+        std::cout << "Relative norm of error = " << enorm / znorm << "\n";
+      }
 
       // Compute error in diagonal computation
       DeviceVector mat_free_inv_diag(map, 1);
@@ -432,7 +437,10 @@ int main(int argc, char* argv[])
 
       DeviceVector e_diag(map, 1);
       acc::axpy(e_diag, T{-1.0}, mat_inv_diag, mat_free_inv_diag);
-      std::cout << "Norm of diagonal error = " << acc::norm(e_diag) << "\n";
+      T dnorm = acc::norm(e_diag);
+
+      if (rank == 0)
+        std::cout << "Norm of diagonal error = " << dnorm << "\n";
     }
 
     // Display timings
