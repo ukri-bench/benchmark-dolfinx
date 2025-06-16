@@ -125,19 +125,19 @@ public:
     _values = thrust::device_vector<T>(nnz);
 
     // Copy data from host to device
-    spdlog::warn("Creating Device matrix with {} non zeros", _nnz);
-    spdlog::warn("Creating row_ptr with {} to {}", num_rows + 1,
+    spdlog::info("Creating Device matrix with {} non zeros", _nnz);
+    spdlog::info("Creating row_ptr with {} to {}", num_rows + 1,
                  _row_ptr.size());
     thrust::copy(_A->row_ptr().begin(), _A->row_ptr().begin() + num_rows + 1,
                  _row_ptr.begin());
-    spdlog::warn("Creating off_diag with {} to {}",
+    spdlog::info("Creating off_diag with {} to {}",
                  _A->off_diag_offset().size(), _off_diag_offset.size());
     thrust::copy(_A->off_diag_offset().begin(),
                  _A->off_diag_offset().begin() + num_rows,
                  _off_diag_offset.begin());
-    spdlog::warn("Creating cols with {} to {}", nnz, _cols.size());
+    spdlog::info("Creating cols with {} to {}", nnz, _cols.size());
     thrust::copy(_A->cols().begin(), _A->cols().begin() + nnz, _cols.begin());
-    spdlog::warn("Creating values with {} to {}", nnz, _values.size());
+    spdlog::info("Creating values with {} to {}", nnz, _values.size());
     thrust::copy(_A->values().begin(), _A->values().begin() + nnz,
                  _values.begin());
   }

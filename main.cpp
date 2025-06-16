@@ -36,9 +36,9 @@ int main(int argc, char* argv[])
 {
   po::options_description desc("Allowed options");
   desc.add_options()("help,h", "print usage message")(
-      "ndofs", po::value<std::size_t>()->default_value(343),
+      "ndofs", po::value<std::size_t>()->default_value(1000),
       "number of dofs per rank")("qmode",
-                                 po::value<std::size_t>()->default_value(0),
+                                 po::value<std::size_t>()->default_value(1),
                                  "quadrature mode (0=p+1, 1=p+2)")(
       "nreps", po::value<std::size_t>()->default_value(1000),
       "number of repetitions")("order",
@@ -46,8 +46,6 @@ int main(int argc, char* argv[])
                                "Polynomial degree (Q)")(
       "mat_comp", po::bool_switch()->default_value(false),
       "Compare result to matrix operator")(
-      "batch_size", po::value<std::size_t>()->default_value(0),
-      "The geometry batch size. Set to 0 to precompute")(
       "geom_perturb_fact", po::value<T>()->default_value(0.0),
       "Factor of cell diameter to perturb the geometry by")(
       "use_gauss", po::bool_switch()->default_value(false),
@@ -63,13 +61,17 @@ int main(int argc, char* argv[])
 
   if (vm.count("help"))
   {
+    std::cout << "dolfinx benchmark\n-----------------\n";
+    std::cout
+        << "\n  Finite Element Operator Action Benchmark which computes\n";
+    std::cout << "  the Laplacian operator on a cube mesh of hexahedral "
+                 "elements.\n\n";
     std::cout << desc << std::endl;
     return 0;
   }
 
   const std::size_t ndofs = vm["ndofs"].as<std::size_t>();
   const std::size_t nreps = vm["nreps"].as<std::size_t>();
-  const std::size_t batch_size = vm["batch_size"].as<std::size_t>();
   const std::size_t order = vm["order"].as<std::size_t>();
   const bool matrix_comparison = vm["mat_comp"].as<bool>();
   const T geom_perturb_fact = vm["geom_perturb_fact"].as<T>();
@@ -188,7 +190,6 @@ int main(int argc, char* argv[])
       std::cout << "Number of cells-rank : " << ncells / size << "\n";
       std::cout << "Number of dofs-rank : " << ndofs_global / size << "\n";
       std::cout << "Number of repetitions : " << nreps << "\n";
-      std::cout << "Geometry batch size: " << batch_size << "\n";
       std::cout << "Scalar Type: " << fp_type << "\n";
       std::cout << "-----------------------------------\n";
       std::cout << std::flush;
@@ -355,15 +356,12 @@ int main(int argc, char* argv[])
     dolfinx::common::Timer op_create_timer("% Create matfree operator");
     acc::MatFreeLaplacian<T> op(order, qmode, constants_d_span, dofmap_d_span,
                                 xgeom_d_span, xdofmap_d_span, cmap, lcells,
-                                bcells, bc_marker_d_span, quad_type,
-                                batch_size);
+                                bcells, bc_marker_d_span, quad_type, 0);
 
     op_create_timer.stop();
 
     la::Vector<T> b(map, 1);
     fem::assemble_vector(b.mutable_array(), *L);
-    //    fem::apply_lifting<T, T>(b.mutable_array(), {a}, {{bc}}, {}, T(1));
-    // b.scatter_rev(std::plus<T>());
     u.copy_from_host(b); // Copy data from host vector to device vector
     u.scatter_fwd_begin();
 
@@ -409,7 +407,7 @@ int main(int argc, char* argv[])
       std::cout << "Relative norm of error = " << acc::norm(e) / acc::norm(z)
                 << "\n";
 
-      // Compute erorr in diagonal computation
+      // Compute error in diagonal computation
       DeviceVector mat_free_inv_diag(map, 1);
       op.get_diag_inverse(mat_free_inv_diag);
       DeviceVector mat_inv_diag(map, 1);
