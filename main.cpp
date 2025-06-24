@@ -2,16 +2,12 @@
 // Garth N. Wells
 // SPDX-License-Identifier:    MIT
 
-#include <thrust/sequence.h>
-
 #include "poisson.h"
-
 #include "src/csr.hpp"
 #include "src/laplacian.hpp"
 #include "src/mesh.hpp"
 #include "src/util.hpp"
 #include "src/vector.hpp"
-
 #include <array>
 #include <basix/finite-element.h>
 #include <basix/quadrature.h>
@@ -29,6 +25,10 @@
 #include <memory>
 #include <mpi.h>
 #include <random>
+
+#if defined(USE_CUDA) || defined(USE_HIP)
+#include <thrust/sequence.h>
+#endif
 
 using namespace dolfinx;
 using T = SCALAR_TYPE;
@@ -193,19 +193,12 @@ int main(int argc, char* argv[])
       fp_type += "64";
 
     Json::Value root;
-    Json::Value& in_root = root["input"];
-    Json::Value& out_root = root["results"];
-    in_root["p"] = order;
-    in_root["mpi_size"] = size;
-    in_root["ncells"] = ncells;
-    in_root["ndofs"] = ndofs_global;
-    in_root["nreps"] = nreps;
-    in_root["scalar_type"] = fp_type;
-    in_root["mat_comp"] = matrix_comparison;
 
     if (rank == 0)
     {
+#if defined(USE_CUDA) || defined(USE_HIP)
       std::cout << device_information();
+#endif
       std::cout << "-----------------------------------\n";
       std::cout << "Polynomial degree : " << order << "\n";
 #ifndef USE_SLICED
@@ -221,17 +214,31 @@ int main(int argc, char* argv[])
       std::cout << "Number of dofs-rank : " << ndofs_global / size << "\n";
       std::cout << "Number of repetitions : " << nreps << "\n";
       std::cout << "Scalar Type: " << fp_type << "\n";
+      std::cout << "XXXUse GLL: " << use_gauss << "\n";
+      std::cout << "Foo: " << matrix_comparison << "\n";
       std::cout << "-----------------------------------\n";
       std::cout << std::flush;
     }
+
+#if defined(USE_CUDA) || defined(USE_HIP)
+
+    Json::Value& in_root = root["input"];
+    Json::Value& out_root = root["results"];
+    in_root["p"] = (Json::UInt64)order;
+    in_root["mpi_size"] = size;
+    in_root["ncells"] = (Json::UInt64)ncells;
+    in_root["ndofs"] = (Json::UInt64)ndofs_global;
+    in_root["nreps"] = (Json::UInt64)nreps;
+    in_root["scalar_type"] = fp_type;
+    in_root["mat_comp"] = matrix_comparison;
 
     // Prepare and set Constants for the bilinear form
     auto kappa = std::make_shared<fem::Constant<T>>(2.0);
     auto f = std::make_shared<fem::Function<T>>(V);
 
     spdlog::debug("Define forms");
-    // Define variational forms
 
+    // Define variational forms
     std::vector<ufcx_form*> aforms;
     std::vector<ufcx_form*> Lforms;
     basix::quadrature::type quad_type;
@@ -471,7 +478,7 @@ int main(int argc, char* argv[])
       std::ofstream strm("out.json", std::ofstream::out);
       writer->write(root, &strm);
     }
-
+#endif
     // Display timings
     dolfinx::list_timings(MPI_COMM_WORLD);
   }

@@ -4,12 +4,13 @@
 
 #pragma once
 
-#include "util.hpp"
+#if defined(USE_CUDA) || defined(USE_HIP)
 
+#include "util.hpp"
 #include <dolfinx/common/Scatterer.h>
 #include <dolfinx/common/log.h>
 #include <dolfinx/la/dolfinx_la.h>
-
+#include <iostream>
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 #include <thrust/extrema.h>
@@ -17,8 +18,6 @@
 #include <thrust/host_vector.h>
 #include <thrust/inner_product.h>
 #include <thrust/transform_reduce.h>
-
-#include <iostream>
 #include <type_traits>
 
 namespace
@@ -458,3 +457,4 @@ void transform(Vector& x, UnaryFunction op)
 }
 
 } // namespace dolfinx::acc
+#endif

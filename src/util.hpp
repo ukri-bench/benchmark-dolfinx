@@ -7,6 +7,8 @@
 #include <cstdio>
 #include <sstream>
 
+#if defined(USE_CUDA) || defined(USE_HIP)
+
 // Some useful utilities for error checking and synchronisation
 // for each hardware type
 
@@ -95,3 +97,4 @@ std::string device_information()
 
   return s.str();
 }
+#endif
