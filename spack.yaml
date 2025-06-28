@@ -91,3 +91,5 @@ spack:
       access_pair:
         id_variable: GITHUB_USER
         secret_variable: GITHUB_TOKEN
+  repos:
+  - /Users/garth/code/projects/ukri-bench/benchmark-dolfinx/spack

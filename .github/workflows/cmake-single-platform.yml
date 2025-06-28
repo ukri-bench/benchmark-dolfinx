@@ -37,7 +37,7 @@ jobs:
         LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/llvm/lib:/opt/rocm/hip/lib
         hipcc --help
 
-    - name: Configure CMake (ROCsm)
+    - name: Configure CMake (ROCm)
       run: |
         PATH=$PATH:/opt/rocm/bin:/opt/rocm/rocprofiler/bin:/opt/rocm/hip/bin
         LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/llvm/lib:/opt/rocm/hip/lib

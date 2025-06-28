@@ -61,7 +61,6 @@ static __global__ void unpack_add(std::int32_t N,
 
 namespace dolfinx::acc
 {
-
 /// Distributed vector
 template <typename T>
 class Vector
@@ -201,7 +200,6 @@ public:
     _scatterer->scatter_fwd_end(std::span<MPI_Request>(_request));
 
     spdlog::debug("scatter_fwd_end step 1");
-
     spdlog::debug("scatter_fwd_end local buf size = {}, remote buf size {}",
                   _buffer_local.size(), _buffer_remote.size());
 
@@ -321,11 +319,13 @@ private:
   thrust::device_vector<T> _x;
 };
 
-/// Compute the inner product of two vectors. The two vectors must have
-/// the same parallel layout
-/// @note Collective MPI operation
-/// @param a A vector
-/// @param b A vector
+/// @brief Compute the inner product of two vectors.
+///
+/// The two vectors must have the same parallel layout.
+///
+/// @note Collective MPI operation.
+/// @param a A vector.
+/// @param b A vector.
 /// @return Returns `a^{H} b` (`a^{T} b` if `a` and `b` are real)
 template <typename Vector>
 auto inner_product(const Vector& a, const Vector& b)
@@ -387,7 +387,7 @@ auto norm(const Vector& a, dolfinx::la::Norm type = dolfinx::la::Norm::l2)
   }
 }
 
-/// Compute vector r = alpha*x + y
+/// Compute vector r = alpha * x + y.
 /// @param r Result
 /// @param alpha
 /// @param x
@@ -405,7 +405,7 @@ void axpy(Vector& r, S alpha, const Vector& x, const Vector& y)
   spdlog::debug("AXPY end");
 }
 
-/// Scale vector by alpha
+/// Scale vector by alpha.
 /// @param r Result
 /// @param alpha
 template <typename Vector, typename S>
