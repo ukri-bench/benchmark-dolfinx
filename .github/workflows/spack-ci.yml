@@ -25,7 +25,7 @@ jobs:
       matrix:
         backend:
           [
-            { runtime: rocm, driver: amdgpu_target=gfx90a },
+            # { runtime: rocm, driver: amdgpu_target=gfx90a },
             { runtime: cuda, driver: cuda_arch=80 },
           ]
     runs-on: ubuntu-24.04

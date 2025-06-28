@@ -1,2 +1,2 @@
 repo:
-  namespace: 'bench_dolfinx_stuff'
+  namespace: "benchmark_dolfinx"
