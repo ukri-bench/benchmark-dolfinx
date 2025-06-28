@@ -64,7 +64,7 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack -e . repo add ./spack
-          spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
+          spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench_dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
 
       - name: Push packages and update index
         env:
