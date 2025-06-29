@@ -4,13 +4,13 @@
 
 #pragma once
 
+#if defined(USE_CUDA) || defined(USE_HIP)
+
+#include "util.hpp"
 #include <dolfinx.h>
 #include <dolfinx/fem/dolfinx_fem.h>
 #include <dolfinx/la/MatrixCSR.h>
-
 #include <thrust/device_vector.h>
-
-#include "util.hpp"
 
 namespace
 {
@@ -242,3 +242,4 @@ private:
   MPI_Comm _comm;
 };
 } // namespace dolfinx::acc
+#endif

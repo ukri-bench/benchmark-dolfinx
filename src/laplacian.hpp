@@ -4,13 +4,14 @@
 
 #pragma once
 
-#include "util.hpp"
-#include <thrust/device_vector.h>
-#include <thrust/execution_policy.h>
+#if defined(USE_CUDA) || defined(USE_HIP)
 
+#include "util.hpp"
 #include <basix/finite-element.h>
 #include <basix/interpolation.h>
 #include <basix/quadrature.h>
+#include <thrust/device_vector.h>
+#include <thrust/execution_policy.h>
 
 template <typename T, int P, int Q>
 __constant__ T phi0_const[Q * (P + 1)];
@@ -1213,5 +1214,6 @@ private:
                                    (dphi1.size() / 2) * sizeof(T)));
   }
 };
-
 } // namespace dolfinx::acc
+
+#endif
