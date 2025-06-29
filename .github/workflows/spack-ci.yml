@@ -21,13 +21,13 @@ env:
 
 jobs:
   build:
-    # strategy:
-    #   matrix:
-    #     backend:
-    #       [
-    #         { runtime: rocm, driver: amdgpu_target=gfx90a },
-    #         { runtime: cuda, driver: cuda_arch=80 },
-    #       ]
+    strategy:
+      matrix:
+        backend:
+          [
+            { runtime: rocm, driver: amdgpu_target=gfx90a },
+            { runtime: cuda, driver: cuda_arch=80 },
+          ]
     runs-on: ubuntu-24.04
     permissions:
       packages: write
@@ -65,7 +65,7 @@ jobs:
         run: |
           spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
           spack env create . spack-configs/gh-actions-env.yaml
-          spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx
+          spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
 
         # spack -e . repo add ./spack
         # spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
