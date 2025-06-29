@@ -37,11 +37,11 @@ jobs:
         LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/llvm/lib:/opt/rocm/hip/lib
         hipcc --help
 
-    - name: Configure CMake
+    - name: Configure CMake (ROCm)
       run: |
         PATH=$PATH:/opt/rocm/bin:/opt/rocm/rocprofiler/bin:/opt/rocm/hip/bin
         LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/llvm/lib:/opt/rocm/hip/lib
-        cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DHIP_ARCH=gfx90a
+        cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DHIP_ARCH=gfx90a src/
 
     - name: Build
       run: |

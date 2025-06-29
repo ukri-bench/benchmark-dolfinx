@@ -4,6 +4,7 @@
 
 from spack.package import *
 
+
 class BenchDolfinx(CMakePackage, CudaPackage, ROCmPackage):
     "A benchmark using DOLFINx."
 
@@ -33,9 +34,12 @@ class BenchDolfinx(CMakePackage, CudaPackage, ROCmPackage):
         depends_on("rocm-core")
         depends_on("rocthrust")
 
+    root_cmakelists_dir = "src"
 
     def cmake_args(self):
-        args = [self.define("SCALAR_TYPE", "float32" if "+fp32" in self.spec else "float64")]
+        args = [
+            self.define("SCALAR_TYPE", "float32" if "+fp32" in self.spec else "float64")
+        ]
         if "+rocm" in self.spec:
             args += [self.define("HIP_ARCH", self.spec.variants["amdgpu_target"].value)]
         if "+cuda" in self.spec:
