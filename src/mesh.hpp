@@ -66,7 +66,7 @@ ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
     int rank = dolfinx::MPI::rank(comm);
     std::vector<std::int32_t> dests;
     std::vector<int> offsets = {0};
-    for (int c = 0; c < ncells; ++c)
+    for (std::size_t c = 0; c < ncells; ++c)
     {
       dests.push_back(rank);
       if (auto it = cell_to_dests.find(c); it != cell_to_dests.end())
@@ -93,7 +93,7 @@ ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
   for (std::size_t c = 0; c < dofmap.extent(0); ++c)
   {
     auto cell_dofs = std::submdspan(dofmap, c, std::full_extent);
-    for (int i = 0; i < dofmap.extent(1); ++i)
+    for (std::size_t i = 0; i < dofmap.extent(1); ++i)
       permuted_dofmap.push_back(cell_dofs(perm[i]));
   }
   std::vector<std::int64_t> permuted_dofmap_global(permuted_dofmap.size());
@@ -143,7 +143,7 @@ compute_boundary_cells(std::shared_ptr<dolfinx::fem::FunctionSpace<T>> V)
 
   std::vector<std::int32_t> local_cells;
   std::vector<std::int32_t> boundary_cells;
-  for (int i = 0; i < cell_mark.size(); ++i)
+  for (std::size_t i = 0; i < cell_mark.size(); ++i)
   {
     if (cell_mark[i])
       boundary_cells.push_back(i);
