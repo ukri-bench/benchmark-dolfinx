@@ -115,7 +115,6 @@ ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
 /// 1. cells which are "local", i.e. the dofs on
 /// these cells are not shared with any other process.
 /// 2. cells which share dofs with other processes.
-///
 template <typename T>
 std::pair<std::vector<std::int32_t>, std::vector<std::int32_t>>
 compute_boundary_cells(std::shared_ptr<dolfinx::fem::FunctionSpace<T>> V)

@@ -42,8 +42,8 @@ namespace
 /// @param degree
 /// @param mpi_size
 /// @return
-std::array<std::int64_t, 3> num_cells(std::int64_t ndofs, int degree,
-                                      int mpi_size)
+std::array<std::int64_t, 3> compute_num_cells(std::int64_t ndofs, int degree,
+                                              int mpi_size)
 {
   double nx_approx = (std::pow(ndofs * mpi_size, 1.0 / 3.0) - 1) / degree;
   std::int64_t n0 = static_cast<std::int64_t>(nx_approx);
@@ -190,7 +190,7 @@ int main(int argc, char* argv[])
     MPI_Comm_size(comm, &size);
 
     // Create mesh
-    std::array<std::int64_t, 3> nx = num_cells(ndofs, order, size);
+    std::array<std::int64_t, 3> nx = compute_num_cells(ndofs, order, size);
     spdlog::info("Mesh shape: {}x{}x{}", nx[0], nx[1], nx[2]);
     auto mesh = std::make_shared<mesh::Mesh<T>>(
         create_mesh<T>(comm, nx, geom_perturb_fact));
@@ -292,26 +292,6 @@ int main(int argc, char* argv[])
 #if defined(USE_CUDA) || defined(USE_HIP)
 
     // Copy data to GPU
-    // Constants
-    // TODO Pack these properly
-    const std::int32_t num_cells_all
-        = mesh->topology()->index_map(tdim)->size_local()
-          + mesh->topology()->index_map(tdim)->num_ghosts();
-
-    thrust::device_vector<T> constants_d(num_cells_all, kappa->value[0]);
-    std::span<const T> constants_d_span(
-        thrust::raw_pointer_cast(constants_d.data()), constants_d.size());
-    spdlog::info("Send constants to GPU (size = {} bytes)",
-                 constants_d.size() * sizeof(T));
-
-    // V dofmap
-    thrust::device_vector<std::int32_t> dofmap_d(dofmap->map().data_handle(),
-                                                 dofmap->map().data_handle()
-                                                     + dofmap->map().size());
-    std::span<const std::int32_t> dofmap_d_span(
-        thrust::raw_pointer_cast(dofmap_d.data()), dofmap_d.size());
-    spdlog::info("Send dofmap to GPU (size = {} bytes)",
-                 dofmap_d.size() * sizeof(std::int32_t));
 
     // Define vectors
     using DeviceVector = dolfinx::acc::Vector<T>;
@@ -329,33 +309,6 @@ int main(int argc, char* argv[])
     y.set(T{0.0});
 
     // -----------------------------------------------------------------------------
-    // Put geometry information onto device
-    const fem::CoordinateElement<T>& cmap = mesh->geometry().cmap();
-    auto xdofmap = mesh->geometry().dofmap();
-
-    // Geometry dofmap
-    spdlog::info("Copy geometry dofmap to device ({} bytes)",
-                 xdofmap.size() * sizeof(std::int32_t));
-    thrust::device_vector<std::int32_t> xdofmap_d(
-        xdofmap.data_handle(), xdofmap.data_handle() + xdofmap.size());
-    std::span<const std::int32_t> xdofmap_d_span(
-        thrust::raw_pointer_cast(xdofmap_d.data()), xdofmap_d.size());
-    // Geometry points
-    spdlog::info("Copy geometry to device ({} bytes)",
-                 mesh->geometry().x().size() * sizeof(T));
-    thrust::device_vector<T> xgeom_d(mesh->geometry().x().begin(),
-                                     mesh->geometry().x().end());
-    std::span<const T> xgeom_d_span(thrust::raw_pointer_cast(xgeom_d.data()),
-                                    xgeom_d.size());
-
-    // TODO Ghosts
-    const int num_dofs = map->size_local() + map->num_ghosts();
-    std::vector<std::int8_t> bc_marker(num_dofs, 0);
-    bc->mark_dofs(bc_marker);
-    thrust::device_vector<std::int8_t> bc_marker_d(bc_marker.begin(),
-                                                   bc_marker.end());
-    std::span<const std::int8_t> bc_marker_d_span(
-        thrust::raw_pointer_cast(bc_marker_d.data()), bc_marker_d.size());
 
     // Create matrix free operator
     spdlog::info("Create MatFreeLaplacian");
@@ -365,9 +318,8 @@ int main(int argc, char* argv[])
         = use_gauss ? basix::quadrature::type::gauss_jacobi
                     : basix::quadrature::type::gll;
 
-    MatFreeLaplacian<T> op(order, qmode, constants_d_span, dofmap_d_span,
-                           xgeom_d_span, xdofmap_d_span, cmap, lcells, bcells,
-                           bc_marker_d_span, quad_type, 0);
+    MatFreeLaplacian<T> op(*mesh, *V, *bc, order, qmode, T(kappa->value[0]),
+                           lcells, bcells, quad_type, 0);
 
     op_create_timer.stop();
 

@@ -12,6 +12,7 @@
 #include <basix/finite-element.h>
 #include <basix/interpolation.h>
 #include <basix/quadrature.h>
+#include <dolfinx/fem/FunctionSpace.h>
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 
@@ -52,25 +53,50 @@ static const std::map<int, int> q_map_gll
 static const std::map<int, int> q_map_gq
     = {{1, 2}, {2, 4}, {3, 6}, {4, 8}, {5, 10}, {6, 12}, {7, 14}, {8, 16}};
 
+namespace impl
+{
+template <typename T>
+std::size_t num_cells(const dolfinx::mesh::Mesh<T>& mesh)
+{
+  int tdim = mesh.topology()->dim();
+  return mesh.topology()->index_map(tdim)->size_local()
+         + mesh.topology()->index_map(tdim)->num_ghosts();
+}
+
+template <typename T>
+std::vector<std::int8_t>
+build_bc_markers(const dolfinx::fem::DirichletBC<T>& bc)
+{
+  auto map = bc.function_space()->dofmap()->index_map;
+  std::int32_t num_dofs = map->size_local() + map->num_ghosts();
+  std::vector<std::int8_t> bc_marker(num_dofs, 0);
+  bc.mark_dofs(bc_marker);
+  return bc_marker;
+}
+} // namespace impl
+
 template <typename T>
 class MatFreeLaplacian
 {
 public:
   using value_type = T;
 
-  MatFreeLaplacian(int degree, int qmode, std::span<const T> coefficients,
-                   std::span<const std::int32_t> dofmap,
-                   std::span<const T> xgeom,
-                   std::span<const std::int32_t> geometry_dofmap,
-                   const dolfinx::fem::CoordinateElement<T>& cmap,
-                   const std::vector<int>& lcells,
+  MatFreeLaplacian(const dolfinx::mesh::Mesh<T>& mesh,
+                   const dolfinx::fem::FunctionSpace<T>& V,
+                   const dolfinx::fem::DirichletBC<T>& bc, int degree,
+                   int qmode, T constant, const std::vector<int>& lcells,
                    const std::vector<int>& bcells,
-                   std::span<const std::int8_t> bc_marker,
                    basix::quadrature::type quad_type,
                    std::size_t batch_size = 0)
-      : _degree(degree), _cell_constants(coefficients), _cell_dofmap(dofmap),
-        _xgeom(xgeom), _geometry_dofmap(geometry_dofmap), _bc_marker(bc_marker),
-        _batch_size(batch_size)
+      : _degree(degree), _cell_constants(impl::num_cells(mesh), constant),
+        _cell_dofmap(V.dofmap()->map().data_handle(),
+                     V.dofmap()->map().data_handle()
+                         + V.dofmap()->map().size()),
+        _xgeom(mesh.geometry().x().begin(), mesh.geometry().x().end()),
+        _geometry_dofmap(mesh.geometry().dofmap().data_handle(),
+                         mesh.geometry().dofmap().data_handle()
+                             + mesh.geometry().dofmap().size()),
+        _bc_marker(impl::build_bc_markers(bc)), _batch_size(batch_size)
   {
     basix::element::lagrange_variant variant;
     std::map<int, int> q_map;
@@ -93,6 +119,8 @@ public:
     auto [Gpoints, Gweights] = basix::quadrature::make_quadrature<T>(
         quad_type, basix::cell::type::hexahedron,
         basix::polyset::type::standard, q_map.at(_degree + qmode));
+
+    const dolfinx::fem::CoordinateElement<T>& cmap = mesh.geometry().cmap();
 
     std::array<std::size_t, 4> phi_shape
         = cmap.tabulate_shape(1, Gweights.size());
@@ -270,8 +298,9 @@ public:
 
         std::size_t shm_size = 24 * sizeof(T); // coordinate size (8x3)
         geometry_computation<T, Q><<<grid_size, block_size, shm_size, 0>>>(
-            _xgeom.data(), thrust::raw_pointer_cast(_g_entity.data()),
-            _geometry_dofmap.data(),
+            thrust::raw_pointer_cast(_xgeom.data()),
+            thrust::raw_pointer_cast(_g_entity.data()),
+            thrust::raw_pointer_cast(_geometry_dofmap.data()),
             thrust::raw_pointer_cast(_dphi_geometry.data()),
             thrust::raw_pointer_cast(_g_weights_d.data()), cell_list_d.data(),
             cell_list_d.size());
@@ -311,8 +340,9 @@ public:
       dim3 grid_size(cell_list_d.size());
       spdlog::debug("Calling mat_diagonal");
       mat_diagonal<T, P, Q><<<grid_size, block_size, 0>>>(
-          _cell_constants.data(), y, geometry_ptr, _cell_dofmap.data(),
-          cell_list_d.data(), cell_list_d.size(), _bc_marker.data());
+          thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
+          thrust::raw_pointer_cast(_cell_dofmap.data()), cell_list_d.data(),
+          cell_list_d.size(), thrust::raw_pointer_cast(_bc_marker.data()));
       check_device_last_error();
     }
 
@@ -337,8 +367,9 @@ public:
       dim3 block_size(P + 1, P + 1, P + 1);
       dim3 grid_size(cell_list_d.size());
       mat_diagonal<T, P, Q><<<grid_size, block_size, 0>>>(
-          _cell_constants.data(), y, geometry_ptr, _cell_dofmap.data(),
-          cell_list_d.data(), cell_list_d.size(), _bc_marker.data());
+          thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
+          thrust::raw_pointer_cast(_cell_dofmap.data()), cell_list_d.data(),
+          cell_list_d.size(), thrust::raw_pointer_cast(_bc_marker.data()));
       check_device_last_error();
     }
 
@@ -386,9 +417,10 @@ public:
         dim3 block_size(Q, Q, Q);
         dim3 grid_size(cell_list_d.size());
         stiffness_operator<T, P, Q><<<grid_size, block_size>>>(
-            x, _cell_constants.data(), y, geometry_ptr, _cell_dofmap.data(),
-            cell_list_d.data(), cell_list_d.size(), _bc_marker.data(),
-            _is_identity);
+            x, thrust::raw_pointer_cast(_cell_constants.data()), y,
+            geometry_ptr, thrust::raw_pointer_cast(_cell_dofmap.data()),
+            cell_list_d.data(), cell_list_d.size(),
+            thrust::raw_pointer_cast(_bc_marker.data()), _is_identity);
 
         check_device_last_error();
       }
@@ -429,8 +461,9 @@ public:
       dim3 block_size(Q, Q, Q);
       dim3 grid_size(cell_list_d.size());
       stiffness_operator<T, P, Q><<<grid_size, block_size>>>(
-          x, _cell_constants.data(), y, geometry_ptr, _cell_dofmap.data(),
-          cell_list_d.data(), cell_list_d.size(), _bc_marker.data(),
+          x, thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
+          thrust::raw_pointer_cast(_cell_dofmap.data()), cell_list_d.data(),
+          cell_list_d.size(), thrust::raw_pointer_cast(_bc_marker.data()),
           _is_identity);
 
       check_device_last_error();
@@ -564,17 +597,17 @@ private:
   int _op_nq;
 
   // Reference to on-device storage for constants, dofmap etc.
-  std::span<const T> _cell_constants;
-  std::span<const std::int32_t> _cell_dofmap;
+  thrust::device_vector<T> _cell_constants;
+  thrust::device_vector<std::int32_t> _cell_dofmap;
 
   // Reference to on-device storage of geometry data
-  std::span<const T> _xgeom;
-  std::span<const std::int32_t> _geometry_dofmap;
+  thrust::device_vector<T> _xgeom;
+  thrust::device_vector<std::int32_t> _geometry_dofmap;
 
   // geometry tables dphi on device
   thrust::device_vector<T> _dphi_geometry;
 
-  std::span<const std::int8_t> _bc_marker;
+  thrust::device_vector<std::int8_t> _bc_marker;
 
   // On device storage for geometry quadrature weights
   thrust::device_vector<T> _g_weights_d;
@@ -586,7 +619,12 @@ private:
   bool _is_identity;
 
   // Lists of cells which are local (lcells) and boundary (bcells)
-  thrust::device_vector<int> _lcells_device, _bcells_device;
+
+  // Exclusively owned cells (not not share dofs with other processes)
+  thrust::device_vector<int> _lcells_device;
+
+  // Cell on partition boundaries
+  thrust::device_vector<int> _bcells_device;
 
   // On device storage for the inverse diagonal, needed for Jacobi
   // preconditioner (to remove in future)
