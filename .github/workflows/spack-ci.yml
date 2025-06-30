@@ -27,7 +27,7 @@ jobs:
           [
             { runtime: cpu, driver: ''},
             { runtime: rocm, driver: amdgpu_target=gfx90a },
-            { runtime: cuda, driver: cuda_arch=90 },
+            { runtime: cuda, driver: cuda_arch=80 },
           ]
     runs-on: ubuntu-24.04
     permissions:
