@@ -399,9 +399,9 @@ int main(int argc, char* argv[])
         = use_gauss ? basix::quadrature::type::gauss_jacobi
                     : basix::quadrature::type::gll;
 
-    acc::MatFreeLaplacian<T> op(order, qmode, constants_d_span, dofmap_d_span,
-                                xgeom_d_span, xdofmap_d_span, cmap, lcells,
-                                bcells, bc_marker_d_span, quad_type, 0);
+    MatFreeLaplacian<T> op(order, qmode, constants_d_span, dofmap_d_span,
+                           xgeom_d_span, xdofmap_d_span, cmap, lcells, bcells,
+                           bc_marker_d_span, quad_type, 0);
 
     op_create_timer.stop();
 

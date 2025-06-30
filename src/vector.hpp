@@ -109,22 +109,11 @@ public:
             thrust::device_vector<std::int32_t>(_scatterer->local_indices())),
         _remote_indices(
             thrust::device_vector<std::int32_t>(_scatterer->remote_indices())),
+        _request(
+            _scatterer->create_request_vector(common::Scatterer<>::type::p2p)),
         _x(bs * (map->size_local() + map->num_ghosts()), 0)
+
   {
-    // int size = bs * (map->size_local() + map->num_ghosts());
-    // _x = thrust::device_vector<T>(size, 0);
-
-    // _buffer_local
-    //     = thrust::device_vector<T>(_scatterer->local_buffer_size(), 0);
-    // _buffer_remote
-    //     = thrust::device_vector<T>(_scatterer->remote_buffer_size(), 0);
-    // _local_indices
-    //     = thrust::device_vector<std::int32_t>(_scatterer->local_indices());
-    // _remote_indices
-    //     = thrust::device_vector<std::int32_t>(_scatterer->remote_indices());
-
-    auto scatterer_type = common::Scatterer<>::type::p2p;
-    _request = _scatterer->create_request_vector(scatterer_type);
   }
 
   // Copy constructor
@@ -343,14 +332,14 @@ private:
   // Scatter for managing MPI communication
   std::shared_ptr<common::Scatterer<>> _scatterer;
 
-  // MPI request handle
-  std::vector<MPI_Request> _request = {MPI_REQUEST_NULL};
-
   // Buffers for ghost scatters
   thrust::device_vector<T> _buffer_local, _buffer_remote;
 
   // indices for ghost scatters
   thrust::device_vector<std::int32_t> _local_indices, _remote_indices;
+
+  // MPI request handle
+  std::vector<MPI_Request> _request = {MPI_REQUEST_NULL};
 
   // Vector data
   thrust::device_vector<T> _x;

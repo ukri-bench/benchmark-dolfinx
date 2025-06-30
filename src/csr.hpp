@@ -65,6 +65,8 @@ __global__ void spmvT_impl(int N, const T* values,
 
 } // namespace benchdolfinx::impl
 
+using namespace benchdolfinx;
+
 namespace dolfinx::acc
 {
 
@@ -85,7 +87,7 @@ public:
   MatrixOperator(
       std::shared_ptr<const fem::Form<T, T>> a,
       std::vector<std::reference_wrapper<const fem::DirichletBC<T>>> bcs)
-      : _comm(a->function_spaces()[0]->V->mesh()->comm())
+      : _comm(a->function_spaces()[0]->mesh()->comm())
   {
     dolfinx::common::Timer t0("~setup phase MatrixOperator");
 
@@ -162,7 +164,7 @@ public:
   /// @param diag_inv [in/out] A Vector to copy the inverse diagonal values into
   /// @note Vector must be the correct size
   template <typename Vector>
-  void get_diag_inverse(const Vector& diag_inv)
+  void get_diag_inverse(Vector& diag_inv)
   {
     thrust::copy(_diag_inv.begin(), _diag_inv.end(),
                  diag_inv.mutable_array().begin());
@@ -174,11 +176,12 @@ public:
   ///
   /// @tparam Vector The type of the input and output vector.
   ///
-  /// @param x The input vector.
+  /// @param x The input vector. See note.
   /// @param y The output vector.
   /// @param transpose If true, perform the transpose operation y=A^T x
+  /// @note x is not const because a scatter_fwd is done on it
   template <typename Vector>
-  void operator()(const Vector& x, Vector& y, bool transpose = false)
+  void operator()(Vector& x, Vector& y, bool transpose = false)
   {
     dolfinx::common::Timer t0("% MatrixOperator application");
 
