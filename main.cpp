@@ -31,18 +31,18 @@
 #endif
 
 using namespace dolfinx;
-using T = SCALAR_TYPE;
 namespace po = boost::program_options;
+using T = SCALAR_TYPE;
 
 int main(int argc, char* argv[])
 {
-  po::options_description desc("Allowed options");
+  // Program options
+  po::options_description desc("Options");
   desc.add_options()("help,h", "Print usage message")(
       "benchmark,b", po::value<std::size_t>()->default_value(0),
-      "Overrides other options to run predefined tests: 0=off, 1=correctness, "
-      "2=performance")(
+      "Test to run: 0=off, 1=correctness, 2=performance")(
       "ndofs", po::value<std::size_t>()->default_value(1000),
-      "Requested number of degrees-of-freedom per MPI process")(
+      "Number of degrees-of-freedom per MPI process")(
       "qmode", po::value<std::size_t>()->default_value(1),
       "Quadrature mode (0 or 1): qmode=0 has P+1 points in each direction,"
       "qmode=1 has P+2 points in each direction.")(
@@ -51,12 +51,11 @@ int main(int argc, char* argv[])
                                po::value<std::size_t>()->default_value(3),
                                "Polynomial degree \"P\" (2-7)")(
       "mat_comp", po::bool_switch()->default_value(false),
-      "Compare result to matrix operator (slow with large ndofs) - default "
-      "off")("geom_perturb_fact", po::value<T>()->default_value(0.125),
-             "Adds a random perturbation to the geometry, useful to check "
-             "correctness")(
-      "use_gauss", po::bool_switch()->default_value(false),
-      "Use Gauss quadrature rather than GLL quadrature - default off");
+      "Compare result to matrix operator (slow with large ndofs)")(
+      "geom_perturb_fact", po::value<T>()->default_value(0.125),
+      "Randomly perturb the geometry (useful to check "
+      "correctness)")("use_gauss", po::bool_switch()->default_value(false),
+                      "Use Gauss quadrature rather than GLL quadrature");
 
   po::variables_map vm;
   po::store(po::command_line_parser(argc, argv)
@@ -68,7 +67,7 @@ int main(int argc, char* argv[])
 
   if (vm.count("help"))
   {
-    std::cout << "dolfinx benchmark\n-----------------\n";
+    std::cout << "DOLFINx benchmark\n-----------------\n";
     std::cout
         << "\n  Finite Element Operator Action Benchmark which computes\n";
     std::cout << "  the Laplacian operator on a cube mesh of hexahedral "
@@ -105,7 +104,7 @@ int main(int argc, char* argv[])
   MPI_Init(&argc, &argv);
   {
     MPI_Comm comm{MPI_COMM_WORLD};
-    int rank = 0, size = 0;
+    int rank(0), size(0);
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
 
