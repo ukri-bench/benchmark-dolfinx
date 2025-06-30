@@ -138,13 +138,13 @@ public:
     thrust::copy(_A->row_ptr().begin(), _A->row_ptr().begin() + num_rows + 1,
                  _row_ptr.begin());
 
-                 spdlog::info("Creating off_diag with {} to {}",
+    spdlog::info("Creating off_diag with {} to {}",
                  _A->off_diag_offset().size(), _off_diag_offset.size());
     thrust::copy(_A->off_diag_offset().begin(),
                  _A->off_diag_offset().begin() + num_rows,
                  _off_diag_offset.begin());
 
-                 spdlog::info("Creating cols with {} to {}", nnz, _cols.size());
+    spdlog::info("Creating cols with {} to {}", nnz, _cols.size());
     thrust::copy(_A->cols().begin(), _A->cols().begin() + nnz, _cols.begin());
     spdlog::info("Creating values with {} to {}", nnz, _values.size());
     thrust::copy(_A->values().begin(), _A->values().begin() + nnz,
@@ -202,7 +202,7 @@ public:
       dim3 block_size(256);
       dim3 grid_size((num_rows + block_size.x - 1) / block_size.x);
       x.scatter_fwd_begin();
-      spmv_impl<T><<<grid_size, block_size, 0, 0>>>(
+      impl::spmv_impl<T><<<grid_size, block_size, 0, 0>>>(
           num_rows, thrust::raw_pointer_cast(_values.data()),
           thrust::raw_pointer_cast(_row_ptr.data()),
           thrust::raw_pointer_cast(_off_diag_offset.data()),
@@ -210,7 +210,7 @@ public:
       check_device_last_error();
       x.scatter_fwd_end();
 
-      spmv_impl<T><<<grid_size, block_size, 0, 0>>>(
+      impl::spmv_impl<T><<<grid_size, block_size, 0, 0>>>(
           num_rows, thrust::raw_pointer_cast(_values.data()),
           thrust::raw_pointer_cast(_off_diag_offset.data()),
           thrust::raw_pointer_cast(_row_ptr.data()) + 1,
