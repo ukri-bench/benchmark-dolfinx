@@ -83,7 +83,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # Compile UFL code
 add_custom_command(
   OUTPUT poisson.c
-  COMMAND ffcx --scalar_type ${SCALAR_TYPE} --sum_factorization
+  COMMAND ffcx --scalar_type float64 --sum_factorization
           ${CMAKE_CURRENT_SOURCE_DIR}/poisson.py
   VERBATIM
   DEPENDS poisson.py
