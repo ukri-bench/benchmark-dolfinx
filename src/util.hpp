@@ -12,6 +12,9 @@
 // Some useful utilities for error checking and synchronisation
 // for each hardware type
 
+namespace benchdolfinx
+{
+
 #ifdef USE_HIP
 #include <hip/hip_runtime.h>
 #define err_check(command)                                                     \
@@ -42,19 +45,19 @@
 #define non_temp_load(addr) __builtin_nontemporal_load(addr)
 #define deviceMemcpyToSymbol(symbol, addr, count)                              \
   hipMemcpyToSymbol(symbol, addr, count)
-void check_device_last_error() { err_check(hipGetLastError()); }
-void device_synchronize() { err_check(hipDeviceSynchronize()); }
+inline void check_device_last_error() { err_check(hipGetLastError()); }
+inline void device_synchronize() { err_check(hipDeviceSynchronize()); }
 #elif USE_CUDA
 #define non_temp_load(addr) __ldg(addr)
 #define deviceMemcpyToSymbol(symbol, addr, count)                              \
   cudaMemcpyToSymbol(symbol, addr, count)
-void check_device_last_error() { err_check(cudaGetLastError()); }
-void device_synchronize() { err_check(cudaDeviceSynchronize()); }
+inline void check_device_last_error() { err_check(cudaGetLastError()); }
+inline void device_synchronize() { err_check(cudaDeviceSynchronize()); }
 #else
 #error "Unsupported platform"
 #endif
 
-std::string device_information()
+inline std::string device_information()
 {
   std::stringstream s;
   const int kb = 1024;
@@ -98,3 +101,4 @@ std::string device_information()
   return s.str();
 }
 #endif
+}

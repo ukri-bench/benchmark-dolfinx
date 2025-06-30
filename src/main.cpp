@@ -2,34 +2,19 @@
 // Garth N. Wells
 // SPDX-License-Identifier:    MIT
 
-#include "csr.hpp"
 #include "forms.hpp"
-#include "laplacian.hpp"
+#include "laplacian_solver.hpp"
 #include "mesh.hpp"
-#include "poisson.h"
 #include "util.hpp"
-#include "vector.hpp"
 #include <array>
 #include <basix/finite-element.h>
-#include <basix/quadrature.h>
 #include <boost/program_options.hpp>
-#include <chrono>
-#include <dolfinx.h>
-#include <dolfinx/fem/dolfinx_fem.h>
-#include <dolfinx/io/XDMFFile.h>
-#include <dolfinx/la/MatrixCSR.h>
-#include <dolfinx/la/SparsityPattern.h>
 #include <dolfinx/mesh/generation.h>
-#include <fstream>
 #include <iostream>
 #include <json/json.h>
 #include <memory>
 #include <mpi.h>
 #include <random>
-
-#if defined(USE_CUDA) || defined(USE_HIP)
-#include <thrust/sequence.h>
-#endif
 
 using namespace dolfinx;
 namespace po = boost::program_options;
@@ -102,7 +87,7 @@ mesh::Mesh<X> create_mesh(MPI_Comm comm, std::array<std::int64_t, 3> n,
       geom_x[i] += distribution(generator);
   }
 
-  // First order coordinate element
+  // Degree 1 coordinate element
   auto element
       = std::make_shared<basix::FiniteElement<T>>(basix::create_tp_element<T>(
           basix::element::family::P, basix::cell::type::hexahedron, 1,
@@ -128,7 +113,7 @@ int main(int argc, char* argv[])
       "Quadrature mode (0 or 1): qmode=0 has P+1 points in each direction,"
       "qmode=1 has P+2 points in each direction.")(
       "nreps", po::value<std::size_t>()->default_value(1000),
-      "Number of repetitions")("order",
+      "Number of repetitions")("degree",
                                po::value<std::size_t>()->default_value(3),
                                "Polynomial degree \"P\" (2-7)")(
       "mat_comp", po::bool_switch()->default_value(false),
@@ -159,7 +144,7 @@ int main(int argc, char* argv[])
 
   std::size_t ndofs = vm["ndofs"].as<std::size_t>();
   std::size_t nreps = vm["nreps"].as<std::size_t>();
-  std::size_t order = vm["order"].as<std::size_t>();
+  std::size_t degree = vm["degree"].as<std::size_t>();
   bool matrix_comparison = vm["mat_comp"].as<bool>();
   T geom_perturb_fact = vm["geom_perturb_fact"].as<T>();
   bool use_gauss = vm["use_gauss"].as<bool>();
@@ -174,7 +159,7 @@ int main(int argc, char* argv[])
   {
     ndofs = 15625;
     nreps = 1;
-    order = 6;
+    degree = 6;
     qmode = 1;
     matrix_comparison = true;
     geom_perturb_fact = 0.125;
@@ -190,14 +175,14 @@ int main(int argc, char* argv[])
     MPI_Comm_size(comm, &size);
 
     // Create mesh
-    std::array<std::int64_t, 3> nx = compute_num_cells(ndofs, order, size);
+    std::array<std::int64_t, 3> nx = compute_num_cells(ndofs, degree, size);
     spdlog::info("Mesh shape: {}x{}x{}", nx[0], nx[1], nx[2]);
     auto mesh = std::make_shared<mesh::Mesh<T>>(
         create_mesh<T>(comm, nx, geom_perturb_fact));
 
     // Finite element for higher-order discretisation
     auto element = basix::create_tp_element<T>(
-        basix::element::family::P, basix::cell::type::hexahedron, order,
+        basix::element::family::P, basix::cell::type::hexahedron, degree,
         basix::element::lagrange_variant::gll_warped,
         basix::element::dpc_variant::unset, false);
 
@@ -218,10 +203,10 @@ int main(int argc, char* argv[])
     if (rank == 0)
     {
 #if defined(USE_CUDA) || defined(USE_HIP)
-      std::cout << device_information();
+      std::cout << benchdolfinx::device_information();
 #endif
       std::cout << "-----------------------------------\n";
-      std::cout << "Polynomial degree : " << order << "\n";
+      std::cout << "Polynomial degree : " << degree << "\n";
 #ifndef USE_SLICED
       std::cout << "Sliced : no" << std::endl;
 #else
@@ -244,7 +229,7 @@ int main(int argc, char* argv[])
     Json::Value root;
 
     Json::Value& in_root = root["input"];
-    in_root["p"] = (Json::UInt64)order;
+    in_root["p"] = (Json::UInt64)degree;
     in_root["mpi_size"] = size;
     in_root["ncells"] = (Json::UInt64)ncells;
     in_root["ndofs"] = (Json::UInt64)ndofs_global;
@@ -256,12 +241,10 @@ int main(int argc, char* argv[])
     spdlog::debug("Define forms");
     auto kappa = std::make_shared<fem::Constant<T>>(2.0);
     auto f = std::make_shared<fem::Function<T>>(V);
-    auto a = std::make_shared<fem::Form<double>>(
-        benchdolfinx::create_laplacian_form2(V, {{"c0", kappa}}, qmode,
-                                             use_gauss, order));
-    auto L = std::make_shared<fem::Form<double>>(
-        benchdolfinx::create_laplacian_form1(V, {{"w0", f}}, qmode, use_gauss,
-                                             order));
+    fem::Form<double> a = benchdolfinx::create_laplacian_form2(
+        V, {{"c0", kappa}}, qmode, use_gauss, degree);
+    fem::Form<double> L = benchdolfinx::create_laplacian_form1(
+        V, {{"w0", f}}, qmode, use_gauss, degree);
 
     spdlog::debug("Interpolate (rank {})", rank);
     f->interpolate(
@@ -283,127 +266,22 @@ int main(int argc, char* argv[])
     spdlog::debug("Done f->c on {}", rank);
 
     auto dofmap = V->dofmap();
-    auto facets = dolfinx::mesh::exterior_facet_indices(*topology);
+    auto facets = mesh::exterior_facet_indices(*topology);
     auto bdofs = fem::locate_dofs_topological(*topology, *dofmap, fdim, facets);
-    auto bc = std::make_shared<const fem::DirichletBC<T>>(1.3, bdofs, V);
+    fem::DirichletBC<T> bc(1.3, bdofs, V);
 
-#if defined(USE_CUDA) || defined(USE_HIP)
+    benchdolfinx::laplace_action<T>(*V, a, L, bc, degree, qmode,
+                                    kappa->value[0], nreps, use_gauss);
 
-    // Copy data to GPU
-
-    // Define vectors
-    using DeviceVector = dolfinx::acc::Vector<T>;
-
-    // Input vector
-    auto map = V->dofmap()->index_map;
-    spdlog::info("Create device vector u");
-
-    DeviceVector u(map, 1);
-    u.set(T{0.0});
-
-    // Output vector
-    spdlog::info("Create device vector y");
-    DeviceVector y(map, 1);
-    y.set(T{0.0});
-
-    // -----------------------------------------------------------------------------
-
-    // Create matrix free operator
-    spdlog::info("Create MatFreeLaplacian");
-    dolfinx::common::Timer op_create_timer("% Create matfree operator");
-
-    basix::quadrature::type quad_type
-        = use_gauss ? basix::quadrature::type::gauss_jacobi
-                    : basix::quadrature::type::gll;
-
-    MatFreeLaplacian<T> op(*mesh, *V, *bc, order, qmode, T(kappa->value[0]),
-                           quad_type, 0);
-
-    op_create_timer.stop();
-
-    la::Vector<T> b(map, 1);
-    fem::assemble_vector(b.mutable_array(), *L);
-    u.copy_from_host(b); // Copy data from host vector to device vector
-    u.scatter_fwd_begin();
-
-    // Matrix free
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < nreps; ++i)
-      op(u, y);
-    auto stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration = stop - start;
-
-    T unorm = acc::norm(u);
-    T ynorm = acc::norm(y);
-
-    Json::Value& out_root = root["results"];
-    if (rank == 0)
-    {
-      std::cout << "Mat-free Matvec time: " << duration.count() << std::endl;
-      std::cout << "Mat-free action Gdofs/s: "
-                << ndofs_global * nreps / (1e9 * duration.count()) << std::endl;
-
-      out_root["gdofs"] = ndofs_global * nreps / (1e9 * duration.count());
-
-      std::cout << "Norm of u = " << unorm << std::endl;
-      std::cout << "Norm of y = " << ynorm << std::endl;
-    }
-
-    if (matrix_comparison)
-    {
-      // Compare to assembling on CPU and copying matrix to GPU
-      DeviceVector z(map, 1);
-      z.set(T{0.0});
-
-      acc::MatrixOperator<T> mat_op(a, {*bc});
-      dolfinx::common::Timer mtimer("% CSR Matvec");
-      for (int i = 0; i < nreps; ++i)
-        mat_op(u, z);
-      mtimer.stop();
-
-      T unorm = acc::norm(u);
-      T znorm = acc::norm(z);
-      // Compute error
-      DeviceVector e(map, 1);
-      acc::axpy(e, T{-1}, y, z);
-      T enorm = acc::norm(e);
-
-      if (rank == 0)
-      {
-        std::cout << "Norm of u = " << unorm << std::endl;
-        std::cout << "Norm of z = " << znorm << std::endl;
-        std::cout << "Norm of error = " << enorm << std::endl;
-        std::cout << "Relative norm of error = " << enorm / znorm << std::endl;
-        out_root["error_norm"] = enorm;
-      }
-
-      // // Compute error in diagonal computation
-      // DeviceVector mat_free_inv_diag(map, 1);
-      // op.get_diag_inverse(mat_free_inv_diag);
-      // DeviceVector mat_inv_diag(map, 1);
-      // mat_op.get_diag_inverse(mat_inv_diag);
-
-      // DeviceVector e_diag(map, 1);
-      // acc::axpy(e_diag, T{-1.0}, mat_inv_diag, mat_free_inv_diag);
-      // T dnorm = acc::norm(e_diag);
-
-      // if (rank == 0)
-      // {
-      //   std::cout << "Norm of diagonal error = " << dnorm << "\n";
-      //   out_root["diagonal_error_norm"] = dnorm;
-      // }
-    }
-
-#endif
-    if (rank == 0)
-    {
-      Json::StreamWriterBuilder builder;
-      builder["indentation"] = "  ";
-      const std::unique_ptr<Json::StreamWriter> writer(
-          builder.newStreamWriter());
-      std::ofstream strm("out.json", std::ofstream::out);
-      writer->write(root, &strm);
-    }
+    // if (rank == 0)
+    // {
+    //   Json::StreamWriterBuilder builder;
+    //   builder["indentation"] = "  ";
+    //   const std::unique_ptr<Json::StreamWriter> writer(
+    //       builder.newStreamWriter());
+    //   std::ofstream strm("out.json", std::ofstream::out);
+    //   writer->write(root, &strm);
+    // }
 
     // Display timings
     dolfinx::list_timings(MPI_COMM_WORLD);

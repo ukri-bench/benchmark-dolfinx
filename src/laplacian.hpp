@@ -13,17 +13,18 @@
 #include <basix/finite-element.h>
 #include <basix/interpolation.h>
 #include <basix/quadrature.h>
+#include <dolfinx/fem/DirichletBC.h>
 #include <dolfinx/fem/FunctionSpace.h>
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 
 namespace benchdolfinx
 {
-/// @brief TODO
-/// @tparam T
-/// @param mat
-/// @param shape
-/// @return
+/// @brief Check is a 2D array (matrix) is the i
+/// @tparam T Type
+/// @param[in] mat Matrix data in row-major order.
+/// @param[in] shape Shape of the matrix.
+/// @return True iff the matrix is an identity matrix, otherwise false.
 template <typename T>
 bool matrix_is_identity(const std::vector<T>& mat,
                         std::array<std::size_t, 2> shape)
@@ -47,7 +48,7 @@ bool matrix_is_identity(const std::vector<T>& mat,
     return false;
 }
 
-// FIXME Could just replace these maps with expression
+// FIXME: Could just replace these maps with expression
 static const std::map<int, int> q_map_gll
     = {{1, 1}, {2, 3}, {3, 4}, {4, 6}, {5, 8}, {6, 10}, {7, 12}, {8, 14}};
 
@@ -82,6 +83,15 @@ class MatFreeLaplacian
 public:
   using value_type = T;
 
+  /// @brief TODO
+  /// @param mesh
+  /// @param V
+  /// @param bc
+  /// @param degree
+  /// @param qmode
+  /// @param constant
+  /// @param quad_type
+  /// @param batch_size
   MatFreeLaplacian(const dolfinx::mesh::Mesh<T>& mesh,
                    const dolfinx::fem::FunctionSpace<T>& V,
                    const dolfinx::fem::DirichletBC<T>& bc, int degree,
@@ -129,7 +139,6 @@ public:
         basix::polyset::type::standard, q_map.at(_degree + qmode));
 
     const dolfinx::fem::CoordinateElement<T>& cmap = mesh.geometry().cmap();
-
     std::array<std::size_t, 4> phi_shape
         = cmap.tabulate_shape(1, Gweights.size());
     std::vector<T> phi_b(
@@ -138,7 +147,7 @@ public:
 
     // Copy dphi to device (skipping phi in table)
     _dphi_geometry.assign(phi_b.begin() + phi_b.size() / 4, phi_b.end());
-    _g_weights_d.assign(Gweights.begin(), Gweights.end());
+    _g_weights.assign(Gweights.begin(), Gweights.end());
 
     // Create 1D element
     basix::FiniteElement<T> element0 = basix::create_element<T>(
@@ -182,7 +191,7 @@ public:
     auto [table, shape] = element1.tabulate(1, points, {weights.size(), 1});
 
     // Basis value gradient evaluation table
-    if (_op_nq == _degree + 1)
+    if (_op_nq == _degree + 1) // Number of quadrature points == P + 1
     {
       switch (_degree)
       {
@@ -211,7 +220,7 @@ public:
         throw std::runtime_error("Unsupported degree");
       }
     }
-    else if (_op_nq == _degree + 2)
+    else if (_op_nq == _degree + 2) // Number of quadrature points == P + 2
     {
       switch (_degree)
       {
@@ -268,29 +277,31 @@ public:
     spdlog::debug("Done MatFreeLaplacian constructor");
   }
 
+private:
+  /// FIXME: explain this function
   /// @brief Compute weighted geometry data on GPU
   /// @param nq Number of quadrature points in 1D
-  /// @param cell_list_d List of cell indices to compute for
+  /// @param cell_list List of cell indices to compute for
   template <int Q = 2>
-  void compute_geometry(int nq, std::span<const int> cell_list_d)
+  void compute_geometry(int nq, std::span<const int> cell_list)
   {
     if constexpr (Q < 10)
     {
       if (nq > Q)
-        compute_geometry<Q + 1>(nq, cell_list_d);
+        compute_geometry<Q + 1>(nq, cell_list);
       else
       {
         assert(nq == Q);
-        _g_entity.resize(_g_weights_d.size() * cell_list_d.size() * 6);
-        dim3 block_size(_g_weights_d.size());
-        dim3 grid_size(cell_list_d.size());
+        _g_entity.resize(_g_weights.size() * cell_list.size() * 6);
+        dim3 block_size(_g_weights.size());
+        dim3 grid_size(cell_list.size());
 
         spdlog::info("xgeom size {}", _xgeom.size());
         spdlog::info("G_entity size {}", _g_entity.size());
         spdlog::info("geometry_dofmap size {}", _geometry_dofmap.size());
         spdlog::info("dphi_geometry size {}", _dphi_geometry.size());
-        spdlog::info("Gweights size {}", _g_weights_d.size());
-        spdlog::info("cell_list_d size {}", cell_list_d.size());
+        spdlog::info("Gweights size {}", _g_weights.size());
+        spdlog::info("cell_list size {}", cell_list.size());
         spdlog::info("Calling geometry_computation [{} {}]", Q, nq);
 
         std::size_t shm_size = 24 * sizeof(T); // coordinate size (8x3)
@@ -299,8 +310,8 @@ public:
             thrust::raw_pointer_cast(_g_entity.data()),
             thrust::raw_pointer_cast(_geometry_dofmap.data()),
             thrust::raw_pointer_cast(_dphi_geometry.data()),
-            thrust::raw_pointer_cast(_g_weights_d.data()), cell_list_d.data(),
-            cell_list_d.size());
+            thrust::raw_pointer_cast(_g_weights.data()), cell_list.data(),
+            cell_list.size());
         spdlog::debug("Done geometry_computation");
       }
     }
@@ -308,72 +319,12 @@ public:
       throw std::runtime_error("Unsupported degree [geometry]");
   }
 
-  /// Compute matrix diagonal entries
-  // template <int P, int Q, typename Vector>
-  // void compute_mat_diag_inv(Vector& out)
-  // {
-  //   T* geometry_ptr = thrust::raw_pointer_cast(_g_entity.data());
-
-  //   if (!_lcells.empty())
-  //   {
-  //     spdlog::debug("mat_diagonal doing lcells. lcells size = {}",
-  //                   _lcells.size());
-  //     std::span<int> cell_list_d(thrust::raw_pointer_cast(_lcells.data()),
-  //                                _lcells.size());
-  //     if (_batch_size > 0)
-  //     {
-  //       spdlog::debug("Calling compute_geometry on local cells [{}]",
-  //                     cell_list_d.size());
-  //       compute_geometry(Q, cell_list_d);
-  //       device_synchronize();
-  //     }
-
-  //     out.set(T{0.0});
-  //     T* y = out.mutable_array().data();
-
-  //     dim3 block_size(P + 1, P + 1, P + 1);
-  //     dim3 grid_size(cell_list_d.size());
-  //     spdlog::debug("Calling mat_diagonal");
-  //     mat_diagonal<T, P, Q><<<grid_size, block_size, 0>>>(
-  //         thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
-  //         thrust::raw_pointer_cast(_cell_dofmap.data()), cell_list_d.data(),
-  //         cell_list_d.size(), thrust::raw_pointer_cast(_bc_marker.data()));
-  //     check_device_last_error();
-  //   }
-
-  //   if (!_bcells.empty())
-  //   {
-  //     spdlog::debug("mat_diagonal doing bcells. bcells size = {}",
-  //                   _bcells.size());
-  //     std::span<int> cell_list_d(thrust::raw_pointer_cast(_bcells.data()),
-  //                                _bcells.size());
-
-  //     if (_batch_size > 0)
-  //     {
-  //       compute_geometry(Q, cell_list_d);
-  //       device_synchronize();
-  //     }
-  //     else
-  //       geometry_ptr += 6 * Q * Q * Q * _lcells.size();
-
-  //     T* y = out.mutable_array().data();
-
-  //     dim3 block_size(P + 1, P + 1, P + 1);
-  //     dim3 grid_size(cell_list_d.size());
-  //     mat_diagonal<T, P, Q><<<grid_size, block_size, 0>>>(
-  //         thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
-  //         thrust::raw_pointer_cast(_cell_dofmap.data()), cell_list_d.data(),
-  //         cell_list_d.size(), thrust::raw_pointer_cast(_bc_marker.data()));
-  //     check_device_last_error();
-  //   }
-
-  //   // Invert
-  //   thrust::transform(thrust::device, out.array().begin(),
-  //                     out.array().begin() + out.map()->size_local(),
-  //                     out.mutable_array().begin(),
-  //                     [] __host__ __device__(T yi) { return 1.0 / yi; });
-  // }
-
+  /// @brief
+  /// @tparam Vector
+  /// @tparam P
+  /// @tparam Q
+  /// @param in
+  /// @param out
   template <int P, int Q, typename Vector>
   void impl_operator(Vector& in, Vector& out)
   {
@@ -387,33 +338,33 @@ public:
     {
       std::size_t i = 0;
       std::size_t i_batch_size
-          = (_batch_size == 0) ? _lcells.size() : _batch_size;
+          = _batch_size == 0 ? _lcells.size() : _batch_size;
       while (i < _lcells.size())
       {
         std::size_t i_next = std::min(_lcells.size(), i + i_batch_size);
-        std::span<int> cell_list_d(thrust::raw_pointer_cast(_lcells.data()) + i,
-                                   (i_next - i));
+        std::span<int> cell_list(thrust::raw_pointer_cast(_lcells.data()) + i,
+                                 (i_next - i));
         i = i_next;
 
         if (_batch_size > 0)
         {
           spdlog::debug("Calling compute_geometry on local cells [{}]",
-                        cell_list_d.size());
-          compute_geometry(Q, cell_list_d);
+                        cell_list.size());
+          compute_geometry(Q, cell_list);
           device_synchronize();
         }
 
         spdlog::debug("Calling stiffness_operator on local cells [{}]",
-                      cell_list_d.size());
+                      cell_list.size());
         T* x = in.mutable_array().data();
         T* y = out.mutable_array().data();
 
         dim3 block_size(Q, Q, Q);
-        dim3 grid_size(cell_list_d.size());
+        dim3 grid_size(cell_list.size());
         stiffness_operator<T, P, Q><<<grid_size, block_size>>>(
             x, thrust::raw_pointer_cast(_cell_constants.data()), y,
             geometry_ptr, thrust::raw_pointer_cast(_cell_dofmap.data()),
-            cell_list_d.data(), cell_list_d.size(),
+            cell_list.data(), cell_list.size(),
             thrust::raw_pointer_cast(_bc_marker.data()), _is_identity);
 
         check_device_last_error();
@@ -437,12 +388,12 @@ public:
     {
       spdlog::debug("impl_operator doing bcells. bcells size = {}",
                     _bcells.size());
-      std::span<int> cell_list_d(thrust::raw_pointer_cast(_bcells.data()),
-                                 _bcells.size());
+      std::span<int> cell_list(thrust::raw_pointer_cast(_bcells.data()),
+                               _bcells.size());
 
       if (_batch_size > 0)
       {
-        compute_geometry(Q, cell_list_d);
+        compute_geometry(Q, cell_list);
         device_synchronize();
       }
       else
@@ -452,11 +403,11 @@ public:
       T* y = out.mutable_array().data();
 
       dim3 block_size(Q, Q, Q);
-      dim3 grid_size(cell_list_d.size());
+      dim3 grid_size(cell_list.size());
       stiffness_operator<T, P, Q><<<grid_size, block_size>>>(
           x, thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
-          thrust::raw_pointer_cast(_cell_dofmap.data()), cell_list_d.data(),
-          cell_list_d.size(), thrust::raw_pointer_cast(_bc_marker.data()),
+          thrust::raw_pointer_cast(_cell_dofmap.data()), cell_list.data(),
+          cell_list.size(), thrust::raw_pointer_cast(_bc_marker.data()),
           _is_identity);
 
       check_device_last_error();
@@ -467,14 +418,15 @@ public:
     spdlog::debug("impl_operator done bcells");
   }
 
+public:
   /// @brief Apply Laplacian operator
   /// @param in Input vector
   /// @param out Output vector
   template <typename Vector>
-  void operator()(Vector& in, Vector& out)
+  void apply(Vector& in, Vector& out)
   {
     spdlog::debug("Mat free operator start");
-    out.set(T{0.0});
+    out.set(0);
 
     if (_op_nq == _degree + 1)
     {
@@ -522,67 +474,6 @@ public:
     spdlog::debug("Mat free operator end");
   }
 
-  // template <typename Vector>
-  // void get_diag_inverse(Vector& diag_inv)
-  // {
-  //   spdlog::debug("Mat diagonal operator start");
-
-  //   if (_op_nq == _degree + 1)
-  //   {
-  //     if (_degree == 1)
-  //       compute_mat_diag_inv<1, 2>(diag_inv);
-  //     else if (_degree == 2)
-  //       compute_mat_diag_inv<2, 3>(diag_inv);
-  //     else if (_degree == 3)
-  //       compute_mat_diag_inv<3, 4>(diag_inv);
-  //     else if (_degree == 4)
-  //       compute_mat_diag_inv<4, 5>(diag_inv);
-  //     else if (_degree == 5)
-  //       compute_mat_diag_inv<5, 6>(diag_inv);
-  //     else if (_degree == 6)
-  //       compute_mat_diag_inv<6, 7>(diag_inv);
-  //     else if (_degree == 7)
-  //       compute_mat_diag_inv<7, 8>(diag_inv);
-  //     else if (_degree == 8)
-  //       compute_mat_diag_inv<8, 9>(diag_inv);
-  //     else if (_degree == 9)
-  //       compute_mat_diag_inv<9, 10>(diag_inv);
-  //     else if (_degree == 10)
-  //       compute_mat_diag_inv<10, 11>(diag_inv);
-  //     else
-  //       throw std::runtime_error("Unsupported degree [mat diag]");
-  //   }
-  //   else if (_op_nq == _degree + 2)
-  //   {
-  //     if (_degree == 1)
-  //       compute_mat_diag_inv<1, 3>(diag_inv);
-  //     else if (_degree == 2)
-  //       compute_mat_diag_inv<2, 4>(diag_inv);
-  //     else if (_degree == 3)
-  //       compute_mat_diag_inv<3, 5>(diag_inv);
-  //     else if (_degree == 4)
-  //       compute_mat_diag_inv<4, 6>(diag_inv);
-  //     else if (_degree == 5)
-  //       compute_mat_diag_inv<5, 7>(diag_inv);
-  //     else if (_degree == 6)
-  //       compute_mat_diag_inv<6, 8>(diag_inv);
-  //     else if (_degree == 7)
-  //       compute_mat_diag_inv<7, 9>(diag_inv);
-  //     else if (_degree == 8)
-  //       compute_mat_diag_inv<8, 10>(diag_inv);
-  //     else if (_degree == 9)
-  //       compute_mat_diag_inv<9, 11>(diag_inv);
-  //     else if (_degree == 10)
-  //       compute_mat_diag_inv<10, 12>(diag_inv);
-  //     else
-  //       throw std::runtime_error("Unsupported degree [mat diag]");
-  //   }
-  //   else
-  //     throw std::runtime_error("Unsupported qmode [mat diag]");
-
-  //   spdlog::debug("Mat diagonal operator end");
-  // }
-
 private:
   int _degree;
 
@@ -603,7 +494,7 @@ private:
   thrust::device_vector<std::int8_t> _bc_marker;
 
   // On device storage for geometry quadrature weights
-  thrust::device_vector<T> _g_weights_d;
+  thrust::device_vector<T> _g_weights;
 
   // On device storage for geometry data (computed for each batch of cells)
   thrust::device_vector<T> _g_entity;
@@ -618,10 +509,6 @@ private:
 
   // Cells on partition boundaries
   thrust::device_vector<int> _bcells;
-
-  // On device storage for the inverse diagonal, needed for Jacobi
-  // preconditioner (to remove in future)
-  // thrust::device_vector<T> _diag_inv;
 
   // Batch size for geometry computation (set to 0 for no batching)
   std::size_t _batch_size;
