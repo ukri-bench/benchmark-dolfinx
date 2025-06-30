@@ -22,6 +22,14 @@
 
 namespace
 {
+
+/// @brief pack data before MPI (neighbor) all-to-all operation
+/// @tparam T Scalar data type
+/// @param N Number of entries in indices
+/// @param indices Indices of input data to be packed
+/// @param in Input data to be sent: from owned region, for forward scatter, or
+/// from ghost region for reverse scatter.
+/// @param out Output data packed into blocks for each receiving MPI process
 template <typename T>
 static __global__ void pack(const int N,
                             const std::int32_t* __restrict__ indices,
@@ -34,6 +42,15 @@ static __global__ void pack(const int N,
   }
 }
 
+/// @brief unpack data after MPI all-to-all operation
+/// @tparam T Scalar data type
+/// @param N Number of entries in indices
+/// @param indices Indices of output data to be unpacked into
+/// @param in Input data packed in blocks received from each MPI process
+/// @param out Output data: to ghost region if forward scatter, or to owned
+/// region for reverse scatter.
+/// @note Overwrites values if multiple are received with the same index, should
+/// only be used for forward scatter to ghost region.
 template <typename T>
 static __global__ void unpack(const int N,
                               const std::int32_t* __restrict__ indices,
@@ -46,6 +63,14 @@ static __global__ void unpack(const int N,
   }
 }
 
+/// @brief unpack data after MPI all-to-all operation
+/// @tparam T Scalar data type
+/// @param N Number of entries in indices
+/// @param indices Indices of output data to be unpacked into
+/// @param in Input data "ghost" region
+/// @param out Output data "owned" values
+/// @note Accumulates values if multiple are received with the same index,
+/// should be used for reverse scatter to owned region.
 template <typename T>
 static __global__ void unpack_add(std::int32_t N,
                                   const int32_t* __restrict__ indices,
@@ -61,7 +86,8 @@ static __global__ void unpack_add(std::int32_t N,
 
 namespace dolfinx::acc
 {
-/// Distributed vector
+/// @brief Distributed vector
+/// @tparam T Scalar type
 template <typename T>
 class Vector
 {
@@ -69,7 +95,9 @@ public:
   /// The value type
   using value_type = T;
 
-  /// Create a distributed vector
+  /// @brief A distributed vector across MPI processes
+  /// @param map IndexMap describing parallel distribution
+  /// @param bs Block size
   Vector(std::shared_ptr<const common::IndexMap> map, int bs)
       : _map(map), _bs(bs),
         _scatterer(std::make_shared<common::Scatterer<>>(*_map, bs)),
