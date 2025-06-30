@@ -12,7 +12,7 @@
 #include <dolfinx/la/MatrixCSR.h>
 #include <thrust/device_vector.h>
 
-namespace benchddolfinx::impl
+namespace benchdolfinx::impl
 {
 /// Computes y += A*x for a local CSR matrix A and local dense vectors
 /// x,y.
@@ -63,12 +63,13 @@ __global__ void spmvT_impl(int N, const T* values,
   }
 }
 
-} // namespace benchddolfinx::impl
+} // namespace benchdolfinx::impl
 
 namespace dolfinx::acc
 {
 
-/// @brief TODO
+/// @brief An assembled matrix operator for a finite element Form, internally
+/// using a CSR matrix
 /// @tparam T
 template <typename T>
 class MatrixOperator
@@ -77,7 +78,10 @@ public:
   /// The value type
   using value_type = T;
 
-  /// Create a distributed vector
+  /// @brief Construct a CSR matrix for the Form a, with given boundary
+  /// conditions
+  /// @param a A finite element form
+  /// @param bcs Set of boundary conditions to be applied
   MatrixOperator(
       std::shared_ptr<const fem::Form<T, T>> a,
       std::vector<std::reference_wrapper<const fem::DirichletBC<T>>> bcs)
@@ -151,8 +155,12 @@ public:
                  _values.begin());
   }
 
+  /// Desctructor
   ~MatrixOperator() = default;
 
+  /// @brief Get the inverse of the diagonal values of the matrix
+  /// @param diag_inv [in/out] A Vector to copy the inverse diagonal values into
+  /// @note Vector must be the correct size
   template <typename Vector>
   void get_diag_inverse(const Vector& diag_inv)
   {
@@ -160,7 +168,7 @@ public:
                  diag_inv.mutable_array().begin());
   }
 
-  /// @brief The matrix-vector multiplication operator, which multiplies
+  /// @brief The matrix-vector multiplication operator, y=Ax, multiplying
   /// the matrix with the input vector and stores the result in the
   /// output vector.
   ///
@@ -168,6 +176,7 @@ public:
   ///
   /// @param x The input vector.
   /// @param y The output vector.
+  /// @param transpose If true, perform the transpose operation y=A^T x
   template <typename Vector>
   void operator()(const Vector& x, Vector& y, bool transpose = false)
   {
@@ -224,29 +233,46 @@ public:
   }
 
   /// @brief IndexMap for the column space of the matrix
+  /// @returns IndexMap
   std::shared_ptr<const common::IndexMap> column_index_map()
   {
     return _col_map;
   }
 
   /// @brief IndexMap for the row space of the matrix
+  /// @returns IndexMap
   std::shared_ptr<const common::IndexMap> row_index_map() { return _row_map; }
 
   /// @brief Number of non-zeros in the matrix
+  /// @returns Number of non-zeros
   std::size_t nnz() { return _nnz; }
 
 private:
+  // Number of non-zeros in the matrix
   std::size_t _nnz;
+
+  // Values stored on-device
+  // using CSR storage, _values, _cols and _row_ptr, as conventional for CSR
   thrust::device_vector<T> _values;
-  thrust::device_vector<T> _diag_inv;
-  thrust::device_vector<std::int32_t> _row_ptr;
   thrust::device_vector<std::int32_t> _cols;
+  thrust::device_vector<std::int32_t> _row_ptr;
+
+  // Values stored on-device
+  // Copy of the inverse of the diagonal entries of the matrix - may be used for
+  // Jacobi preconditioning
+  thrust::device_vector<T> _diag_inv;
+  // Start point, on each row, of the off-diagonal block (ghost region)
   thrust::device_vector<std::int32_t> _off_diag_offset;
+
+  // IndexMaps for the columns and rows of the matrix
   std::shared_ptr<const common::IndexMap> _col_map, _row_map;
+
+  // CSR matrix in CPU memory
   std::unique_ptr<la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
                                 std::vector<std::int32_t>>>
       _A;
 
+  // MPI Comm associated with the Matrix
   MPI_Comm _comm;
 };
 } // namespace dolfinx::acc

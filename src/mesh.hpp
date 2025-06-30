@@ -13,7 +13,7 @@
 #include <map>
 #include <span>
 
-namespace benchddolfinx
+namespace benchdolfinx
 {
 /// @brief Create a new mesh with an extra boundary layer, such that all
 /// cells on other processes which share a vertex with this process are
@@ -156,4 +156,4 @@ compute_boundary_cells(std::shared_ptr<dolfinx::fem::FunctionSpace<T>> V)
 
   return {std::move(local_cells), std::move(boundary_cells)};
 }
-}
+} // namespace benchdolfinx
