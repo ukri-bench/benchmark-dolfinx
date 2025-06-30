@@ -80,8 +80,8 @@ public:
   /// Create a distributed vector
   MatrixOperator(
       std::shared_ptr<const fem::Form<T, T>> a,
-      std::vector<std::reference_wrapper<const fem::DirichletBC<T>>> bcs),
-      _comm(a->function_spaces()[0]->V->mesh()->comm())
+      std::vector<std::reference_wrapper<const fem::DirichletBC<T>>> bcs)
+      : _comm(a->function_spaces()[0]->V->mesh()->comm())
   {
     dolfinx::common::Timer t0("~setup phase MatrixOperator");
 
