@@ -6,7 +6,7 @@
 
 #if defined(USE_CUDA) || defined(USE_HIP)
 
-#include "util.hpp"
+// #include "util.hpp"
 // #include <basix/finite-element.h>
 // #include <basix/interpolation.h>
 // #include <basix/quadrature.h>
