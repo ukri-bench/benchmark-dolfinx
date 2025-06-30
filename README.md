@@ -15,7 +15,8 @@ Under development.
 
 ## Maintainers
 
-[@chrisrichardson](https://www.github.com/chrisrichardson)
+[@chrisrichardson](https://www.github.com/chrisrichardson),
+[@garth-wells](https://www.github.com/garth-wells)
 
 ## Overview
 
@@ -47,16 +48,17 @@ The benchmark can be built using Spack or manually using CMake.
 
 ### Spack
 
-A Spack package is provided in `spack/`. To view the package options:
+A Spack package is provided in the repository
+https://github.com/ukri-bench/spack-packages. To view the package
+options:
 
 ```bash
-spack repo add ./spack
+spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
 spack info bench-dolfinx
 ```
 
 Options are used tp specify CPU and GPU (AMD or CUDA) builds. The
 benchmark builds an executable `bench_dolfinx`.
-
 
 ### CMake
 
@@ -108,7 +110,7 @@ second: e.g. `Mat-free action Gdofs/s: 3.88691`
 The norms of the input and output vectors are also provided, which can
 be checked against the matrix (CSR) implementation be using the
 `--mat_comp` option. In this case the norm of the error should be around
-machine precision, i.e. about 1e-15 for float64.
+machine precision, i.e. about 1e-15 for `float64`.
 
 ### OLD: Recommended test configuration
 
