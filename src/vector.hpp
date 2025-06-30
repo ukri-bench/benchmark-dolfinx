@@ -22,7 +22,6 @@
 
 namespace benchdolfinx::impl
 {
-
 /// @brief pack data before MPI (neighbor) all-to-all operation
 /// @tparam T Scalar data type
 /// @param N Number of entries in indices
@@ -177,7 +176,6 @@ public:
     int size, rank;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
-
     for (int i = 0; i < size; i++)
     {
       if (rank == i)
