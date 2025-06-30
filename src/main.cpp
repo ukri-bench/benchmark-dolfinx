@@ -203,7 +203,7 @@ int main(int argc, char* argv[])
     if (rank == 0)
     {
 #if defined(USE_CUDA) || defined(USE_HIP)
-      std::cout << benchdolfinx::device_information();
+      std::cout << benchdolfinx::get_device_information();
 #endif
       std::cout << "-----------------------------------\n";
       std::cout << "Polynomial degree : " << degree << "\n";
