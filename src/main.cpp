@@ -2,12 +2,12 @@
 // Garth N. Wells
 // SPDX-License-Identifier:    MIT
 
+#include "csr.hpp"
+#include "laplacian.hpp"
+#include "mesh.hpp"
 #include "poisson.h"
-#include "src/csr.hpp"
-#include "src/laplacian.hpp"
-#include "src/mesh.hpp"
-#include "src/util.hpp"
-#include "src/vector.hpp"
+#include "util.hpp"
+#include "vector.hpp"
 #include <array>
 #include <basix/finite-element.h>
 #include <basix/quadrature.h>
