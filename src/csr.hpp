@@ -12,14 +12,17 @@
 #include <dolfinx/la/MatrixCSR.h>
 #include <thrust/device_vector.h>
 
-namespace
+namespace benchddolfinx::impl
 {
-/// Computes y += A*x for a local CSR matrix A and local dense vectors x,y
+/// Computes y += A*x for a local CSR matrix A and local dense vectors
+/// x,y.
 /// @param[in] values Nonzero values of A
-/// @param[in] row_begin First index of each row in the arrays values and
+/// @param[in] row_begin First index of each row in the arrays values
+/// and indices.
+/// @param[in] row_end Last index of each row in the arrays values and
 /// indices.
-/// @param[in] row_end Last index of each row in the arrays values and indices.
-/// @param[in] indices Column indices for each non-zero element of the matrix A
+/// @param[in] indices Column indices for each non-zero element of the
+/// matrix A
 /// @param[in] x Input vector
 /// @param[in, out] y Output vector
 template <typename T>
@@ -29,6 +32,7 @@ __global__ void spmv_impl(int N, const T* values, const std::int32_t* row_begin,
 {
   // Calculate the row index for this thread.
   int i = blockIdx.x * blockDim.x + threadIdx.x;
+
   // Check if the row index is out of bounds.
   if (i < N)
   {
@@ -46,18 +50,20 @@ __global__ void spmvT_impl(int N, const T* values,
                            const std::int32_t* row_end,
                            const std::int32_t* indices, const T* x, T* y)
 {
-  // Calculate the row index for this thread.
+  // Calculate the row index for this thread
   int i = blockIdx.x * blockDim.x + threadIdx.x;
-  // Check if the row index is out of bounds.
+
+  // Check if the row index is out of bounds
   if (i < N)
   {
-    // Perform the transpose sparse matrix-vector multiplication for this row.
+    // Perform the transpose sparse matrix-vector multiplication for
+    // this row
     for (std::int32_t j = row_begin[i]; j < row_end[i]; j++)
       atomicAdd(&y[indices[j]], values[j] * x[i]);
   }
 }
 
-} // namespace
+} // namespace benchddolfinx::impl
 
 namespace dolfinx::acc
 {
@@ -116,6 +122,7 @@ public:
           diag_inv[i] = 1.0 / _A->values()[j];
       }
     }
+
     _diag_inv = thrust::device_vector<T>(diag_inv.size());
     thrust::copy(diag_inv.begin(), diag_inv.end(), _diag_inv.begin());
 
@@ -130,12 +137,14 @@ public:
                  _row_ptr.size());
     thrust::copy(_A->row_ptr().begin(), _A->row_ptr().begin() + num_rows + 1,
                  _row_ptr.begin());
-    spdlog::info("Creating off_diag with {} to {}",
+
+                 spdlog::info("Creating off_diag with {} to {}",
                  _A->off_diag_offset().size(), _off_diag_offset.size());
     thrust::copy(_A->off_diag_offset().begin(),
                  _A->off_diag_offset().begin() + num_rows,
                  _off_diag_offset.begin());
-    spdlog::info("Creating cols with {} to {}", nnz, _cols.size());
+
+                 spdlog::info("Creating cols with {} to {}", nnz, _cols.size());
     thrust::copy(_A->cols().begin(), _A->cols().begin() + nnz, _cols.begin());
     spdlog::info("Creating values with {} to {}", nnz, _values.size());
     thrust::copy(_A->values().begin(), _A->values().begin() + nnz,
@@ -149,15 +158,14 @@ public:
                  diag_inv.mutable_array().begin());
   }
 
-  /**
-   * @brief The matrix-vector multiplication operator, which multiplies the
-   * matrix with the input vector and stores the result in the output vector.
-   *
-   * @tparam Vector  The type of the input and output vector.
-   *
-   * @param x        The input vector.
-   * @param y        The output vector.
-   */
+  /// @brief The matrix-vector multiplication operator, which multiplies
+  /// the matrix with the input vector and stores the result in the
+  /// output vector.
+  ///
+  /// @tparam Vector The type of the input and output vector.
+  ///
+  /// @param x The input vector.
+  /// @param y The output vector.
   template <typename Vector>
   void operator()(Vector& x, Vector& y, bool transpose = false)
   {

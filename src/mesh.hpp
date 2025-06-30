@@ -13,12 +13,14 @@
 #include <map>
 #include <span>
 
-/// @brief Create a new mesh with an extra boundary layer, such that all cells
-/// on other processes which share a vertex with this process are ghosted.
+namespace benchddolfinx
+{
+/// @brief Create a new mesh with an extra boundary layer, such that all
+/// cells on other processes which share a vertex with this process are
+/// ghosted.
 /// @param mesh Input mesh
-/// @param coord_element A coordinate element for the new mesh. This may be
-/// tensor product ordering.
-
+/// @param coord_element A coordinate element for the new mesh. This may
+/// be tensor product ordering.
 template <std::floating_point T>
 dolfinx::mesh::Mesh<T>
 ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
@@ -124,9 +126,9 @@ compute_boundary_cells(std::shared_ptr<dolfinx::fem::FunctionSpace<T>> V)
   int fdim = tdim - 1;
   topology->create_connectivity(fdim, tdim);
 
-  int ncells_local = topology->index_map(tdim)->size_local();
-  int ncells_ghost = topology->index_map(tdim)->num_ghosts();
-  int ndofs_local = V->dofmap()->index_map->size_local();
+  std::int32_t ncells_local = topology->index_map(tdim)->size_local();
+  std::int32_t ncells_ghost = topology->index_map(tdim)->num_ghosts();
+  std::int32_t ndofs_local = V->dofmap()->index_map->size_local();
 
   std::vector<std::uint8_t> cell_mark(ncells_local + ncells_ghost, 0);
   for (int i = 0; i < ncells_local; ++i)
@@ -139,8 +141,8 @@ compute_boundary_cells(std::shared_ptr<dolfinx::fem::FunctionSpace<T>> V)
   for (int i = ncells_local; i < ncells_local + ncells_ghost; ++i)
     cell_mark[i] = 1;
 
-  std::vector<int> local_cells;
-  std::vector<int> boundary_cells;
+  std::vector<std::int32_t> local_cells;
+  std::vector<std::int32_t> boundary_cells;
   for (int i = 0; i < cell_mark.size(); ++i)
   {
     if (cell_mark[i])
@@ -153,4 +155,5 @@ compute_boundary_cells(std::shared_ptr<dolfinx::fem::FunctionSpace<T>> V)
                 boundary_cells.size());
 
   return {std::move(local_cells), std::move(boundary_cells)};
+}
 }

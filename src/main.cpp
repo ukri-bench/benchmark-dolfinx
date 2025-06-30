@@ -34,6 +34,39 @@ using namespace dolfinx;
 namespace po = boost::program_options;
 using T = SCALAR_TYPE;
 
+namespace
+{
+template <typename X>
+mesh::Mesh<X> create_mesh(MPI_Comm comm, std::array<std::int64_t, 3> n,
+                          X geom_perturb_fact)
+{
+  mesh::Mesh<T> mesh0
+      = mesh::create_box<X>(comm, {{{0, 0, 0}, {1, 1, 1}}}, {n[0], n[1], n[2]},
+                            mesh::CellType::hexahedron);
+
+  if (geom_perturb_fact != 0.0)
+  {
+    double perturb_x = geom_perturb_fact * 1 / n[0];
+    std::span geom_x = mesh0.geometry().x();
+    std::mt19937 generator(42);
+    std::uniform_real_distribution<T> distribution(-perturb_x, perturb_x);
+    for (std::size_t i = 0; i < geom_x.size(); i += 3)
+      geom_x[i] += distribution(generator);
+  }
+
+  // First order coordinate element
+  auto element
+      = std::make_shared<basix::FiniteElement<T>>(basix::create_tp_element<T>(
+          basix::element::family::P, basix::cell::type::hexahedron, 1,
+          basix::element::lagrange_variant::gll_warped,
+          basix::element::dpc_variant::unset, false));
+  dolfinx::fem::CoordinateElement<T> celement(element);
+
+  return benchddolfinx::ghost_layer_mesh(mesh0, celement);
+}
+
+} // namespace
+
 int main(int argc, char* argv[])
 {
   // Program options
@@ -146,38 +179,12 @@ int main(int argc, char* argv[])
         basix::element::lagrange_variant::gll_warped,
         basix::element::dpc_variant::unset, false);
 
-    // First order coordinate element
-    auto element_1
-        = std::make_shared<basix::FiniteElement<T>>(basix::create_tp_element<T>(
-            basix::element::family::P, basix::cell::type::hexahedron, 1,
-            basix::element::lagrange_variant::gll_warped,
-            basix::element::dpc_variant::unset, false));
-    dolfinx::fem::CoordinateElement<T> coord_element(element_1);
-
-    // Create mesh with overlap region
-    std::shared_ptr<mesh::Mesh<T>> mesh;
-    {
-      mesh::Mesh<T> base_mesh = mesh::create_box<T>(
-          comm, {{{0, 0, 0}, {1, 1, 1}}}, {nx[0], nx[1], nx[2]},
-          mesh::CellType::hexahedron);
-
-      if (geom_perturb_fact != 0.0)
-      {
-        const double perturb_x = geom_perturb_fact * 1 / nx[0];
-        std::span<T> geom_x = base_mesh.geometry().x();
-        std::mt19937 generator(42);
-        std::uniform_real_distribution<T> distribution(-perturb_x, perturb_x);
-        for (int i = 0; i < geom_x.size(); i += 3)
-          geom_x[i] += distribution(generator);
-      }
-
-      mesh = std::make_shared<mesh::Mesh<T>>(
-          ghost_layer_mesh(base_mesh, coord_element));
-    }
+    auto mesh = std::make_shared<mesh::Mesh<T>>(
+        create_mesh<T>(comm, nx, geom_perturb_fact));
 
     auto V = std::make_shared<fem::FunctionSpace<T>>(fem::create_functionspace(
         mesh, std::make_shared<const fem::FiniteElement<T>>(element)));
-    auto [lcells, bcells] = compute_boundary_cells(V);
+    auto [lcells, bcells] = benchddolfinx::compute_boundary_cells(V);
     spdlog::debug("lcells = {}, bcells = {}", lcells.size(), bcells.size());
 
     auto topology = V->mesh()->topology_mutable();
@@ -190,8 +197,6 @@ int main(int argc, char* argv[])
       fp_type += "32";
     else if (std::is_same_v<T, double>)
       fp_type += "64";
-
-    Json::Value root;
 
     if (rank == 0)
     {
@@ -220,6 +225,8 @@ int main(int argc, char* argv[])
     }
 
 #if defined(USE_CUDA) || defined(USE_HIP)
+
+    Json::Value root;
 
     Json::Value& in_root = root["input"];
     Json::Value& out_root = root["results"];
