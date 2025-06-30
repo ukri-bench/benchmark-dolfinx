@@ -18,7 +18,7 @@
 
 using namespace dolfinx;
 namespace po = boost::program_options;
-using T = SCALAR_TYPE;
+using T = double;
 
 namespace
 {

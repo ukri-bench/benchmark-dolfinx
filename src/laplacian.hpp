@@ -467,18 +467,16 @@ public:
         throw std::runtime_error("Unsupported degree [operator]");
     }
     else
-    {
       throw std::runtime_error("Unsupported nq");
-    }
 
     spdlog::debug("Mat free operator end");
   }
 
 private:
-  int _degree;
+  std::size_t _degree;
 
   // Number of quadrature points in 1D
-  int _op_nq;
+  std::size_t _op_nq;
 
   // Reference to on-device storage for constants, dofmap etc.
   thrust::device_vector<T> _cell_constants;

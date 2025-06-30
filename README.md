@@ -70,7 +70,6 @@ When building the benchmark using CMake, the following
 benchmark-specific CMake options are available:
 * `-DHIP_ARCH=[target]` builds using HIP for the specific GPU architecture `[target]`
 * `-DCUDA_ARCH=[target]` builds using CUDA for the specific GPU architecture `[target]`
-* `-DSCALAR_TYPE=float32` set the float type to 32-bit
 
 ## Command line options
 
