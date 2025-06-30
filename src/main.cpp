@@ -31,18 +31,51 @@
 #endif
 
 using namespace dolfinx;
-using T = SCALAR_TYPE;
 namespace po = boost::program_options;
+using T = SCALAR_TYPE;
+
+namespace
+{
+template <typename X>
+mesh::Mesh<X> create_mesh(MPI_Comm comm, std::array<std::int64_t, 3> n,
+                          X geom_perturb_fact)
+{
+  mesh::Mesh<T> mesh0
+      = mesh::create_box<X>(comm, {{{0, 0, 0}, {1, 1, 1}}}, {n[0], n[1], n[2]},
+                            mesh::CellType::hexahedron);
+
+  if (geom_perturb_fact != 0.0)
+  {
+    double perturb_x = geom_perturb_fact * 1 / n[0];
+    std::span geom_x = mesh0.geometry().x();
+    std::mt19937 generator(42);
+    std::uniform_real_distribution<T> distribution(-perturb_x, perturb_x);
+    for (std::size_t i = 0; i < geom_x.size(); i += 3)
+      geom_x[i] += distribution(generator);
+  }
+
+  // First order coordinate element
+  auto element
+      = std::make_shared<basix::FiniteElement<T>>(basix::create_tp_element<T>(
+          basix::element::family::P, basix::cell::type::hexahedron, 1,
+          basix::element::lagrange_variant::gll_warped,
+          basix::element::dpc_variant::unset, false));
+  dolfinx::fem::CoordinateElement<T> celement(element);
+
+  return benchdolfinx::ghost_layer_mesh(mesh0, celement);
+}
+
+} // namespace
 
 int main(int argc, char* argv[])
 {
-  po::options_description desc("Allowed options");
+  // Program options
+  po::options_description desc("Options");
   desc.add_options()("help,h", "Print usage message")(
       "benchmark,b", po::value<std::size_t>()->default_value(0),
-      "Overrides other options to run predefined tests: 0=off, 1=correctness, "
-      "2=performance")(
+      "Test to run: 0=off, 1=correctness, 2=performance")(
       "ndofs", po::value<std::size_t>()->default_value(1000),
-      "Requested number of degrees-of-freedom per MPI process")(
+      "Number of degrees-of-freedom per MPI process")(
       "qmode", po::value<std::size_t>()->default_value(1),
       "Quadrature mode (0 or 1): qmode=0 has P+1 points in each direction,"
       "qmode=1 has P+2 points in each direction.")(
@@ -51,12 +84,11 @@ int main(int argc, char* argv[])
                                po::value<std::size_t>()->default_value(3),
                                "Polynomial degree \"P\" (2-7)")(
       "mat_comp", po::bool_switch()->default_value(false),
-      "Compare result to matrix operator (slow with large ndofs) - default "
-      "off")("geom_perturb_fact", po::value<T>()->default_value(0.125),
-             "Adds a random perturbation to the geometry, useful to check "
-             "correctness")(
-      "use_gauss", po::bool_switch()->default_value(false),
-      "Use Gauss quadrature rather than GLL quadrature - default off");
+      "Compare result to matrix operator (slow with large ndofs)")(
+      "geom_perturb_fact", po::value<T>()->default_value(0.125),
+      "Randomly perturb the geometry (useful to check "
+      "correctness)")("use_gauss", po::bool_switch()->default_value(false),
+                      "Use Gauss quadrature rather than GLL quadrature");
 
   po::variables_map vm;
   po::store(po::command_line_parser(argc, argv)
@@ -68,7 +100,7 @@ int main(int argc, char* argv[])
 
   if (vm.count("help"))
   {
-    std::cout << "dolfinx benchmark\n-----------------\n";
+    std::cout << "DOLFINx benchmark\n-----------------\n";
     std::cout
         << "\n  Finite Element Operator Action Benchmark which computes\n";
     std::cout << "  the Laplacian operator on a cube mesh of hexahedral "
@@ -105,7 +137,7 @@ int main(int argc, char* argv[])
   MPI_Init(&argc, &argv);
   {
     MPI_Comm comm{MPI_COMM_WORLD};
-    int rank = 0, size = 0;
+    int rank(0), size(0);
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
 
@@ -147,38 +179,12 @@ int main(int argc, char* argv[])
         basix::element::lagrange_variant::gll_warped,
         basix::element::dpc_variant::unset, false);
 
-    // First order coordinate element
-    auto element_1
-        = std::make_shared<basix::FiniteElement<T>>(basix::create_tp_element<T>(
-            basix::element::family::P, basix::cell::type::hexahedron, 1,
-            basix::element::lagrange_variant::gll_warped,
-            basix::element::dpc_variant::unset, false));
-    dolfinx::fem::CoordinateElement<T> coord_element(element_1);
-
-    // Create mesh with overlap region
-    std::shared_ptr<mesh::Mesh<T>> mesh;
-    {
-      mesh::Mesh<T> base_mesh = mesh::create_box<T>(
-          comm, {{{0, 0, 0}, {1, 1, 1}}}, {nx[0], nx[1], nx[2]},
-          mesh::CellType::hexahedron);
-
-      if (geom_perturb_fact != 0.0)
-      {
-        const double perturb_x = geom_perturb_fact * 1 / nx[0];
-        std::span<T> geom_x = base_mesh.geometry().x();
-        std::mt19937 generator(42);
-        std::uniform_real_distribution<T> distribution(-perturb_x, perturb_x);
-        for (int i = 0; i < geom_x.size(); i += 3)
-          geom_x[i] += distribution(generator);
-      }
-
-      mesh = std::make_shared<mesh::Mesh<T>>(
-          ghost_layer_mesh(base_mesh, coord_element));
-    }
+    auto mesh = std::make_shared<mesh::Mesh<T>>(
+        create_mesh<T>(comm, nx, geom_perturb_fact));
 
     auto V = std::make_shared<fem::FunctionSpace<T>>(fem::create_functionspace(
         mesh, std::make_shared<const fem::FiniteElement<T>>(element)));
-    auto [lcells, bcells] = compute_boundary_cells(V);
+    auto [lcells, bcells] = benchdolfinx::compute_boundary_cells(V);
     spdlog::debug("lcells = {}, bcells = {}", lcells.size(), bcells.size());
 
     auto topology = V->mesh()->topology_mutable();
@@ -191,8 +197,6 @@ int main(int argc, char* argv[])
       fp_type += "32";
     else if (std::is_same_v<T, double>)
       fp_type += "64";
-
-    Json::Value root;
 
     if (rank == 0)
     {
@@ -220,10 +224,9 @@ int main(int argc, char* argv[])
       std::cout << std::flush;
     }
 
-#if defined(USE_CUDA) || defined(USE_HIP)
+    Json::Value root;
 
     Json::Value& in_root = root["input"];
-    Json::Value& out_root = root["results"];
     in_root["p"] = (Json::UInt64)order;
     in_root["mpi_size"] = size;
     in_root["ncells"] = (Json::UInt64)ncells;
@@ -241,10 +244,9 @@ int main(int argc, char* argv[])
     // Define variational forms
     std::vector<ufcx_form*> aforms;
     std::vector<ufcx_form*> Lforms;
-    basix::quadrature::type quad_type;
+
     if (use_gauss)
     {
-      quad_type = basix::quadrature::type::gauss_jacobi;
       if (qmode == 0)
       {
         aforms = {form_poisson_a_1_2_GL, form_poisson_a_2_3_GL,
@@ -270,7 +272,6 @@ int main(int argc, char* argv[])
     }
     else
     {
-      quad_type = basix::quadrature::type::gll;
       if (qmode == 0)
       {
         aforms = {form_poisson_a_1_2_GLL, form_poisson_a_2_3_GLL,
@@ -323,6 +324,8 @@ int main(int argc, char* argv[])
     auto facets = dolfinx::mesh::exterior_facet_indices(*topology);
     auto bdofs = fem::locate_dofs_topological(*topology, *dofmap, fdim, facets);
     auto bc = std::make_shared<const fem::DirichletBC<T>>(1.3, bdofs, V);
+
+#if defined(USE_CUDA) || defined(USE_HIP)
 
     // Copy data to GPU
     // Constants
@@ -391,9 +394,14 @@ int main(int argc, char* argv[])
     // Create matrix free operator
     spdlog::info("Create MatFreeLaplacian");
     dolfinx::common::Timer op_create_timer("% Create matfree operator");
-    acc::MatFreeLaplacian<T> op(order, qmode, constants_d_span, dofmap_d_span,
-                                xgeom_d_span, xdofmap_d_span, cmap, lcells,
-                                bcells, bc_marker_d_span, quad_type, 0);
+
+    basix::quadrature::type quad_type
+        = use_gauss ? basix::quadrature::type::gauss_jacobi
+                    : basix::quadrature::type::gll;
+
+    MatFreeLaplacian<T> op(order, qmode, constants_d_span, dofmap_d_span,
+                           xgeom_d_span, xdofmap_d_span, cmap, lcells, bcells,
+                           bc_marker_d_span, quad_type, 0);
 
     op_create_timer.stop();
 
@@ -412,6 +420,7 @@ int main(int argc, char* argv[])
     T unorm = acc::norm(u);
     T ynorm = acc::norm(y);
 
+    Json::Value& out_root = root["results"];
     if (rank == 0)
     {
       std::cout << "Mat-free Matvec time: " << duration.count() << std::endl;
@@ -469,6 +478,7 @@ int main(int argc, char* argv[])
       }
     }
 
+#endif
     if (rank == 0)
     {
       Json::StreamWriterBuilder builder;
@@ -478,7 +488,7 @@ int main(int argc, char* argv[])
       std::ofstream strm("out.json", std::ofstream::out);
       writer->write(root, &strm);
     }
-#endif
+
     // Display timings
     dolfinx::list_timings(MPI_COMM_WORLD);
   }
