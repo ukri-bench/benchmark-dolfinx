@@ -7,7 +7,6 @@
 #if defined(USE_CUDA) || defined(USE_HIP)
 
 #include "geometry_gpu.hpp"
-
 #include "util.hpp"
 #include <basix/finite-element.h>
 #include <basix/interpolation.h>

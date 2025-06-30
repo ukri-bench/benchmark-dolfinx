@@ -6,10 +6,6 @@
 
 #if defined(USE_CUDA) || defined(USE_HIP)
 
-// #include "util.hpp"
-// #include <basix/finite-element.h>
-// #include <basix/interpolation.h>
-// #include <basix/quadrature.h>
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 
