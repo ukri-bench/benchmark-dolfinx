@@ -27,18 +27,19 @@ using namespace benchdolfinx;
 
 //----------------------------------------------------------------------------
 template <typename T>
-void benchdolfinx::laplace_action(const dolfinx::fem::FunctionSpace<T>& V,
-                                  const dolfinx::fem::Form<T>& a,
+void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
                                   const dolfinx::fem::Form<T>& L,
                                   const dolfinx::fem::DirichletBC<T>& bc,
                                   int degree, int qmode, T kappa, int nreps,
                                   bool use_gauss)
 {
+  auto V = a.function_spaces()[0];
+
   // Define vectors
   using DeviceVector = benchdolfinx::Vector<T>;
 
   // Input vector
-  auto map = V.dofmap()->index_map;
+  auto map = V->dofmap()->index_map;
   spdlog::info("Create device vector u");
 
   DeviceVector u(map, 1);
@@ -47,7 +48,7 @@ void benchdolfinx::laplace_action(const dolfinx::fem::FunctionSpace<T>& V,
   // Output vector
   spdlog::info("Create device vector y");
   DeviceVector y(map, 1);
-  y.set(T{0.0});
+  y.set(0);
 
   // Create matrix free operator
   spdlog::info("Create MatFreeLaplacian");
@@ -57,8 +58,7 @@ void benchdolfinx::laplace_action(const dolfinx::fem::FunctionSpace<T>& V,
       = use_gauss ? basix::quadrature::type::gauss_jacobi
                   : basix::quadrature::type::gll;
 
-  // MatFreeLaplacian<T> op(*V.mesh(), V, bc, degree, qmode, 2, quad_type, 0);
-  MatFreeLaplacian<T> op(*V.mesh(), V, bc, degree, qmode, kappa, quad_type, 0);
+  MatFreeLaplacian<T> op(*V, bc, degree, qmode, kappa, quad_type, 0);
 
   op_create_timer.stop();
 
@@ -77,7 +77,7 @@ void benchdolfinx::laplace_action(const dolfinx::fem::FunctionSpace<T>& V,
   T unorm = benchdolfinx::norm(u);
   T ynorm = benchdolfinx::norm(y);
 
-  int rank = dolfinx::MPI::rank(V.mesh()->comm());
+  int rank = dolfinx::MPI::rank(V->mesh()->comm());
   // Json::Value& out_root = root["results"];
   if (rank == 0)
   {
@@ -124,7 +124,6 @@ void benchdolfinx::laplace_action(const dolfinx::fem::FunctionSpace<T>& V,
 }
 //----------------------------------------------------------------------------
 template void benchdolfinx::laplace_action<double>(
-    const dolfinx::fem::FunctionSpace<double>&,
     const dolfinx::fem::Form<double>&, const dolfinx::fem::Form<double>&,
     const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool);
 //----------------------------------------------------------------------------

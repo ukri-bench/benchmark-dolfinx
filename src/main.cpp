@@ -213,16 +213,17 @@ int main(int argc, char* argv[])
       std::cout << "Sliced : yes" << std::endl;
       std::cout << "Slice size: " << SLICE_SIZE << std::endl;
 #endif
-      std::cout << "Number of ranks : " << size << "\n";
-      std::cout << "Number of cells-global : " << ncells << "\n";
-      std::cout << "Number of dofs-global : " << ndofs_global << "\n";
-      std::cout << "Number of cells-rank : " << ncells / size << "\n";
-      std::cout << "Number of dofs-rank : " << ndofs_global / size << "\n";
-      std::cout << "Number of repetitions : " << nreps << "\n";
-      std::cout << "Scalar Type: " << fp_type << "\n";
-      std::cout << "XXXUse GLL: " << use_gauss << "\n";
-      std::cout << "Foo: " << matrix_comparison << "\n";
-      std::cout << "-----------------------------------\n";
+      std::cout << "Number of ranks : " << size << std::endl;
+      std::cout << "Number of cells-global : " << ncells << std::endl;
+      std::cout << "Number of dofs-global : " << ndofs_global << std::endl;
+      std::cout << "Number of cells-rank : " << ncells / size << std::endl;
+      std::cout << "Number of dofs-rank : " << ndofs_global / size << std::endl;
+      std::cout << "Number of repetitions : " << nreps << std::endl;
+      std::cout << "Scalar Type: " << fp_type << std::endl;
+      std::cout << "XXXUse GLL: " << use_gauss << std::endl;
+      std::cout << "Foo: " << matrix_comparison << std::endl;
+      std::cout << "-----------------------------------" << std::endl;
+      ;
       std::cout << std::flush;
     }
 
@@ -270,9 +271,10 @@ int main(int argc, char* argv[])
     auto bdofs = fem::locate_dofs_topological(*topology, *dofmap, fdim, facets);
     fem::DirichletBC<T> bc(1.3, bdofs, V);
 
-    benchdolfinx::laplace_action<T>(*V, a, L, bc, degree, qmode,
-                                    kappa->value[0], nreps, use_gauss);
-
+#if defined(USE_CUDA) || defined(USE_HIP)
+    benchdolfinx::laplace_action<T>(a, L, bc, degree, qmode, kappa->value[0],
+                                    nreps, use_gauss);
+#endif
     // if (rank == 0)
     // {
     //   Json::StreamWriterBuilder builder;

@@ -21,8 +21,7 @@
 namespace benchdolfinx
 {
 template <typename T>
-void laplace_action(const dolfinx::fem::FunctionSpace<T>& V,
-                    const dolfinx::fem::Form<T>& a,
+void laplace_action(const dolfinx::fem::Form<T>& a,
                     const dolfinx::fem::Form<T>& L,
                     const dolfinx::fem::DirichletBC<T>& bc, int degree,
                     int qmode, T kappa, int nreps, bool use_gauss);

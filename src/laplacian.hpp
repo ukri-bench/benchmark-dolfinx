@@ -84,7 +84,6 @@ public:
   using value_type = T;
 
   /// @brief TODO
-  /// @param mesh
   /// @param V
   /// @param bc
   /// @param degree
@@ -92,19 +91,19 @@ public:
   /// @param constant
   /// @param quad_type
   /// @param batch_size
-  MatFreeLaplacian(const dolfinx::mesh::Mesh<T>& mesh,
-                   const dolfinx::fem::FunctionSpace<T>& V,
+  MatFreeLaplacian(const dolfinx::fem::FunctionSpace<T>& V,
                    const dolfinx::fem::DirichletBC<T>& bc, int degree,
                    int qmode, T constant, basix::quadrature::type quad_type,
                    std::size_t batch_size = 0)
-      : _degree(degree), _cell_constants(impl::num_cells(mesh), constant),
+      : _degree(degree), _cell_constants(impl::num_cells(*V.mesh()), constant),
         _cell_dofmap(V.dofmap()->map().data_handle(),
                      V.dofmap()->map().data_handle()
                          + V.dofmap()->map().size()),
-        _xgeom(mesh.geometry().x().begin(), mesh.geometry().x().end()),
-        _geometry_dofmap(mesh.geometry().dofmap().data_handle(),
-                         mesh.geometry().dofmap().data_handle()
-                             + mesh.geometry().dofmap().size()),
+        _xgeom(V.mesh()->geometry().x().begin(),
+               V.mesh()->geometry().x().end()),
+        _geometry_dofmap(V.mesh()->geometry().dofmap().data_handle(),
+                         V.mesh()->geometry().dofmap().data_handle()
+                             + V.mesh()->geometry().dofmap().size()),
         _bc_marker(impl::build_bc_markers(bc)), _batch_size(batch_size)
   {
     {
@@ -138,7 +137,8 @@ public:
         quad_type, basix::cell::type::hexahedron,
         basix::polyset::type::standard, q_map.at(_degree + qmode));
 
-    const dolfinx::fem::CoordinateElement<T>& cmap = mesh.geometry().cmap();
+    const dolfinx::fem::CoordinateElement<T>& cmap
+        = V.mesh()->geometry().cmap();
     std::array<std::size_t, 4> phi_shape
         = cmap.tabulate_shape(1, Gweights.size());
     std::vector<T> phi_b(
