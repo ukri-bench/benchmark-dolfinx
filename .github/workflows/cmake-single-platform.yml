@@ -33,18 +33,18 @@ jobs:
         ls /opt/rocm/bin
 
     - run: |
-        PATH=$PATH:/opt/rocm/bin:/opt/rocm/rocprofiler/bin:/opt/rocm/hip/bin
-        LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/llvm/lib:/opt/rocm/hip/lib
+        PATH=/opt/rocm/bin:/opt/rocm/rocprofiler/bin:/opt/rocm/hip/bin:$PATH
+        LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/llvm/lib:/opt/rocm/hip/lib:$LD_LIBRARY_PATH
         hipcc --help
 
     - name: Configure CMake (ROCm)
       run: |
-        PATH=$PATH:/opt/rocm/bin:/opt/rocm/rocprofiler/bin:/opt/rocm/hip/bin
-        LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/llvm/lib:/opt/rocm/hip/lib
+        PATH=/opt/rocm/bin:/opt/rocm/rocprofiler/bin:/opt/rocm/hip/bin:$PATH
+        LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/llvm/lib:/opt/rocm/hip/lib:$LD_LIBRARY_PATH
         cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DHIP_ARCH=gfx90a src/
 
     - name: Build
       run: |
-        PATH=$PATH:/opt/rocm/bin:/opt/rocm/rocprofiler/bin:/opt/rocm/hip/bin
-        LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/llvm/lib:/opt/rocm/hip/lib
+        PATH=/opt/rocm/bin:/opt/rocm/rocprofiler/bin:/opt/rocm/hip/bin:$PATH
+        LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/llvm/lib:/opt/rocm/hip/lib:$LD_LIBRARY_PATH
         cmake --build build --config ${{env.BUILD_TYPE}}
