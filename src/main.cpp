@@ -37,6 +37,53 @@ using T = SCALAR_TYPE;
 
 namespace
 {
+/// @brief TODO
+/// @param ndofs
+/// @param degree
+/// @param mpi_size
+/// @return
+std::array<std::int64_t, 3> num_cells(std::int64_t ndofs, int degree,
+                                      int mpi_size)
+{
+  double nx_approx = (std::pow(ndofs * mpi_size, 1.0 / 3.0) - 1) / degree;
+  std::int64_t n0 = static_cast<std::int64_t>(nx_approx);
+  std::array<std::int64_t, 3> nx = {n0, n0, n0};
+
+  // Try to improve fit to ndofs +/- 5 in each direction
+  if (n0 > 5)
+  {
+    std::int64_t best_misfit
+        = (n0 * degree + 1) * (n0 * degree + 1) * (n0 * degree + 1)
+          - ndofs * mpi_size;
+    best_misfit = std::abs(best_misfit);
+    for (std::int64_t nx0 = n0 - 5; nx0 < n0 + 6; ++nx0)
+    {
+      for (std::int64_t ny0 = n0 - 5; ny0 < n0 + 6; ++ny0)
+      {
+        for (std::int64_t nz0 = n0 - 5; nz0 < n0 + 6; ++nz0)
+        {
+          std::int64_t misfit
+              = (nx0 * degree + 1) * (ny0 * degree + 1) * (nz0 * degree + 1)
+                - ndofs * mpi_size;
+          if (std::abs(misfit) < best_misfit)
+          {
+            best_misfit = std::abs(misfit);
+            nx = {nx0, ny0, nz0};
+          }
+        }
+      }
+    }
+  }
+
+  return nx;
+}
+
+/// @brief TODO
+/// @tparam X
+/// @param comm
+/// @param n
+/// @param geom_perturb_fact
+/// @return
 template <typename X>
 mesh::Mesh<X> create_mesh(MPI_Comm comm, std::array<std::int64_t, 3> n,
                           X geom_perturb_fact)
@@ -120,7 +167,7 @@ int main(int argc, char* argv[])
   // Quadrature mode (qmode=0: nq = P + 1, qmode=1: nq = P + 2)
   std::size_t qmode = vm["qmode"].as<std::size_t>();
   if (qmode > 1)
-    throw std::runtime_error("Invalid qmode");
+    throw std::runtime_error("Invalid qmode.");
 
   const std::size_t benchmark = vm["benchmark"].as<std::size_t>();
   if (benchmark == 1)
@@ -142,46 +189,17 @@ int main(int argc, char* argv[])
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
 
-    double nx_approx = (std::pow(ndofs * size, 1.0 / 3.0) - 1) / order;
-    std::int64_t n0 = static_cast<std::int64_t>(nx_approx);
-    std::array<std::int64_t, 3> nx = {n0, n0, n0};
-
-    // Try to improve fit to ndofs +/- 5 in each direction
-    if (n0 > 5)
-    {
-      std::int64_t best_misfit
-          = (n0 * order + 1) * (n0 * order + 1) * (n0 * order + 1)
-            - ndofs * size;
-      best_misfit = std::abs(best_misfit);
-      for (std::int64_t nx0 = n0 - 5; nx0 < n0 + 6; ++nx0)
-      {
-        for (std::int64_t ny0 = n0 - 5; ny0 < n0 + 6; ++ny0)
-        {
-          for (std::int64_t nz0 = n0 - 5; nz0 < n0 + 6; ++nz0)
-          {
-            std::int64_t misfit
-                = (nx0 * order + 1) * (ny0 * order + 1) * (nz0 * order + 1)
-                  - ndofs * size;
-            if (std::abs(misfit) < best_misfit)
-            {
-              best_misfit = std::abs(misfit);
-              nx = {nx0, ny0, nz0};
-            }
-          }
-        }
-      }
-    }
-
+    // Create mesh
+    std::array<std::int64_t, 3> nx = num_cells(ndofs, order, size);
     spdlog::info("Mesh shape: {}x{}x{}", nx[0], nx[1], nx[2]);
+    auto mesh = std::make_shared<mesh::Mesh<T>>(
+        create_mesh<T>(comm, nx, geom_perturb_fact));
 
     // Finite element for higher-order discretisation
     auto element = basix::create_tp_element<T>(
         basix::element::family::P, basix::cell::type::hexahedron, order,
         basix::element::lagrange_variant::gll_warped,
         basix::element::dpc_variant::unset, false);
-
-    auto mesh = std::make_shared<mesh::Mesh<T>>(
-        create_mesh<T>(comm, nx, geom_perturb_fact));
 
     auto V = std::make_shared<fem::FunctionSpace<T>>(fem::create_functionspace(
         mesh, std::make_shared<const fem::FiniteElement<T>>(element)));
@@ -276,8 +294,10 @@ int main(int argc, char* argv[])
     // Copy data to GPU
     // Constants
     // TODO Pack these properly
-    const int num_cells_all = mesh->topology()->index_map(tdim)->size_local()
-                              + mesh->topology()->index_map(tdim)->num_ghosts();
+    const std::int32_t num_cells_all
+        = mesh->topology()->index_map(tdim)->size_local()
+          + mesh->topology()->index_map(tdim)->num_ghosts();
+
     thrust::device_vector<T> constants_d(num_cells_all, kappa->value[0]);
     std::span<const T> constants_d_span(
         thrust::raw_pointer_cast(constants_d.data()), constants_d.size());

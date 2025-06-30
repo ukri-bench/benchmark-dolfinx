@@ -82,15 +82,15 @@ bool matrix_is_identity(const std::vector<T>& mat,
 
 /// @brief Computes weighted geometry tensor G from the coordinates and
 /// quadrature weights.
-/// @param [in] xgeom Geometry points [*, 3]
-/// @param [out] G_entity geometry data [n_entities, nq, 6]
-/// @param [in] geometry_dofmap Location of coordinates for each cell in
-/// xgeom [*, ncdofs]
-/// @param [in] _dphi Basis derivative tabulation for cell at quadrature
+/// @param[in] xgeom Geometry points [:, 3]
+/// @param[out] G_entity geometry data [n_entities, nq, 6]
+/// @param[in] geometry_dofmap Location of coordinates for each cell in
+/// xgeom [:, ncdofs]
+/// @param[in] _dphi Basis derivative tabulation for cell at quadrature
 /// points [3, nq, ncdofs]
-/// @param [in] weights Quadrature weights [nq]
-/// @param [in] entities list of cells to compute for [n_entities]
-/// @param [in] n_entities total number of cells to compute for
+/// @param[in] weights Quadrature weights [nq]
+/// @param[in] entities list of cells to compute for [n_entities]
+/// @param[in] n_entities total number of cells to compute for
 /// @tparam T scalar type
 /// @tparam Q number of quadrature points (in 1D)
 template <typename T, int Q>
