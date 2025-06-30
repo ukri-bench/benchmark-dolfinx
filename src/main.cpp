@@ -203,8 +203,6 @@ int main(int argc, char* argv[])
 
     auto V = std::make_shared<fem::FunctionSpace<T>>(fem::create_functionspace(
         mesh, std::make_shared<const fem::FiniteElement<T>>(element)));
-    auto [lcells, bcells] = benchdolfinx::compute_boundary_cells(V);
-    spdlog::debug("lcells = {}, bcells = {}", lcells.size(), bcells.size());
 
     auto topology = V->mesh()->topology_mutable();
     int tdim = topology->dim();
@@ -319,7 +317,7 @@ int main(int argc, char* argv[])
                     : basix::quadrature::type::gll;
 
     MatFreeLaplacian<T> op(*mesh, *V, *bc, order, qmode, T(kappa->value[0]),
-                           lcells, bcells, quad_type, 0);
+                           quad_type, 0);
 
     op_create_timer.stop();
 

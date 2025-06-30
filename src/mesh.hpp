@@ -116,10 +116,10 @@ ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
 /// these cells are not shared with any other process.
 /// 2. cells which share dofs with other processes.
 template <typename T>
-std::pair<std::vector<std::int32_t>, std::vector<std::int32_t>>
-compute_boundary_cells(std::shared_ptr<dolfinx::fem::FunctionSpace<T>> V)
+std::array<std::vector<std::int32_t>, 2>
+compute_boundary_cells(const dolfinx::fem::FunctionSpace<T>& V)
 {
-  auto mesh = V->mesh();
+  auto mesh = V.mesh();
   auto topology = mesh->topology_mutable();
   int tdim = topology->dim();
   int fdim = tdim - 1;
@@ -127,12 +127,12 @@ compute_boundary_cells(std::shared_ptr<dolfinx::fem::FunctionSpace<T>> V)
 
   std::int32_t ncells_local = topology->index_map(tdim)->size_local();
   std::int32_t ncells_ghost = topology->index_map(tdim)->num_ghosts();
-  std::int32_t ndofs_local = V->dofmap()->index_map->size_local();
+  std::int32_t ndofs_local = V.dofmap()->index_map->size_local();
 
   std::vector<std::uint8_t> cell_mark(ncells_local + ncells_ghost, 0);
   for (int i = 0; i < ncells_local; ++i)
   {
-    auto cell_dofs = V->dofmap()->cell_dofs(i);
+    auto cell_dofs = V.dofmap()->cell_dofs(i);
     for (auto dof : cell_dofs)
       if (dof >= ndofs_local)
         cell_mark[i] = 1;

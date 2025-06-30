@@ -8,6 +8,7 @@
 
 #include "geometry_gpu.hpp"
 #include "laplacian_gpu.hpp"
+#include "mesh.hpp"
 #include "util.hpp"
 #include <basix/finite-element.h>
 #include <basix/interpolation.h>
@@ -84,9 +85,7 @@ public:
   MatFreeLaplacian(const dolfinx::mesh::Mesh<T>& mesh,
                    const dolfinx::fem::FunctionSpace<T>& V,
                    const dolfinx::fem::DirichletBC<T>& bc, int degree,
-                   int qmode, T constant, const std::vector<int>& lcells,
-                   const std::vector<int>& bcells,
-                   basix::quadrature::type quad_type,
+                   int qmode, T constant, basix::quadrature::type quad_type,
                    std::size_t batch_size = 0)
       : _degree(degree), _cell_constants(impl::num_cells(mesh), constant),
         _cell_dofmap(V.dofmap()->map().data_handle(),
@@ -98,6 +97,12 @@ public:
                              + mesh.geometry().dofmap().size()),
         _bc_marker(impl::build_bc_markers(bc)), _batch_size(batch_size)
   {
+    {
+      auto [lcells, bcells] = benchdolfinx::compute_boundary_cells<T>(V);
+      _lcells = lcells;
+      _bcells = bcells;
+    }
+
     basix::element::lagrange_variant variant;
     std::map<int, int> q_map;
     if (quad_type == basix::quadrature::type::gauss_jacobi)
@@ -111,11 +116,14 @@ public:
       q_map = q_map_gll;
     }
     else
+    {
       throw std::runtime_error(
           "Unsupported quadrature type for mat-free operator");
+    }
 
     // NOTE: Basix generates quadrature points in tensor-product
     // ordering, so this is OK
+
     auto [Gpoints, Gweights] = basix::quadrature::make_quadrature<T>(
         quad_type, basix::cell::type::hexahedron,
         basix::polyset::type::standard, q_map.at(_degree + qmode));
@@ -129,12 +137,8 @@ public:
     cmap.tabulate(1, Gpoints, {Gweights.size(), 3}, phi_b);
 
     // Copy dphi to device (skipping phi in table)
-    _dphi_geometry.resize(phi_b.size() * 3 / 4);
-    thrust::copy(phi_b.begin() + phi_b.size() / 4, phi_b.end(),
-                 _dphi_geometry.begin());
-
-    _g_weights_d.resize(Gweights.size());
-    thrust::copy(Gweights.begin(), Gweights.end(), _g_weights_d.begin());
+    _dphi_geometry.assign(phi_b.begin() + phi_b.size() / 4, phi_b.end());
+    _g_weights_d.assign(Gweights.begin(), Gweights.end());
 
     // Create 1D element
     basix::FiniteElement<T> element0 = basix::create_element<T>(
@@ -163,14 +167,13 @@ public:
     auto [mat, shape_I]
         = basix::compute_interpolation_operator(element0, element1);
 
+    // Check whether the interpolation matrix is the identity
     T precision = std::numeric_limits<T>::epsilon();
     for (auto& v : mat)
     {
       if (std::abs(v) < 5 * precision)
         v = 0;
     }
-
-    // Check whether the interpolation matrix is the identity
     _is_identity = matrix_is_identity(mat, shape_I);
 
     spdlog::info("Identity: {}", _is_identity);
@@ -178,7 +181,7 @@ public:
     // Tabulate 1D
     auto [table, shape] = element1.tabulate(1, points, {weights.size(), 1});
 
-    // Basis value gradient evualation table
+    // Basis value gradient evaluation table
     if (_op_nq == _degree + 1)
     {
       switch (_degree)
@@ -244,24 +247,18 @@ public:
     spdlog::debug("Copy interpolation matrix to device ({} bytes)",
                   mat.size() * sizeof(T));
 
-    // Copy lists of local and boundary cells to device
-    _lcells_device.resize(lcells.size());
-    thrust::copy(lcells.begin(), lcells.end(), _lcells_device.begin());
-    _bcells_device.resize(bcells.size());
-    thrust::copy(bcells.begin(), bcells.end(), _bcells_device.begin());
-
     // If we're not batching the geometry, precompute it
     if (_batch_size == 0)
     {
-      // FIXME Store cells and local/ghost offsets instead to avoid this?
+      // FIXME: Store cells and local/ghost offsets instead to avoid
+      // this?
       spdlog::info("Precomputing geometry");
-      thrust::device_vector<std::int32_t> cells_d(_lcells_device.size()
-                                                  + _bcells_device.size());
-      thrust::copy(_lcells_device.begin(), _lcells_device.end(),
-                   cells_d.begin());
-      thrust::copy(_bcells_device.begin(), _bcells_device.end(),
-                   cells_d.begin() + _lcells_device.size());
-      std::span<std::int32_t> cell_list_d(
+      thrust::device_vector<std::int32_t> cells_d(_lcells.size()
+                                                  + _bcells.size());
+      thrust::copy(_lcells.begin(), _lcells.end(), cells_d.begin());
+      thrust::copy(_bcells.begin(), _bcells.end(),
+                   cells_d.begin() + _lcells.size());
+      std::span<const std::int32_t> cell_list_d(
           thrust::raw_pointer_cast(cells_d.data()), cells_d.size());
 
       compute_geometry(_op_nq, cell_list_d);
@@ -275,7 +272,7 @@ public:
   /// @param nq Number of quadrature points in 1D
   /// @param cell_list_d List of cell indices to compute for
   template <int Q = 2>
-  void compute_geometry(int nq, std::span<int> cell_list_d)
+  void compute_geometry(int nq, std::span<const int> cell_list_d)
   {
     if constexpr (Q < 10)
     {
@@ -317,14 +314,12 @@ public:
   {
     T* geometry_ptr = thrust::raw_pointer_cast(_g_entity.data());
 
-    if (!_lcells_device.empty())
+    if (!_lcells.empty())
     {
       spdlog::debug("mat_diagonal doing lcells. lcells size = {}",
-                    _lcells_device.size());
-      std::span<int> cell_list_d(
-          thrust::raw_pointer_cast(_lcells_device.data()),
-          _lcells_device.size());
-
+                    _lcells.size());
+      std::span<int> cell_list_d(thrust::raw_pointer_cast(_lcells.data()),
+                                 _lcells.size());
       if (_batch_size > 0)
       {
         spdlog::debug("Calling compute_geometry on local cells [{}]",
@@ -346,13 +341,12 @@ public:
       check_device_last_error();
     }
 
-    if (!_bcells_device.empty())
+    if (!_bcells.empty())
     {
       spdlog::debug("mat_diagonal doing bcells. bcells size = {}",
-                    _bcells_device.size());
-      std::span<int> cell_list_d(
-          thrust::raw_pointer_cast(_bcells_device.data()),
-          _bcells_device.size());
+                    _bcells.size());
+      std::span<int> cell_list_d(thrust::raw_pointer_cast(_bcells.data()),
+                                 _bcells.size());
 
       if (_batch_size > 0)
       {
@@ -360,7 +354,7 @@ public:
         device_synchronize();
       }
       else
-        geometry_ptr += 6 * Q * Q * Q * _lcells_device.size();
+        geometry_ptr += 6 * Q * Q * Q * _lcells.size();
 
       T* y = out.mutable_array().data();
 
@@ -389,16 +383,16 @@ public:
 
     T* geometry_ptr = thrust::raw_pointer_cast(_g_entity.data());
 
-    if (!_lcells_device.empty())
+    if (!_lcells.empty())
     {
       std::size_t i = 0;
       std::size_t i_batch_size
-          = (_batch_size == 0) ? _lcells_device.size() : _batch_size;
-      while (i < _lcells_device.size())
+          = (_batch_size == 0) ? _lcells.size() : _batch_size;
+      while (i < _lcells.size())
       {
-        std::size_t i_next = std::min(_lcells_device.size(), i + i_batch_size);
-        std::span<int> cell_list_d(
-            thrust::raw_pointer_cast(_lcells_device.data()) + i, (i_next - i));
+        std::size_t i_next = std::min(_lcells.size(), i + i_batch_size);
+        std::span<int> cell_list_d(thrust::raw_pointer_cast(_lcells.data()) + i,
+                                   (i_next - i));
         i = i_next;
 
         if (_batch_size > 0)
@@ -439,13 +433,12 @@ public:
 
     spdlog::debug("impl_operator after scatter");
 
-    if (!_bcells_device.empty())
+    if (!_bcells.empty())
     {
       spdlog::debug("impl_operator doing bcells. bcells size = {}",
-                    _bcells_device.size());
-      std::span<int> cell_list_d(
-          thrust::raw_pointer_cast(_bcells_device.data()),
-          _bcells_device.size());
+                    _bcells.size());
+      std::span<int> cell_list_d(thrust::raw_pointer_cast(_bcells.data()),
+                                 _bcells.size());
 
       if (_batch_size > 0)
       {
@@ -453,7 +446,7 @@ public:
         device_synchronize();
       }
       else
-        geometry_ptr += 6 * Q * Q * Q * _lcells_device.size();
+        geometry_ptr += 6 * Q * Q * Q * _lcells.size();
 
       T* x = in.mutable_array().data();
       T* y = out.mutable_array().data();
@@ -621,10 +614,11 @@ private:
   // Lists of cells which are local (lcells) and boundary (bcells)
 
   // Exclusively owned cells (not not share dofs with other processes)
-  thrust::device_vector<int> _lcells_device;
+  std::array<thrust::device_vector<int>, 2> _cells;
+  thrust::device_vector<int> _lcells;
 
   // Cell on partition boundaries
-  thrust::device_vector<int> _bcells_device;
+  thrust::device_vector<int> _bcells;
 
   // On device storage for the inverse diagonal, needed for Jacobi
   // preconditioner (to remove in future)
