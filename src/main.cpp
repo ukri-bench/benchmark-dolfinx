@@ -3,6 +3,7 @@
 // SPDX-License-Identifier:    MIT
 
 #include "csr.hpp"
+#include "forms.hpp"
 #include "laplacian.hpp"
 #include "mesh.hpp"
 #include "poisson.h"
@@ -236,70 +237,15 @@ int main(int argc, char* argv[])
     in_root["mat_comp"] = matrix_comparison;
 
     // Prepare and set Constants for the bilinear form
+    spdlog::debug("Define forms");
     auto kappa = std::make_shared<fem::Constant<T>>(2.0);
     auto f = std::make_shared<fem::Function<T>>(V);
-
-    spdlog::debug("Define forms");
-
-    // Define variational forms
-    std::vector<ufcx_form*> aforms;
-    std::vector<ufcx_form*> Lforms;
-
-    if (use_gauss)
-    {
-      if (qmode == 0)
-      {
-        aforms = {form_poisson_a_1_2_GL, form_poisson_a_2_3_GL,
-                  form_poisson_a_3_4_GL, form_poisson_a_4_5_GL,
-                  form_poisson_a_5_6_GL, form_poisson_a_6_7_GL,
-                  form_poisson_a_7_8_GL};
-        Lforms = {form_poisson_L_1_2_GL, form_poisson_L_2_3_GL,
-                  form_poisson_L_3_4_GL, form_poisson_L_4_5_GL,
-                  form_poisson_L_5_6_GL, form_poisson_L_6_7_GL,
-                  form_poisson_L_7_8_GL};
-      }
-      else
-      {
-        aforms = {form_poisson_a_1_3_GL, form_poisson_a_2_4_GL,
-                  form_poisson_a_3_5_GL, form_poisson_a_4_6_GL,
-                  form_poisson_a_5_7_GL, form_poisson_a_6_8_GL,
-                  form_poisson_a_7_9_GL};
-        Lforms = {form_poisson_L_1_3_GL, form_poisson_L_2_4_GL,
-                  form_poisson_L_3_5_GL, form_poisson_L_4_6_GL,
-                  form_poisson_L_5_7_GL, form_poisson_L_6_8_GL,
-                  form_poisson_L_7_9_GL};
-      }
-    }
-    else
-    {
-      if (qmode == 0)
-      {
-        aforms = {form_poisson_a_1_2_GLL, form_poisson_a_2_3_GLL,
-                  form_poisson_a_3_4_GLL, form_poisson_a_4_5_GLL,
-                  form_poisson_a_5_6_GLL, form_poisson_a_6_7_GLL,
-                  form_poisson_a_7_8_GLL};
-        Lforms = {form_poisson_L_1_2_GLL, form_poisson_L_2_3_GLL,
-                  form_poisson_L_3_4_GLL, form_poisson_L_4_5_GLL,
-                  form_poisson_L_5_6_GLL, form_poisson_L_6_7_GLL,
-                  form_poisson_L_7_8_GLL};
-      }
-      else
-      {
-        aforms = {form_poisson_a_1_3_GLL, form_poisson_a_2_4_GLL,
-                  form_poisson_a_3_5_GLL, form_poisson_a_4_6_GLL,
-                  form_poisson_a_5_7_GLL, form_poisson_a_6_8_GLL,
-                  form_poisson_a_7_9_GLL};
-        Lforms = {form_poisson_L_1_3_GLL, form_poisson_L_2_4_GLL,
-                  form_poisson_L_3_5_GLL, form_poisson_L_4_6_GLL,
-                  form_poisson_L_5_7_GLL, form_poisson_L_6_8_GLL,
-                  form_poisson_L_7_9_GLL};
-      }
-    }
-
-    auto a = std::make_shared<fem::Form<T>>(fem::create_form<T>(
-        *aforms.at(order - 1), {V, V}, {}, {{"c0", kappa}}, {}, {}));
-    auto L = std::make_shared<fem::Form<T>>(fem::create_form<T>(
-        *Lforms.at(order - 1), {V}, {{"w0", f}}, {}, {}, {}));
+    auto a = std::make_shared<fem::Form<double>>(
+        benchdolfinx::create_laplacian_form2(V, {{"c0", kappa}}, qmode,
+                                             use_gauss, order));
+    auto L = std::make_shared<fem::Form<double>>(
+        benchdolfinx::create_laplacian_form1(V, {{"w0", f}}, qmode, use_gauss,
+                                             order));
 
     spdlog::debug("Interpolate (rank {})", rank);
     f->interpolate(

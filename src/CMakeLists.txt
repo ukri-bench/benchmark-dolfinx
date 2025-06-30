@@ -102,7 +102,7 @@ if(amd)
   find_package(rocthrust REQUIRED CONFIG)
 endif()
 
-add_executable(${PROJECT_NAME} main.cpp poisson.c)
+add_executable(${PROJECT_NAME} main.cpp forms.cpp poisson.c)
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
 target_link_libraries(${PROJECT_NAME} dolfinx Basix::basix Boost::program_options jsoncpp_lib)
 
