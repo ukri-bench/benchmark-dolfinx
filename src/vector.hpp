@@ -22,7 +22,6 @@
 
 namespace benchdolfinx::impl
 {
-
 /// @brief pack data before MPI (neighbor) all-to-all operation
 /// @tparam T Scalar data type
 /// @param N Number of entries in indices
@@ -84,7 +83,7 @@ static __global__ void unpack_add(std::int32_t N,
 }
 } // namespace benchdolfinx::impl
 
-namespace dolfinx::acc
+namespace benchdolfinx
 {
 /// @brief Distributed vector
 /// @tparam T Scalar type
@@ -98,9 +97,9 @@ public:
   /// @brief A distributed vector across MPI processes
   /// @param map IndexMap describing parallel distribution
   /// @param bs Block size
-  Vector(std::shared_ptr<const common::IndexMap> map, int bs)
+  Vector(std::shared_ptr<const dolfinx::common::IndexMap> map, int bs)
       : _map(map), _bs(bs),
-        _scatterer(std::make_shared<common::Scatterer<>>(*_map, bs)),
+        _scatterer(std::make_shared<dolfinx::common::Scatterer<>>(*_map, bs)),
         _buffer_local(
             thrust::device_vector<T>(_scatterer->local_buffer_size(), 0)),
         _buffer_remote(
@@ -109,8 +108,8 @@ public:
             thrust::device_vector<std::int32_t>(_scatterer->local_indices())),
         _remote_indices(
             thrust::device_vector<std::int32_t>(_scatterer->remote_indices())),
-        _request(
-            _scatterer->create_request_vector(common::Scatterer<>::type::p2p)),
+        _request(_scatterer->create_request_vector(
+            dolfinx::common::Scatterer<>::type::p2p)),
         _x(bs * (map->size_local() + map->num_ghosts()), 0)
 
   {
@@ -143,7 +142,7 @@ public:
 
   /// @brief Vector IndexMap
   /// @returns IndexMap of the Vector
-  std::shared_ptr<const common::IndexMap> map() const { return _map; }
+  std::shared_ptr<const dolfinx::common::IndexMap> map() const { return _map; }
 
   /// Get block size
   /// @returns Block size of the Vector
@@ -177,7 +176,6 @@ public:
     int size, rank;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
-
     for (int i = 0; i < size; i++)
     {
       if (rank == i)
@@ -218,7 +216,8 @@ public:
         std::span<const T>(thrust::raw_pointer_cast(_buffer_local.data()),
                            _buffer_local.size()),
         std::span<T>(remote, _buffer_remote.size()),
-        std::span<MPI_Request>(_request), common::Scatterer<>::type::p2p);
+        std::span<MPI_Request>(_request),
+        dolfinx::common::Scatterer<>::type::p2p);
   }
 
   /// @brief Complete scatter of local data from owner to ghosts on other ranks
@@ -290,7 +289,8 @@ public:
     _scatterer->scatter_rev_begin(
         std::span<const T>(out, _buffer_remote.size()),
         std::span<T>(local, _buffer_local.size()),
-        std::span<MPI_Request>(_request), common::Scatterer<>::type::p2p);
+        std::span<MPI_Request>(_request),
+        dolfinx::common::Scatterer<>::type::p2p);
   }
 
   /// @brief Complete scatter of ghost data back to owning ranks
@@ -328,13 +328,13 @@ public:
 
 private:
   // Map describing the data layout
-  std::shared_ptr<const common::IndexMap> _map;
+  std::shared_ptr<const dolfinx::common::IndexMap> _map;
 
   // Block size
   int _bs;
 
   // Scatter for managing MPI communication
-  std::shared_ptr<common::Scatterer<>> _scatterer;
+  std::shared_ptr<dolfinx::common::Scatterer<>> _scatterer;
 
   // Buffers for ghost scatters
   thrust::device_vector<T> _buffer_local, _buffer_remote;
@@ -483,5 +483,5 @@ void pointwise_mult(Vector& w, const Vector& x, const Vector& y)
   spdlog::debug("pointwise_mult end");
 }
 
-} // namespace dolfinx::acc
+} // namespace benchdolfinx
 #endif

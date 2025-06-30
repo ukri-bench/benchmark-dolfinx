@@ -2,40 +2,73 @@
 // Garth N. Wells
 // SPDX-License-Identifier:    MIT
 
-#include "csr.hpp"
-#include "laplacian.hpp"
+#include "forms.hpp"
+#include "laplacian_solver.hpp"
 #include "mesh.hpp"
-#include "poisson.h"
 #include "util.hpp"
-#include "vector.hpp"
 #include <array>
 #include <basix/finite-element.h>
-#include <basix/quadrature.h>
 #include <boost/program_options.hpp>
-#include <chrono>
-#include <dolfinx.h>
-#include <dolfinx/fem/dolfinx_fem.h>
-#include <dolfinx/io/XDMFFile.h>
-#include <dolfinx/la/MatrixCSR.h>
-#include <dolfinx/la/SparsityPattern.h>
 #include <dolfinx/mesh/generation.h>
-#include <fstream>
 #include <iostream>
 #include <json/json.h>
 #include <memory>
 #include <mpi.h>
 #include <random>
 
-#if defined(USE_CUDA) || defined(USE_HIP)
-#include <thrust/sequence.h>
-#endif
-
 using namespace dolfinx;
 namespace po = boost::program_options;
-using T = SCALAR_TYPE;
+using T = double;
 
 namespace
 {
+/// @brief TODO
+/// @param ndofs
+/// @param degree
+/// @param mpi_size
+/// @return
+std::array<std::int64_t, 3> compute_num_cells(std::int64_t ndofs, int degree,
+                                              int mpi_size)
+{
+  double nx_approx = (std::pow(ndofs * mpi_size, 1.0 / 3.0) - 1) / degree;
+  std::int64_t n0 = static_cast<std::int64_t>(nx_approx);
+  std::array<std::int64_t, 3> nx = {n0, n0, n0};
+
+  // Try to improve fit to ndofs +/- 5 in each direction
+  if (n0 > 5)
+  {
+    std::int64_t best_misfit
+        = (n0 * degree + 1) * (n0 * degree + 1) * (n0 * degree + 1)
+          - ndofs * mpi_size;
+    best_misfit = std::abs(best_misfit);
+    for (std::int64_t nx0 = n0 - 5; nx0 < n0 + 6; ++nx0)
+    {
+      for (std::int64_t ny0 = n0 - 5; ny0 < n0 + 6; ++ny0)
+      {
+        for (std::int64_t nz0 = n0 - 5; nz0 < n0 + 6; ++nz0)
+        {
+          std::int64_t misfit
+              = (nx0 * degree + 1) * (ny0 * degree + 1) * (nz0 * degree + 1)
+                - ndofs * mpi_size;
+          if (std::abs(misfit) < best_misfit)
+          {
+            best_misfit = std::abs(misfit);
+            nx = {nx0, ny0, nz0};
+          }
+        }
+      }
+    }
+  }
+
+  return nx;
+}
+
+/// @brief TODO
+/// @tparam X
+/// @param comm
+/// @param n
+/// @param geom_perturb_fact
+/// @return
 template <typename X>
 mesh::Mesh<X> create_mesh(MPI_Comm comm, std::array<std::int64_t, 3> n,
                           X geom_perturb_fact)
@@ -54,7 +87,7 @@ mesh::Mesh<X> create_mesh(MPI_Comm comm, std::array<std::int64_t, 3> n,
       geom_x[i] += distribution(generator);
   }
 
-  // First order coordinate element
+  // Degree 1 coordinate element
   auto element
       = std::make_shared<basix::FiniteElement<T>>(basix::create_tp_element<T>(
           basix::element::family::P, basix::cell::type::hexahedron, 1,
@@ -80,7 +113,7 @@ int main(int argc, char* argv[])
       "Quadrature mode (0 or 1): qmode=0 has P+1 points in each direction,"
       "qmode=1 has P+2 points in each direction.")(
       "nreps", po::value<std::size_t>()->default_value(1000),
-      "Number of repetitions")("order",
+      "Number of repetitions")("degree",
                                po::value<std::size_t>()->default_value(3),
                                "Polynomial degree \"P\" (2-7)")(
       "mat_comp", po::bool_switch()->default_value(false),
@@ -111,7 +144,7 @@ int main(int argc, char* argv[])
 
   std::size_t ndofs = vm["ndofs"].as<std::size_t>();
   std::size_t nreps = vm["nreps"].as<std::size_t>();
-  std::size_t order = vm["order"].as<std::size_t>();
+  std::size_t degree = vm["degree"].as<std::size_t>();
   bool matrix_comparison = vm["mat_comp"].as<bool>();
   T geom_perturb_fact = vm["geom_perturb_fact"].as<T>();
   bool use_gauss = vm["use_gauss"].as<bool>();
@@ -119,14 +152,14 @@ int main(int argc, char* argv[])
   // Quadrature mode (qmode=0: nq = P + 1, qmode=1: nq = P + 2)
   std::size_t qmode = vm["qmode"].as<std::size_t>();
   if (qmode > 1)
-    throw std::runtime_error("Invalid qmode");
+    throw std::runtime_error("Invalid qmode.");
 
   const std::size_t benchmark = vm["benchmark"].as<std::size_t>();
   if (benchmark == 1)
   {
     ndofs = 15625;
     nreps = 1;
-    order = 6;
+    degree = 6;
     qmode = 1;
     matrix_comparison = true;
     geom_perturb_fact = 0.125;
@@ -141,51 +174,20 @@ int main(int argc, char* argv[])
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
 
-    double nx_approx = (std::pow(ndofs * size, 1.0 / 3.0) - 1) / order;
-    std::int64_t n0 = static_cast<std::int64_t>(nx_approx);
-    std::array<std::int64_t, 3> nx = {n0, n0, n0};
-
-    // Try to improve fit to ndofs +/- 5 in each direction
-    if (n0 > 5)
-    {
-      std::int64_t best_misfit
-          = (n0 * order + 1) * (n0 * order + 1) * (n0 * order + 1)
-            - ndofs * size;
-      best_misfit = std::abs(best_misfit);
-      for (std::int64_t nx0 = n0 - 5; nx0 < n0 + 6; ++nx0)
-      {
-        for (std::int64_t ny0 = n0 - 5; ny0 < n0 + 6; ++ny0)
-        {
-          for (std::int64_t nz0 = n0 - 5; nz0 < n0 + 6; ++nz0)
-          {
-            std::int64_t misfit
-                = (nx0 * order + 1) * (ny0 * order + 1) * (nz0 * order + 1)
-                  - ndofs * size;
-            if (std::abs(misfit) < best_misfit)
-            {
-              best_misfit = std::abs(misfit);
-              nx = {nx0, ny0, nz0};
-            }
-          }
-        }
-      }
-    }
-
+    // Create mesh
+    std::array<std::int64_t, 3> nx = compute_num_cells(ndofs, degree, size);
     spdlog::info("Mesh shape: {}x{}x{}", nx[0], nx[1], nx[2]);
-
-    // Finite element for higher-order discretisation
-    auto element = basix::create_tp_element<T>(
-        basix::element::family::P, basix::cell::type::hexahedron, order,
-        basix::element::lagrange_variant::gll_warped,
-        basix::element::dpc_variant::unset, false);
-
     auto mesh = std::make_shared<mesh::Mesh<T>>(
         create_mesh<T>(comm, nx, geom_perturb_fact));
 
+    // Finite element for higher-order discretisation
+    auto element = basix::create_tp_element<T>(
+        basix::element::family::P, basix::cell::type::hexahedron, degree,
+        basix::element::lagrange_variant::gll_warped,
+        basix::element::dpc_variant::unset, false);
+
     auto V = std::make_shared<fem::FunctionSpace<T>>(fem::create_functionspace(
         mesh, std::make_shared<const fem::FiniteElement<T>>(element)));
-    auto [lcells, bcells] = benchdolfinx::compute_boundary_cells(V);
-    spdlog::debug("lcells = {}, bcells = {}", lcells.size(), bcells.size());
 
     auto topology = V->mesh()->topology_mutable();
     int tdim = topology->dim();
@@ -201,33 +203,34 @@ int main(int argc, char* argv[])
     if (rank == 0)
     {
 #if defined(USE_CUDA) || defined(USE_HIP)
-      std::cout << device_information();
+      std::cout << benchdolfinx::get_device_information();
 #endif
       std::cout << "-----------------------------------\n";
-      std::cout << "Polynomial degree : " << order << "\n";
+      std::cout << "Polynomial degree : " << degree << "\n";
 #ifndef USE_SLICED
       std::cout << "Sliced : no" << std::endl;
 #else
       std::cout << "Sliced : yes" << std::endl;
       std::cout << "Slice size: " << SLICE_SIZE << std::endl;
 #endif
-      std::cout << "Number of ranks : " << size << "\n";
-      std::cout << "Number of cells-global : " << ncells << "\n";
-      std::cout << "Number of dofs-global : " << ndofs_global << "\n";
-      std::cout << "Number of cells-rank : " << ncells / size << "\n";
-      std::cout << "Number of dofs-rank : " << ndofs_global / size << "\n";
-      std::cout << "Number of repetitions : " << nreps << "\n";
-      std::cout << "Scalar Type: " << fp_type << "\n";
-      std::cout << "XXXUse GLL: " << use_gauss << "\n";
-      std::cout << "Foo: " << matrix_comparison << "\n";
-      std::cout << "-----------------------------------\n";
+      std::cout << "Number of ranks : " << size << std::endl;
+      std::cout << "Number of cells-global : " << ncells << std::endl;
+      std::cout << "Number of dofs-global : " << ndofs_global << std::endl;
+      std::cout << "Number of cells-rank : " << ncells / size << std::endl;
+      std::cout << "Number of dofs-rank : " << ndofs_global / size << std::endl;
+      std::cout << "Number of repetitions : " << nreps << std::endl;
+      std::cout << "Scalar Type: " << fp_type << std::endl;
+      std::cout << "XXXUse GLL: " << use_gauss << std::endl;
+      std::cout << "Foo: " << matrix_comparison << std::endl;
+      std::cout << "-----------------------------------" << std::endl;
+      ;
       std::cout << std::flush;
     }
 
     Json::Value root;
 
     Json::Value& in_root = root["input"];
-    in_root["p"] = (Json::UInt64)order;
+    in_root["p"] = (Json::UInt64)degree;
     in_root["mpi_size"] = size;
     in_root["ncells"] = (Json::UInt64)ncells;
     in_root["ndofs"] = (Json::UInt64)ndofs_global;
@@ -236,70 +239,13 @@ int main(int argc, char* argv[])
     in_root["mat_comp"] = matrix_comparison;
 
     // Prepare and set Constants for the bilinear form
+    spdlog::debug("Define forms");
     auto kappa = std::make_shared<fem::Constant<T>>(2.0);
     auto f = std::make_shared<fem::Function<T>>(V);
-
-    spdlog::debug("Define forms");
-
-    // Define variational forms
-    std::vector<ufcx_form*> aforms;
-    std::vector<ufcx_form*> Lforms;
-
-    if (use_gauss)
-    {
-      if (qmode == 0)
-      {
-        aforms = {form_poisson_a_1_2_GL, form_poisson_a_2_3_GL,
-                  form_poisson_a_3_4_GL, form_poisson_a_4_5_GL,
-                  form_poisson_a_5_6_GL, form_poisson_a_6_7_GL,
-                  form_poisson_a_7_8_GL};
-        Lforms = {form_poisson_L_1_2_GL, form_poisson_L_2_3_GL,
-                  form_poisson_L_3_4_GL, form_poisson_L_4_5_GL,
-                  form_poisson_L_5_6_GL, form_poisson_L_6_7_GL,
-                  form_poisson_L_7_8_GL};
-      }
-      else
-      {
-        aforms = {form_poisson_a_1_3_GL, form_poisson_a_2_4_GL,
-                  form_poisson_a_3_5_GL, form_poisson_a_4_6_GL,
-                  form_poisson_a_5_7_GL, form_poisson_a_6_8_GL,
-                  form_poisson_a_7_9_GL};
-        Lforms = {form_poisson_L_1_3_GL, form_poisson_L_2_4_GL,
-                  form_poisson_L_3_5_GL, form_poisson_L_4_6_GL,
-                  form_poisson_L_5_7_GL, form_poisson_L_6_8_GL,
-                  form_poisson_L_7_9_GL};
-      }
-    }
-    else
-    {
-      if (qmode == 0)
-      {
-        aforms = {form_poisson_a_1_2_GLL, form_poisson_a_2_3_GLL,
-                  form_poisson_a_3_4_GLL, form_poisson_a_4_5_GLL,
-                  form_poisson_a_5_6_GLL, form_poisson_a_6_7_GLL,
-                  form_poisson_a_7_8_GLL};
-        Lforms = {form_poisson_L_1_2_GLL, form_poisson_L_2_3_GLL,
-                  form_poisson_L_3_4_GLL, form_poisson_L_4_5_GLL,
-                  form_poisson_L_5_6_GLL, form_poisson_L_6_7_GLL,
-                  form_poisson_L_7_8_GLL};
-      }
-      else
-      {
-        aforms = {form_poisson_a_1_3_GLL, form_poisson_a_2_4_GLL,
-                  form_poisson_a_3_5_GLL, form_poisson_a_4_6_GLL,
-                  form_poisson_a_5_7_GLL, form_poisson_a_6_8_GLL,
-                  form_poisson_a_7_9_GLL};
-        Lforms = {form_poisson_L_1_3_GLL, form_poisson_L_2_4_GLL,
-                  form_poisson_L_3_5_GLL, form_poisson_L_4_6_GLL,
-                  form_poisson_L_5_7_GLL, form_poisson_L_6_8_GLL,
-                  form_poisson_L_7_9_GLL};
-      }
-    }
-
-    auto a = std::make_shared<fem::Form<T>>(fem::create_form<T>(
-        *aforms.at(order - 1), {V, V}, {}, {{"c0", kappa}}, {}, {}));
-    auto L = std::make_shared<fem::Form<T>>(fem::create_form<T>(
-        *Lforms.at(order - 1), {V}, {{"w0", f}}, {}, {}, {}));
+    fem::Form<double> a = benchdolfinx::create_laplacian_form2(
+        V, {{"c0", kappa}}, qmode, use_gauss, degree);
+    fem::Form<double> L = benchdolfinx::create_laplacian_form1(
+        V, {{"w0", f}}, qmode, use_gauss, degree);
 
     spdlog::debug("Interpolate (rank {})", rank);
     f->interpolate(
@@ -321,173 +267,23 @@ int main(int argc, char* argv[])
     spdlog::debug("Done f->c on {}", rank);
 
     auto dofmap = V->dofmap();
-    auto facets = dolfinx::mesh::exterior_facet_indices(*topology);
+    auto facets = mesh::exterior_facet_indices(*topology);
     auto bdofs = fem::locate_dofs_topological(*topology, *dofmap, fdim, facets);
-    auto bc = std::make_shared<const fem::DirichletBC<T>>(1.3, bdofs, V);
+    fem::DirichletBC<T> bc(1.3, bdofs, V);
 
 #if defined(USE_CUDA) || defined(USE_HIP)
-
-    // Copy data to GPU
-    // Constants
-    // TODO Pack these properly
-    const int num_cells_all = mesh->topology()->index_map(tdim)->size_local()
-                              + mesh->topology()->index_map(tdim)->num_ghosts();
-    thrust::device_vector<T> constants_d(num_cells_all, kappa->value[0]);
-    std::span<const T> constants_d_span(
-        thrust::raw_pointer_cast(constants_d.data()), constants_d.size());
-    spdlog::info("Send constants to GPU (size = {} bytes)",
-                 constants_d.size() * sizeof(T));
-
-    // V dofmap
-    thrust::device_vector<std::int32_t> dofmap_d(dofmap->map().data_handle(),
-                                                 dofmap->map().data_handle()
-                                                     + dofmap->map().size());
-    std::span<const std::int32_t> dofmap_d_span(
-        thrust::raw_pointer_cast(dofmap_d.data()), dofmap_d.size());
-    spdlog::info("Send dofmap to GPU (size = {} bytes)",
-                 dofmap_d.size() * sizeof(std::int32_t));
-
-    // Define vectors
-    using DeviceVector = dolfinx::acc::Vector<T>;
-
-    // Input vector
-    auto map = V->dofmap()->index_map;
-    spdlog::info("Create device vector u");
-
-    DeviceVector u(map, 1);
-    u.set(T{0.0});
-
-    // Output vector
-    spdlog::info("Create device vector y");
-    DeviceVector y(map, 1);
-    y.set(T{0.0});
-
-    // -----------------------------------------------------------------------------
-    // Put geometry information onto device
-    const fem::CoordinateElement<T>& cmap = mesh->geometry().cmap();
-    auto xdofmap = mesh->geometry().dofmap();
-
-    // Geometry dofmap
-    spdlog::info("Copy geometry dofmap to device ({} bytes)",
-                 xdofmap.size() * sizeof(std::int32_t));
-    thrust::device_vector<std::int32_t> xdofmap_d(
-        xdofmap.data_handle(), xdofmap.data_handle() + xdofmap.size());
-    std::span<const std::int32_t> xdofmap_d_span(
-        thrust::raw_pointer_cast(xdofmap_d.data()), xdofmap_d.size());
-    // Geometry points
-    spdlog::info("Copy geometry to device ({} bytes)",
-                 mesh->geometry().x().size() * sizeof(T));
-    thrust::device_vector<T> xgeom_d(mesh->geometry().x().begin(),
-                                     mesh->geometry().x().end());
-    std::span<const T> xgeom_d_span(thrust::raw_pointer_cast(xgeom_d.data()),
-                                    xgeom_d.size());
-
-    // TODO Ghosts
-    const int num_dofs = map->size_local() + map->num_ghosts();
-    std::vector<std::int8_t> bc_marker(num_dofs, 0);
-    bc->mark_dofs(bc_marker);
-    thrust::device_vector<std::int8_t> bc_marker_d(bc_marker.begin(),
-                                                   bc_marker.end());
-    std::span<const std::int8_t> bc_marker_d_span(
-        thrust::raw_pointer_cast(bc_marker_d.data()), bc_marker_d.size());
-
-    // Create matrix free operator
-    spdlog::info("Create MatFreeLaplacian");
-    dolfinx::common::Timer op_create_timer("% Create matfree operator");
-
-    basix::quadrature::type quad_type
-        = use_gauss ? basix::quadrature::type::gauss_jacobi
-                    : basix::quadrature::type::gll;
-
-    MatFreeLaplacian<T> op(order, qmode, constants_d_span, dofmap_d_span,
-                           xgeom_d_span, xdofmap_d_span, cmap, lcells, bcells,
-                           bc_marker_d_span, quad_type, 0);
-
-    op_create_timer.stop();
-
-    la::Vector<T> b(map, 1);
-    fem::assemble_vector(b.mutable_array(), *L);
-    u.copy_from_host(b); // Copy data from host vector to device vector
-    u.scatter_fwd_begin();
-
-    // Matrix free
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < nreps; ++i)
-      op(u, y);
-    auto stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration = stop - start;
-
-    T unorm = acc::norm(u);
-    T ynorm = acc::norm(y);
-
-    Json::Value& out_root = root["results"];
-    if (rank == 0)
-    {
-      std::cout << "Mat-free Matvec time: " << duration.count() << std::endl;
-      std::cout << "Mat-free action Gdofs/s: "
-                << ndofs_global * nreps / (1e9 * duration.count()) << std::endl;
-
-      out_root["gdofs"] = ndofs_global * nreps / (1e9 * duration.count());
-
-      std::cout << "Norm of u = " << unorm << std::endl;
-      std::cout << "Norm of y = " << ynorm << std::endl;
-    }
-
-    if (matrix_comparison)
-    {
-      // Compare to assembling on CPU and copying matrix to GPU
-      DeviceVector z(map, 1);
-      z.set(T{0.0});
-
-      acc::MatrixOperator<T> mat_op(a, {*bc});
-      dolfinx::common::Timer mtimer("% CSR Matvec");
-      for (int i = 0; i < nreps; ++i)
-        mat_op(u, z);
-      mtimer.stop();
-
-      T unorm = acc::norm(u);
-      T znorm = acc::norm(z);
-      // Compute error
-      DeviceVector e(map, 1);
-      acc::axpy(e, T{-1.0}, y, z);
-      T enorm = acc::norm(e);
-
-      if (rank == 0)
-      {
-        std::cout << "Norm of u = " << unorm << "\n";
-        std::cout << "Norm of z = " << znorm << "\n";
-        std::cout << "Norm of error = " << enorm << "\n";
-        std::cout << "Relative norm of error = " << enorm / znorm << "\n";
-        out_root["error_norm"] = enorm;
-      }
-
-      // Compute error in diagonal computation
-      DeviceVector mat_free_inv_diag(map, 1);
-      op.get_diag_inverse(mat_free_inv_diag);
-      DeviceVector mat_inv_diag(map, 1);
-      mat_op.get_diag_inverse(mat_inv_diag);
-
-      DeviceVector e_diag(map, 1);
-      acc::axpy(e_diag, T{-1.0}, mat_inv_diag, mat_free_inv_diag);
-      T dnorm = acc::norm(e_diag);
-
-      if (rank == 0)
-      {
-        std::cout << "Norm of diagonal error = " << dnorm << "\n";
-        out_root["diagonal_error_norm"] = dnorm;
-      }
-    }
-
+    benchdolfinx::laplace_action<T>(a, L, bc, degree, qmode, kappa->value[0],
+                                    nreps, use_gauss);
 #endif
-    if (rank == 0)
-    {
-      Json::StreamWriterBuilder builder;
-      builder["indentation"] = "  ";
-      const std::unique_ptr<Json::StreamWriter> writer(
-          builder.newStreamWriter());
-      std::ofstream strm("out.json", std::ofstream::out);
-      writer->write(root, &strm);
-    }
+    // if (rank == 0)
+    // {
+    //   Json::StreamWriterBuilder builder;
+    //   builder["indentation"] = "  ";
+    //   const std::unique_ptr<Json::StreamWriter> writer(
+    //       builder.newStreamWriter());
+    //   std::ofstream strm("out.json", std::ofstream::out);
+    //   writer->write(root, &strm);
+    // }
 
     // Display timings
     dolfinx::list_timings(MPI_COMM_WORLD);

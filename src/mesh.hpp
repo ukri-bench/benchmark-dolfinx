@@ -66,7 +66,7 @@ ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
     int rank = dolfinx::MPI::rank(comm);
     std::vector<std::int32_t> dests;
     std::vector<int> offsets = {0};
-    for (int c = 0; c < ncells; ++c)
+    for (std::size_t c = 0; c < ncells; ++c)
     {
       dests.push_back(rank);
       if (auto it = cell_to_dests.find(c); it != cell_to_dests.end())
@@ -93,7 +93,7 @@ ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
   for (std::size_t c = 0; c < dofmap.extent(0); ++c)
   {
     auto cell_dofs = std::submdspan(dofmap, c, std::full_extent);
-    for (int i = 0; i < dofmap.extent(1); ++i)
+    for (std::size_t i = 0; i < dofmap.extent(1); ++i)
       permuted_dofmap.push_back(cell_dofs(perm[i]));
   }
   std::vector<std::int64_t> permuted_dofmap_global(permuted_dofmap.size());
@@ -115,12 +115,11 @@ ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
 /// 1. cells which are "local", i.e. the dofs on
 /// these cells are not shared with any other process.
 /// 2. cells which share dofs with other processes.
-///
 template <typename T>
-std::pair<std::vector<std::int32_t>, std::vector<std::int32_t>>
-compute_boundary_cells(std::shared_ptr<dolfinx::fem::FunctionSpace<T>> V)
+std::array<std::vector<std::int32_t>, 2>
+compute_boundary_cells(const dolfinx::fem::FunctionSpace<T>& V)
 {
-  auto mesh = V->mesh();
+  auto mesh = V.mesh();
   auto topology = mesh->topology_mutable();
   int tdim = topology->dim();
   int fdim = tdim - 1;
@@ -128,12 +127,12 @@ compute_boundary_cells(std::shared_ptr<dolfinx::fem::FunctionSpace<T>> V)
 
   std::int32_t ncells_local = topology->index_map(tdim)->size_local();
   std::int32_t ncells_ghost = topology->index_map(tdim)->num_ghosts();
-  std::int32_t ndofs_local = V->dofmap()->index_map->size_local();
+  std::int32_t ndofs_local = V.dofmap()->index_map->size_local();
 
   std::vector<std::uint8_t> cell_mark(ncells_local + ncells_ghost, 0);
   for (int i = 0; i < ncells_local; ++i)
   {
-    auto cell_dofs = V->dofmap()->cell_dofs(i);
+    auto cell_dofs = V.dofmap()->cell_dofs(i);
     for (auto dof : cell_dofs)
       if (dof >= ndofs_local)
         cell_mark[i] = 1;
@@ -143,7 +142,7 @@ compute_boundary_cells(std::shared_ptr<dolfinx::fem::FunctionSpace<T>> V)
 
   std::vector<std::int32_t> local_cells;
   std::vector<std::int32_t> boundary_cells;
-  for (int i = 0; i < cell_mark.size(); ++i)
+  for (std::size_t i = 0; i < cell_mark.size(); ++i)
   {
     if (cell_mark[i])
       boundary_cells.push_back(i);

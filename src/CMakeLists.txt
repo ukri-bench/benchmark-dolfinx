@@ -11,7 +11,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(HIP_ARCH "none" CACHE STRING "Set the AMD GPU target")
 set(CUDA_ARCH "none" CACHE STRING "Set the NVIDIA GPU architecture")
-set(SCALAR_TYPE "float64" CACHE STRING "Set the floating point type")
 
 if(NOT HIP_ARCH STREQUAL "none")
   set(amd ON)
@@ -53,14 +52,6 @@ endif()
 set(CMAKE_CXX_FLAGS "-O3 -ffast-math -march=native ${CMAKE_CXX_FLAGS} -DNDEBUG -Wall")
 set(CMAKE_C_FLAGS "-O3 -ffast-math -march=native ${CMAKE_C_FLAGS} -DNDEBUG -Wall")
 
-if(SCALAR_TYPE STREQUAL "float32")
-  add_definitions(-DSCALAR_TYPE=float)
-elseif(SCALAR_TYPE STREQUAL "float64")
-  add_definitions(-DSCALAR_TYPE=double)
-else()
-  message(FATAL_ERROR "Scalar type ${SCALAR_TYPE} not supported.")
-endif()
-
 if(CMAKE_HIP_COMPILER_VERSION GREATER_EQUAL 18)
   # See
   # https://rocm.docs.amd.com/projects/llvm-project/en/docs-6.2.1/LLVM/clang/html/ReleaseNotes.html#c-specific-potentially-breaking-changes
@@ -73,7 +64,7 @@ if(DEFINED ENV{CRAYPE_VERSION})
   set(CMAKE_HIP_FLAGS "${CMAKE_HIP_FLAGS} -Ofast -march=native -I/opt/cray/pe/mpich/8.1.27/ofi/gnu/9.1/include")
 endif()
 
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++20 -O3 -DNDEBUG --extended-lambda --expt-relaxed-constexpr")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++20 -O3 -Wall -DNDEBUG --extended-lambda --expt-relaxed-constexpr")
 
 # ------------------------------------------------------------------------------
 # General configuration
@@ -92,7 +83,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # Compile UFL code
 add_custom_command(
   OUTPUT poisson.c
-  COMMAND ffcx --scalar_type ${SCALAR_TYPE} --sum_factorization
+  COMMAND ffcx --scalar_type float64 --sum_factorization
           ${CMAKE_CURRENT_SOURCE_DIR}/poisson.py
   VERBATIM
   DEPENDS poisson.py
@@ -102,17 +93,17 @@ if(amd)
   find_package(rocthrust REQUIRED CONFIG)
 endif()
 
-add_executable(${PROJECT_NAME} main.cpp poisson.c)
+add_executable(${PROJECT_NAME} main.cpp forms.cpp laplacian_solver.cpp util.cpp poisson.c)
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
 target_link_libraries(${PROJECT_NAME} dolfinx Basix::basix Boost::program_options jsoncpp_lib)
 
 if(amd)
   target_link_libraries(${PROJECT_NAME} roc::rocthrust)
   add_definitions(-DUSE_HIP=1)
-  set_source_files_properties(main.cpp PROPERTIES LANGUAGE HIP)
+  set_source_files_properties(main.cpp forms.cpp laplacian_solver.cpp util.cpp PROPERTIES LANGUAGE HIP)
 elseif(nvidia)
   add_definitions(-DUSE_CUDA=1)
-  set_source_files_properties(main.cpp PROPERTIES LANGUAGE CUDA)
+  set_source_files_properties(main.cpp forms.cpp laplacian_solver.cpp util.cpp PROPERTIES LANGUAGE CUDA)
 endif()
 
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

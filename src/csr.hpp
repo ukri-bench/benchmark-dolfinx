@@ -7,8 +7,6 @@
 #if defined(USE_CUDA) || defined(USE_HIP)
 
 #include "util.hpp"
-#include <dolfinx.h>
-#include <dolfinx/fem/dolfinx_fem.h>
 #include <dolfinx/la/MatrixCSR.h>
 #include <thrust/device_vector.h>
 
@@ -65,11 +63,8 @@ __global__ void spmvT_impl(int N, const T* values,
 
 } // namespace benchdolfinx::impl
 
-using namespace benchdolfinx;
-
-namespace dolfinx::acc
+namespace benchdolfinx
 {
-
 /// @brief An assembled matrix operator for a finite element Form, internally
 /// using a CSR matrix
 /// @tparam T
@@ -85,28 +80,30 @@ public:
   /// @param a A finite element form
   /// @param bcs Set of boundary conditions to be applied
   MatrixOperator(
-      std::shared_ptr<const fem::Form<T, T>> a,
-      std::vector<std::reference_wrapper<const fem::DirichletBC<T>>> bcs)
-      : _comm(a->function_spaces()[0]->mesh()->comm())
+      const dolfinx::fem::Form<T, T>& a,
+      std::vector<std::reference_wrapper<const dolfinx::fem::DirichletBC<T>>>
+          bcs)
+      : _comm(a.function_spaces()[0]->mesh()->comm())
   {
     dolfinx::common::Timer t0("~setup phase MatrixOperator");
 
-    if (a->rank() != 2)
+    if (a.rank() != 2)
       throw std::runtime_error("Form should have rank be 2.");
 
-    auto V = a->function_spaces()[0];
-    la::SparsityPattern pattern = fem::create_sparsity_pattern(*a);
+    auto V = a.function_spaces()[0];
+    dolfinx::la::SparsityPattern pattern
+        = dolfinx::fem::create_sparsity_pattern(a);
     pattern.finalize();
-    _col_map
-        = std::make_shared<const common::IndexMap>(pattern.column_index_map());
+    _col_map = std::make_shared<const dolfinx::common::IndexMap>(
+        pattern.column_index_map());
     _row_map = V->dofmap()->index_map;
 
     _A = std::make_unique<
-        la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
-                      std::vector<std::int32_t>>>(pattern);
-    fem::assemble_matrix(_A->mat_add_values(), *a, bcs);
+        dolfinx::la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
+                               std::vector<std::int32_t>>>(pattern);
+    dolfinx::fem::assemble_matrix(_A->mat_add_values(), a, bcs);
     _A->scatter_rev();
-    fem::set_diagonal<T>(_A->mat_set_values(), *V, bcs, T(1.0));
+    dolfinx::fem::set_diagonal<T>(_A->mat_set_values(), *V, bcs, T(1.0));
 
     std::int32_t num_rows = _row_map->size_local();
     std::int32_t nnz = _A->row_ptr()[num_rows];
@@ -181,7 +178,7 @@ public:
   /// @param transpose If true, perform the transpose operation y=A^T x
   /// @note x is not const because a scatter_fwd is done on it
   template <typename Vector>
-  void operator()(Vector& x, Vector& y, bool transpose = false)
+  void apply(Vector& x, Vector& y, bool transpose = false)
   {
     dolfinx::common::Timer t0("% MatrixOperator application");
 
@@ -237,14 +234,17 @@ public:
 
   /// @brief IndexMap for the column space of the matrix
   /// @returns IndexMap
-  std::shared_ptr<const common::IndexMap> column_index_map()
+  std::shared_ptr<const dolfinx::common::IndexMap> column_index_map()
   {
     return _col_map;
   }
 
   /// @brief IndexMap for the row space of the matrix
   /// @returns IndexMap
-  std::shared_ptr<const common::IndexMap> row_index_map() { return _row_map; }
+  std::shared_ptr<const dolfinx::common::IndexMap> row_index_map()
+  {
+    return _row_map;
+  }
 
   /// @brief Number of non-zeros in the matrix
   /// @returns Number of non-zeros
@@ -254,29 +254,29 @@ private:
   // Number of non-zeros in the matrix
   std::size_t _nnz;
 
-  // Values stored on-device
-  // using CSR storage, _values, _cols and _row_ptr, as conventional for CSR
+  // Values stored on-device using CSR storage, _values, _cols and
+  // _row_ptr, as conventional for CSR
   thrust::device_vector<T> _values;
   thrust::device_vector<std::int32_t> _cols;
   thrust::device_vector<std::int32_t> _row_ptr;
 
   // Values stored on-device
-  // Copy of the inverse of the diagonal entries of the matrix - may be used for
-  // Jacobi preconditioning
+  // Copy of the inverse of the diagonal entries of the matrix - may be
+  // used for Jacobi preconditioning
   thrust::device_vector<T> _diag_inv;
   // Start point, on each row, of the off-diagonal block (ghost region)
   thrust::device_vector<std::int32_t> _off_diag_offset;
 
   // IndexMaps for the columns and rows of the matrix
-  std::shared_ptr<const common::IndexMap> _col_map, _row_map;
+  std::shared_ptr<const dolfinx::common::IndexMap> _col_map, _row_map;
 
   // CSR matrix in CPU memory
-  std::unique_ptr<la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
-                                std::vector<std::int32_t>>>
+  std::unique_ptr<dolfinx::la::MatrixCSR<
+      T, std::vector<T>, std::vector<std::int32_t>, std::vector<std::int32_t>>>
       _A;
 
   // MPI Comm associated with the Matrix
   MPI_Comm _comm;
 };
-} // namespace dolfinx::acc
+} // namespace benchdolfinx
 #endif
