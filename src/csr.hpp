@@ -67,6 +67,9 @@ __global__ void spmvT_impl(int N, const T* values,
 
 namespace dolfinx::acc
 {
+
+/// @brief TODO
+/// @tparam T
 template <typename T>
 class MatrixOperator
 {
@@ -76,10 +79,10 @@ public:
 
   /// Create a distributed vector
   MatrixOperator(
-      std::shared_ptr<fem::Form<T, T>> a,
-      std::vector<std::reference_wrapper<const fem::DirichletBC<T>>> bcs)
+      std::shared_ptr<const fem::Form<T, T>> a,
+      std::vector<std::reference_wrapper<const fem::DirichletBC<T>>> bcs),
+      _comm(a->function_spaces()[0]->V->mesh()->comm())
   {
-
     dolfinx::common::Timer t0("~setup phase MatrixOperator");
 
     if (a->rank() != 2)
@@ -99,14 +102,11 @@ public:
     _A->scatter_rev();
     fem::set_diagonal<T>(_A->mat_set_values(), *V, bcs, T(1.0));
 
-    // Get communicator from mesh
-    _comm = V->mesh()->comm();
-
     std::int32_t num_rows = _row_map->size_local();
     std::int32_t nnz = _A->row_ptr()[num_rows];
     _nnz = nnz;
 
-    T norm = 0.0;
+    T norm = 0;
     for (T v : _A->values())
       norm += v * v;
 
@@ -119,7 +119,7 @@ public:
       for (int j = _A->row_ptr()[i]; j < _A->row_ptr()[i + 1]; ++j)
       {
         if (_A->cols()[j] == i)
-          diag_inv[i] = 1.0 / _A->values()[j];
+          diag_inv[i] = 1 / _A->values()[j];
       }
     }
 
@@ -151,8 +151,10 @@ public:
                  _values.begin());
   }
 
+  ~MatrixOperator() = default;
+
   template <typename Vector>
-  void get_diag_inverse(Vector& diag_inv)
+  void get_diag_inverse(const Vector& diag_inv)
   {
     thrust::copy(_diag_inv.begin(), _diag_inv.end(),
                  diag_inv.mutable_array().begin());
@@ -167,11 +169,11 @@ public:
   /// @param x The input vector.
   /// @param y The output vector.
   template <typename Vector>
-  void operator()(Vector& x, Vector& y, bool transpose = false)
+  void operator()(const Vector& x, Vector& y, bool transpose = false)
   {
     dolfinx::common::Timer t0("% MatrixOperator application");
 
-    y.set(T{0});
+    y.set(0);
     T* _x = x.mutable_array().data();
     T* _y = y.mutable_array().data();
 
@@ -181,7 +183,7 @@ public:
       dim3 block_size(256);
       dim3 grid_size((num_rows + block_size.x - 1) / block_size.x);
       x.scatter_fwd_begin();
-      spmvT_impl<T><<<grid_size, block_size, 0, 0>>>(
+      impl::spmvT_impl<T><<<grid_size, block_size, 0, 0>>>(
           num_rows, thrust::raw_pointer_cast(_values.data()),
           thrust::raw_pointer_cast(_row_ptr.data()),
           thrust::raw_pointer_cast(_off_diag_offset.data()),
@@ -189,7 +191,7 @@ public:
       check_device_last_error();
       x.scatter_fwd_end();
 
-      spmvT_impl<T><<<grid_size, block_size, 0, 0>>>(
+      impl::spmvT_impl<T><<<grid_size, block_size, 0, 0>>>(
           num_rows, thrust::raw_pointer_cast(_values.data()),
           thrust::raw_pointer_cast(_off_diag_offset.data()),
           thrust::raw_pointer_cast(_row_ptr.data()) + 1,
@@ -232,8 +234,6 @@ public:
 
   /// @brief Number of non-zeros in the matrix
   std::size_t nnz() { return _nnz; }
-
-  ~MatrixOperator() {}
 
 private:
   std::size_t _nnz;

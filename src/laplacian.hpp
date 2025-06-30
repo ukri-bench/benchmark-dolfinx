@@ -13,6 +13,8 @@
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 
+namespace benchdolfinx
+{
 template <typename T, int P, int Q>
 __constant__ T phi0_const[Q * (P + 1)];
 
@@ -655,9 +657,6 @@ __global__ void mat_diagonal(const T* entity_constants, T* b, const T* G_entity,
     atomicAdd(&b[dof], coeff * val);
 }
 
-namespace dolfinx::acc
-{
-
 // FIXME Could just replace these maps with expression
 const std::map<int, int> q_map_gll
     = {{1, 1}, {2, 3}, {3, 4}, {4, 6}, {5, 8}, {6, 10}, {7, 12}, {8, 14}};
@@ -1214,6 +1213,6 @@ private:
                                    (dphi1.size() / 2) * sizeof(T)));
   }
 };
-} // namespace dolfinx::acc
+} // namespace benchdolfinx
 
 #endif
