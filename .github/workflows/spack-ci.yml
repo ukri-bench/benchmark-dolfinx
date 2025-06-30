@@ -67,7 +67,7 @@ jobs:
         run: |
           spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
           spack env create . spack-configs/gh-actions-env.yaml
-          spack -vv -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx~cuda
+          spack -vv -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx~cuda~rocm
 
       - name: Install (GPU)
         if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
