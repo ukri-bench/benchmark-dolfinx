@@ -365,33 +365,33 @@ int main(int argc, char* argv[])
       T znorm = acc::norm(z);
       // Compute error
       DeviceVector e(map, 1);
-      acc::axpy(e, T{-1.0}, y, z);
+      acc::axpy(e, T{-1}, y, z);
       T enorm = acc::norm(e);
 
       if (rank == 0)
       {
-        std::cout << "Norm of u = " << unorm << "\n";
-        std::cout << "Norm of z = " << znorm << "\n";
-        std::cout << "Norm of error = " << enorm << "\n";
-        std::cout << "Relative norm of error = " << enorm / znorm << "\n";
+        std::cout << "Norm of u = " << unorm << std::endl;
+        std::cout << "Norm of z = " << znorm << std::endl;
+        std::cout << "Norm of error = " << enorm << std::endl;
+        std::cout << "Relative norm of error = " << enorm / znorm << std::endl;
         out_root["error_norm"] = enorm;
       }
 
-      // Compute error in diagonal computation
-      DeviceVector mat_free_inv_diag(map, 1);
-      op.get_diag_inverse(mat_free_inv_diag);
-      DeviceVector mat_inv_diag(map, 1);
-      mat_op.get_diag_inverse(mat_inv_diag);
+      // // Compute error in diagonal computation
+      // DeviceVector mat_free_inv_diag(map, 1);
+      // op.get_diag_inverse(mat_free_inv_diag);
+      // DeviceVector mat_inv_diag(map, 1);
+      // mat_op.get_diag_inverse(mat_inv_diag);
 
-      DeviceVector e_diag(map, 1);
-      acc::axpy(e_diag, T{-1.0}, mat_inv_diag, mat_free_inv_diag);
-      T dnorm = acc::norm(e_diag);
+      // DeviceVector e_diag(map, 1);
+      // acc::axpy(e_diag, T{-1.0}, mat_inv_diag, mat_free_inv_diag);
+      // T dnorm = acc::norm(e_diag);
 
-      if (rank == 0)
-      {
-        std::cout << "Norm of diagonal error = " << dnorm << "\n";
-        out_root["diagonal_error_norm"] = dnorm;
-      }
+      // if (rank == 0)
+      // {
+      //   std::cout << "Norm of diagonal error = " << dnorm << "\n";
+      //   out_root["diagonal_error_norm"] = dnorm;
+      // }
     }
 
 #endif

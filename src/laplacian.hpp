@@ -309,70 +309,70 @@ public:
   }
 
   /// Compute matrix diagonal entries
-  template <int P, int Q, typename Vector>
-  void compute_mat_diag_inv(Vector& out)
-  {
-    T* geometry_ptr = thrust::raw_pointer_cast(_g_entity.data());
+  // template <int P, int Q, typename Vector>
+  // void compute_mat_diag_inv(Vector& out)
+  // {
+  //   T* geometry_ptr = thrust::raw_pointer_cast(_g_entity.data());
 
-    if (!_lcells.empty())
-    {
-      spdlog::debug("mat_diagonal doing lcells. lcells size = {}",
-                    _lcells.size());
-      std::span<int> cell_list_d(thrust::raw_pointer_cast(_lcells.data()),
-                                 _lcells.size());
-      if (_batch_size > 0)
-      {
-        spdlog::debug("Calling compute_geometry on local cells [{}]",
-                      cell_list_d.size());
-        compute_geometry(Q, cell_list_d);
-        device_synchronize();
-      }
+  //   if (!_lcells.empty())
+  //   {
+  //     spdlog::debug("mat_diagonal doing lcells. lcells size = {}",
+  //                   _lcells.size());
+  //     std::span<int> cell_list_d(thrust::raw_pointer_cast(_lcells.data()),
+  //                                _lcells.size());
+  //     if (_batch_size > 0)
+  //     {
+  //       spdlog::debug("Calling compute_geometry on local cells [{}]",
+  //                     cell_list_d.size());
+  //       compute_geometry(Q, cell_list_d);
+  //       device_synchronize();
+  //     }
 
-      out.set(T{0.0});
-      T* y = out.mutable_array().data();
+  //     out.set(T{0.0});
+  //     T* y = out.mutable_array().data();
 
-      dim3 block_size(P + 1, P + 1, P + 1);
-      dim3 grid_size(cell_list_d.size());
-      spdlog::debug("Calling mat_diagonal");
-      mat_diagonal<T, P, Q><<<grid_size, block_size, 0>>>(
-          thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
-          thrust::raw_pointer_cast(_cell_dofmap.data()), cell_list_d.data(),
-          cell_list_d.size(), thrust::raw_pointer_cast(_bc_marker.data()));
-      check_device_last_error();
-    }
+  //     dim3 block_size(P + 1, P + 1, P + 1);
+  //     dim3 grid_size(cell_list_d.size());
+  //     spdlog::debug("Calling mat_diagonal");
+  //     mat_diagonal<T, P, Q><<<grid_size, block_size, 0>>>(
+  //         thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
+  //         thrust::raw_pointer_cast(_cell_dofmap.data()), cell_list_d.data(),
+  //         cell_list_d.size(), thrust::raw_pointer_cast(_bc_marker.data()));
+  //     check_device_last_error();
+  //   }
 
-    if (!_bcells.empty())
-    {
-      spdlog::debug("mat_diagonal doing bcells. bcells size = {}",
-                    _bcells.size());
-      std::span<int> cell_list_d(thrust::raw_pointer_cast(_bcells.data()),
-                                 _bcells.size());
+  //   if (!_bcells.empty())
+  //   {
+  //     spdlog::debug("mat_diagonal doing bcells. bcells size = {}",
+  //                   _bcells.size());
+  //     std::span<int> cell_list_d(thrust::raw_pointer_cast(_bcells.data()),
+  //                                _bcells.size());
 
-      if (_batch_size > 0)
-      {
-        compute_geometry(Q, cell_list_d);
-        device_synchronize();
-      }
-      else
-        geometry_ptr += 6 * Q * Q * Q * _lcells.size();
+  //     if (_batch_size > 0)
+  //     {
+  //       compute_geometry(Q, cell_list_d);
+  //       device_synchronize();
+  //     }
+  //     else
+  //       geometry_ptr += 6 * Q * Q * Q * _lcells.size();
 
-      T* y = out.mutable_array().data();
+  //     T* y = out.mutable_array().data();
 
-      dim3 block_size(P + 1, P + 1, P + 1);
-      dim3 grid_size(cell_list_d.size());
-      mat_diagonal<T, P, Q><<<grid_size, block_size, 0>>>(
-          thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
-          thrust::raw_pointer_cast(_cell_dofmap.data()), cell_list_d.data(),
-          cell_list_d.size(), thrust::raw_pointer_cast(_bc_marker.data()));
-      check_device_last_error();
-    }
+  //     dim3 block_size(P + 1, P + 1, P + 1);
+  //     dim3 grid_size(cell_list_d.size());
+  //     mat_diagonal<T, P, Q><<<grid_size, block_size, 0>>>(
+  //         thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
+  //         thrust::raw_pointer_cast(_cell_dofmap.data()), cell_list_d.data(),
+  //         cell_list_d.size(), thrust::raw_pointer_cast(_bc_marker.data()));
+  //     check_device_last_error();
+  //   }
 
-    // Invert
-    thrust::transform(thrust::device, out.array().begin(),
-                      out.array().begin() + out.map()->size_local(),
-                      out.mutable_array().begin(),
-                      [] __host__ __device__(T yi) { return 1.0 / yi; });
-  }
+  //   // Invert
+  //   thrust::transform(thrust::device, out.array().begin(),
+  //                     out.array().begin() + out.map()->size_local(),
+  //                     out.mutable_array().begin(),
+  //                     [] __host__ __device__(T yi) { return 1.0 / yi; });
+  // }
 
   template <int P, int Q, typename Vector>
   void impl_operator(Vector& in, Vector& out)
@@ -522,66 +522,66 @@ public:
     spdlog::debug("Mat free operator end");
   }
 
-  template <typename Vector>
-  void get_diag_inverse(Vector& diag_inv)
-  {
-    spdlog::debug("Mat diagonal operator start");
+  // template <typename Vector>
+  // void get_diag_inverse(Vector& diag_inv)
+  // {
+  //   spdlog::debug("Mat diagonal operator start");
 
-    if (_op_nq == _degree + 1)
-    {
-      if (_degree == 1)
-        compute_mat_diag_inv<1, 2>(diag_inv);
-      else if (_degree == 2)
-        compute_mat_diag_inv<2, 3>(diag_inv);
-      else if (_degree == 3)
-        compute_mat_diag_inv<3, 4>(diag_inv);
-      else if (_degree == 4)
-        compute_mat_diag_inv<4, 5>(diag_inv);
-      else if (_degree == 5)
-        compute_mat_diag_inv<5, 6>(diag_inv);
-      else if (_degree == 6)
-        compute_mat_diag_inv<6, 7>(diag_inv);
-      else if (_degree == 7)
-        compute_mat_diag_inv<7, 8>(diag_inv);
-      else if (_degree == 8)
-        compute_mat_diag_inv<8, 9>(diag_inv);
-      else if (_degree == 9)
-        compute_mat_diag_inv<9, 10>(diag_inv);
-      else if (_degree == 10)
-        compute_mat_diag_inv<10, 11>(diag_inv);
-      else
-        throw std::runtime_error("Unsupported degree [mat diag]");
-    }
-    else if (_op_nq == _degree + 2)
-    {
-      if (_degree == 1)
-        compute_mat_diag_inv<1, 3>(diag_inv);
-      else if (_degree == 2)
-        compute_mat_diag_inv<2, 4>(diag_inv);
-      else if (_degree == 3)
-        compute_mat_diag_inv<3, 5>(diag_inv);
-      else if (_degree == 4)
-        compute_mat_diag_inv<4, 6>(diag_inv);
-      else if (_degree == 5)
-        compute_mat_diag_inv<5, 7>(diag_inv);
-      else if (_degree == 6)
-        compute_mat_diag_inv<6, 8>(diag_inv);
-      else if (_degree == 7)
-        compute_mat_diag_inv<7, 9>(diag_inv);
-      else if (_degree == 8)
-        compute_mat_diag_inv<8, 10>(diag_inv);
-      else if (_degree == 9)
-        compute_mat_diag_inv<9, 11>(diag_inv);
-      else if (_degree == 10)
-        compute_mat_diag_inv<10, 12>(diag_inv);
-      else
-        throw std::runtime_error("Unsupported degree [mat diag]");
-    }
-    else
-      throw std::runtime_error("Unsupported qmode [mat diag]");
+  //   if (_op_nq == _degree + 1)
+  //   {
+  //     if (_degree == 1)
+  //       compute_mat_diag_inv<1, 2>(diag_inv);
+  //     else if (_degree == 2)
+  //       compute_mat_diag_inv<2, 3>(diag_inv);
+  //     else if (_degree == 3)
+  //       compute_mat_diag_inv<3, 4>(diag_inv);
+  //     else if (_degree == 4)
+  //       compute_mat_diag_inv<4, 5>(diag_inv);
+  //     else if (_degree == 5)
+  //       compute_mat_diag_inv<5, 6>(diag_inv);
+  //     else if (_degree == 6)
+  //       compute_mat_diag_inv<6, 7>(diag_inv);
+  //     else if (_degree == 7)
+  //       compute_mat_diag_inv<7, 8>(diag_inv);
+  //     else if (_degree == 8)
+  //       compute_mat_diag_inv<8, 9>(diag_inv);
+  //     else if (_degree == 9)
+  //       compute_mat_diag_inv<9, 10>(diag_inv);
+  //     else if (_degree == 10)
+  //       compute_mat_diag_inv<10, 11>(diag_inv);
+  //     else
+  //       throw std::runtime_error("Unsupported degree [mat diag]");
+  //   }
+  //   else if (_op_nq == _degree + 2)
+  //   {
+  //     if (_degree == 1)
+  //       compute_mat_diag_inv<1, 3>(diag_inv);
+  //     else if (_degree == 2)
+  //       compute_mat_diag_inv<2, 4>(diag_inv);
+  //     else if (_degree == 3)
+  //       compute_mat_diag_inv<3, 5>(diag_inv);
+  //     else if (_degree == 4)
+  //       compute_mat_diag_inv<4, 6>(diag_inv);
+  //     else if (_degree == 5)
+  //       compute_mat_diag_inv<5, 7>(diag_inv);
+  //     else if (_degree == 6)
+  //       compute_mat_diag_inv<6, 8>(diag_inv);
+  //     else if (_degree == 7)
+  //       compute_mat_diag_inv<7, 9>(diag_inv);
+  //     else if (_degree == 8)
+  //       compute_mat_diag_inv<8, 10>(diag_inv);
+  //     else if (_degree == 9)
+  //       compute_mat_diag_inv<9, 11>(diag_inv);
+  //     else if (_degree == 10)
+  //       compute_mat_diag_inv<10, 12>(diag_inv);
+  //     else
+  //       throw std::runtime_error("Unsupported degree [mat diag]");
+  //   }
+  //   else
+  //     throw std::runtime_error("Unsupported qmode [mat diag]");
 
-    spdlog::debug("Mat diagonal operator end");
-  }
+  //   spdlog::debug("Mat diagonal operator end");
+  // }
 
 private:
   int _degree;
@@ -614,21 +614,21 @@ private:
   // Lists of cells which are local (lcells) and boundary (bcells)
 
   // Exclusively owned cells (not not share dofs with other processes)
-  std::array<thrust::device_vector<int>, 2> _cells;
   thrust::device_vector<int> _lcells;
 
-  // Cell on partition boundaries
+  // Cells on partition boundaries
   thrust::device_vector<int> _bcells;
 
   // On device storage for the inverse diagonal, needed for Jacobi
   // preconditioner (to remove in future)
-  thrust::device_vector<T> _diag_inv;
+  // thrust::device_vector<T> _diag_inv;
 
   // Batch size for geometry computation (set to 0 for no batching)
   std::size_t _batch_size;
 
+  // Copy data to __constant__ on the device
   template <int P, int Q>
-  void copy_phi_tables(std::span<const T> phi0, std::span<const T> dphi1)
+  static void copy_phi_tables(std::span<const T> phi0, std::span<const T> dphi1)
   {
     err_check(deviceMemcpyToSymbol((phi0_const<T, P, Q>), phi0.data(),
                                    phi0.size() * sizeof(T)));
