@@ -25,6 +25,7 @@ jobs:
       matrix:
         backend:
           [
+            { runtime: cpu, driver: ''},
             { runtime: rocm, driver: amdgpu_target=gfx90a },
             { runtime: cuda, driver: cuda_arch=80 },
           ]
@@ -60,15 +61,21 @@ jobs:
           color: true # Force color output (SPACK_COLOR=always)
           path: spack-src # Where to clone Spack      # - name: Get Spack
 
-      - name: Install
+      - name: Install (CPU)
+        if: ${{ matrix.backend.runtime == 'cpu' }}
+        shell: spack-bash {0}
+        run: |
+          spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
+          spack env create . spack-configs/gh-actions-env.yaml
+          spack -vv -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx~cuda~rocm %gcc
+
+      - name: Install (GPU)
+        if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
         shell: spack-bash {0}
         run: |
           spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
           spack env create . spack-configs/gh-actions-env.yaml
           spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
-
-        # spack -e . repo add ./spack
-        # spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
 
       - name: Push packages and update index
         env:
