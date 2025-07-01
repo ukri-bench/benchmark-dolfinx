@@ -291,7 +291,7 @@ int main(int argc, char* argv[])
     // in_root["ncells"] = (Json::UInt64)ncells;
     // in_root["ndofs"] = (Json::UInt64)ndofs_global;
     in_root["nreps"] = (Json::UInt64)nreps;
-    // in_root["scalar_type"] = fp_type;
+    in_root["scalar_size"] = (Json::UInt64)float_size;
     in_root["mat_comp"] = matrix_comparison;
 
     std::array<std::int64_t, 3> nx = compute_num_cells(ndofs, degree, size);
