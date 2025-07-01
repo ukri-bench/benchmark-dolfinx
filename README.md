@@ -118,17 +118,17 @@ Suggested options for running the test are listed below.
 
 Single-GPU basic test for correctness (small problem)
 ```bash
-bench_dolfinx --degree=5 --perturb_geom_fact=0.1 --mat_comp --ndofs=5000
+bench_dolfinx --float=64 --degree=5 --perturb_geom_fact=0.1 --mat_comp --ndofs=5000
 ```
 
 Single-GPU performance test (10M dofs)
 ```bash
-bench_dolfinx --degree=6 --ndofs=10000000 --qmode=1 --use_gauss
+bench_dolfinx --float=64 --degree=6 --ndofs=10000000 --qmode=1 --use_gauss
 ```
 
 Multi-GPU performance test (40M dofs)
 ```bash
-mpirun -n 4 bench_dolfinx --degree=6 --ndofs=10000000 --qmode=1 --use_gauss
+mpirun -n 4 bench_dolfinx --float=64  --degree=6 --ndofs=10000000 --qmode=1 --use_gauss
 ```
 
 ## License
