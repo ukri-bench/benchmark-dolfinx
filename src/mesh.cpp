@@ -8,10 +8,13 @@
 #include <dolfinx/fem/FunctionSpace.h>
 #include <dolfinx/mesh/Mesh.h>
 #include <dolfinx/mesh/cell_types.h>
+#include <dolfinx/mesh/generation.h>
 #include <dolfinx/mesh/utils.h>
 #include <map>
 #include <span>
 
+namespace
+{
 /// @brief Create a new mesh with an extra boundary layer, such that all
 /// cells on other processes which share a vertex with this process are
 /// ghosted.
@@ -20,8 +23,8 @@
 /// be tensor product ordering.
 template <std::floating_point T>
 dolfinx::mesh::Mesh<T>
-benchdolfinx::ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
-                               dolfinx::fem::CoordinateElement<T> coord_element)
+ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
+                 dolfinx::fem::CoordinateElement<T> coord_element)
 {
   constexpr int tdim = 3;
   constexpr int gdim = 3;
@@ -107,6 +110,48 @@ benchdolfinx::ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
 
   return new_mesh;
 }
+} // namespace
+
+/// @brief TODO
+/// @param ndofs
+/// @param degree
+/// @param mpi_size
+/// @return
+std::array<std::int64_t, 3>
+benchdolfinx::compute_mesh_size(std::int64_t ndofs, int degree, int mpi_size)
+{
+  double nx_approx = (std::pow(ndofs * mpi_size, 1.0 / 3.0) - 1) / degree;
+  std::int64_t n0 = static_cast<std::int64_t>(nx_approx);
+  std::array<std::int64_t, 3> nx = {n0, n0, n0};
+
+  // Try to improve fit to ndofs +/- 5 in each direction
+  if (n0 > 5)
+  {
+    std::int64_t best_misfit
+        = (n0 * degree + 1) * (n0 * degree + 1) * (n0 * degree + 1)
+          - ndofs * mpi_size;
+    best_misfit = std::abs(best_misfit);
+    for (std::int64_t nx0 = n0 - 5; nx0 < n0 + 6; ++nx0)
+    {
+      for (std::int64_t ny0 = n0 - 5; ny0 < n0 + 6; ++ny0)
+      {
+        for (std::int64_t nz0 = n0 - 5; nz0 < n0 + 6; ++nz0)
+        {
+          std::int64_t misfit
+              = (nx0 * degree + 1) * (ny0 * degree + 1) * (nz0 * degree + 1)
+                - ndofs * mpi_size;
+          if (std::abs(misfit) < best_misfit)
+          {
+            best_misfit = std::abs(misfit);
+            nx = {nx0, ny0, nz0};
+          }
+        }
+      }
+    }
+  }
+
+  return nx;
+}
 
 /// @brief Compute two lists of cell indices:
 /// 1. cells which are "local", i.e. the dofs on
@@ -153,13 +198,51 @@ benchdolfinx::compute_boundary_cells(const dolfinx::fem::FunctionSpace<T>& V)
   return {std::move(local_cells), std::move(boundary_cells)};
 }
 
+/// @brief Create a cube mesh of size n[0] x n[1] x n[2] with an appropriate
+/// ghost layer, so that local and boundary cells can be treated in separate
+/// steps in a solver.
+/// @tparam T Scalar type
+/// @param comm MPI Communicator
+/// @param n Number of cells in each direction
+/// @param geom_perturb_fact Random perturbation to the geometry by this factor
+/// @return A mesh
+template <typename T>
+dolfinx::mesh::Mesh<T> benchdolfinx::create_mesh(MPI_Comm comm,
+                                                 std::array<std::int64_t, 3> n,
+                                                 T geom_perturb_fact)
+{
+  dolfinx::mesh::Mesh<T> mesh0 = dolfinx::mesh::create_box<T>(
+      comm, {{{0, 0, 0}, {1, 1, 1}}}, {n[0], n[1], n[2]},
+      dolfinx::mesh::CellType::hexahedron);
+
+  if (geom_perturb_fact != 0.0)
+  {
+    double perturb_x = geom_perturb_fact * 1 / n[0];
+    std::span geom_x = mesh0.geometry().x();
+    std::mt19937 generator(42);
+    std::uniform_real_distribution<T> distribution(-perturb_x, perturb_x);
+    for (std::size_t i = 0; i < geom_x.size(); i += 3)
+      geom_x[i] += distribution(generator);
+  }
+
+  // Degree 1 coordinate element
+  auto element
+      = std::make_shared<basix::FiniteElement<T>>(basix::create_tp_element<T>(
+          basix::element::family::P, basix::cell::type::hexahedron, 1,
+          basix::element::lagrange_variant::gll_warped,
+          basix::element::dpc_variant::unset, false));
+  dolfinx::fem::CoordinateElement<T> celement(element);
+
+  return ghost_layer_mesh(mesh0, celement);
+}
+
 // Explicit instantiation for double and float
-template dolfinx::mesh::Mesh<double> benchdolfinx::ghost_layer_mesh(
-    dolfinx::mesh::Mesh<double>& mesh,
-    dolfinx::fem::CoordinateElement<double> coord_element);
-template dolfinx::mesh::Mesh<float> benchdolfinx::ghost_layer_mesh(
-    dolfinx::mesh::Mesh<float>& mesh,
-    dolfinx::fem::CoordinateElement<float> coord_element);
+template dolfinx::mesh::Mesh<double>
+benchdolfinx::create_mesh<double>(MPI_Comm comm, std::array<std::int64_t, 3> n,
+                                  double geom_perturb_fact);
+template dolfinx::mesh::Mesh<float>
+benchdolfinx::create_mesh<float>(MPI_Comm comm, std::array<std::int64_t, 3> n,
+                                 float geom_perturb_fact);
 
 template std::array<std::vector<std::int32_t>, 2>
 benchdolfinx::compute_boundary_cells(
