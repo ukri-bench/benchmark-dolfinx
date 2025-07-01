@@ -63,12 +63,14 @@ std::array<std::int64_t, 3> compute_num_cells(std::int64_t ndofs, int degree,
   return nx;
 }
 
-/// @brief TODO
-/// @tparam X
-/// @param comm
-/// @param n
-/// @param geom_perturb_fact
-/// @return
+/// @brief Create a cube mesh of size n[0] x n[1] x n[2] with an appropriate
+/// ghost layer, so that local and boundary cells can be treated in separate
+/// steps in a solver.
+/// @tparam T Scalar type
+/// @param comm MPI Communicator
+/// @param n Number of cells in each direction
+/// @param geom_perturb_fact Random perturbation to the geometry by this factor
+/// @return A mesh
 template <typename T>
 mesh::Mesh<T> create_mesh(MPI_Comm comm, std::array<std::int64_t, 3> n,
                           T geom_perturb_fact)
@@ -124,7 +126,7 @@ void run_gpu(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   auto topology = V->mesh()->topology_mutable();
   int tdim = topology->dim();
   // std::size_t ncells = mesh->topology()->index_map(tdim)->size_global();
-  std::size_t ndofs_global = V->dofmap()->index_map->size_global();
+  //  std::size_t ndofs_global = V->dofmap()->index_map->size_global();
 
   // Prepare and set Constants for the bilinear form
   spdlog::debug("Define forms");
@@ -262,22 +264,13 @@ int main(int argc, char* argv[])
 #endif
       std::cout << "-----------------------------------\n";
       std::cout << "Polynomial degree : " << degree << "\n";
-#ifndef USE_SLICED
-      std::cout << "Sliced : no" << std::endl;
-#else
-      std::cout << "Sliced : yes" << std::endl;
-      std::cout << "Slice size: " << SLICE_SIZE << std::endl;
-#endif
       std::cout << "Number of ranks : " << size << std::endl;
       // std::cout << "Number of cells-global : " << ncells << std::endl;
       // std::cout << "Number of dofs-global : " << ndofs_global << std::endl;
-      // std::cout << "Number of cells-rank : " << ncells / size << std::endl;
-      // std::cout << "Number of dofs-rank : " << ndofs_global / size <<
-      // std::endl;
       std::cout << "Number of repetitions : " << nreps << std::endl;
       // std::cout << "Scalar Type: " << fp_type << std::endl;
-      std::cout << "XXXUse GLL: " << use_gauss << std::endl;
-      std::cout << "Foo: " << matrix_comparison << std::endl;
+      std::cout << "Use GLL: " << use_gauss << std::endl;
+      std::cout << "Compare to matrix: " << matrix_comparison << std::endl;
       std::cout << "-----------------------------------" << std::endl;
       ;
       std::cout << std::flush;
