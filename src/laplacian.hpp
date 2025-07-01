@@ -90,11 +90,9 @@ public:
   /// @param qmode
   /// @param constant
   /// @param quad_type
-  /// @param batch_size
   MatFreeLaplacian(const dolfinx::fem::FunctionSpace<T>& V,
                    const dolfinx::fem::DirichletBC<T>& bc, int degree,
-                   int qmode, T constant, basix::quadrature::type quad_type,
-                   std::size_t batch_size = 0)
+                   int qmode, T constant, basix::quadrature::type quad_type)
       : _degree(degree), _cell_constants(impl::num_cells(*V.mesh()), constant),
         _cell_dofmap(V.dofmap()->map().data_handle(),
                      V.dofmap()->map().data_handle()
@@ -104,7 +102,7 @@ public:
         _geometry_dofmap(V.mesh()->geometry().dofmap().data_handle(),
                          V.mesh()->geometry().dofmap().data_handle()
                              + V.mesh()->geometry().dofmap().size()),
-        _bc_marker(impl::build_bc_markers(bc)), _batch_size(batch_size)
+        _bc_marker(impl::build_bc_markers(bc))
   {
     {
       auto [lcells, bcells] = benchdolfinx::compute_boundary_cells<T>(V);
@@ -256,23 +254,17 @@ public:
     spdlog::debug("Copy interpolation matrix to device ({} bytes)",
                   mat.size() * sizeof(T));
 
-    // If we're not batching the geometry, precompute it
-    if (_batch_size == 0)
-    {
-      // FIXME: Store cells and local/ghost offsets instead to avoid
-      // this?
-      spdlog::info("Precomputing geometry");
-      thrust::device_vector<std::int32_t> cells_d(_lcells.size()
-                                                  + _bcells.size());
-      thrust::copy(_lcells.begin(), _lcells.end(), cells_d.begin());
-      thrust::copy(_bcells.begin(), _bcells.end(),
-                   cells_d.begin() + _lcells.size());
-      std::span<const std::int32_t> cell_list_d(
-          thrust::raw_pointer_cast(cells_d.data()), cells_d.size());
+    spdlog::info("Precomputing geometry");
+    thrust::device_vector<std::int32_t> cells_d(_lcells.size()
+                                                + _bcells.size());
+    thrust::copy(_lcells.begin(), _lcells.end(), cells_d.begin());
+    thrust::copy(_bcells.begin(), _bcells.end(),
+                 cells_d.begin() + _lcells.size());
+    std::span<const std::int32_t> cell_list_d(
+        thrust::raw_pointer_cast(cells_d.data()), cells_d.size());
 
-      compute_geometry(_op_nq, cell_list_d);
-      device_synchronize();
-    }
+    compute_geometry(_op_nq, cell_list_d);
+    device_synchronize();
 
     spdlog::debug("Done MatFreeLaplacian constructor");
   }
@@ -336,39 +328,20 @@ private:
 
     if (!_lcells.empty())
     {
-      std::size_t i = 0;
-      std::size_t i_batch_size
-          = _batch_size == 0 ? _lcells.size() : _batch_size;
-      while (i < _lcells.size())
-      {
-        std::size_t i_next = std::min(_lcells.size(), i + i_batch_size);
-        std::span<int> cell_list(thrust::raw_pointer_cast(_lcells.data()) + i,
-                                 (i_next - i));
-        i = i_next;
+      spdlog::debug("Calling stiffness_operator on local cells [{}]",
+                    _lcells.size());
+      T* x = in.mutable_array().data();
+      T* y = out.mutable_array().data();
 
-        if (_batch_size > 0)
-        {
-          spdlog::debug("Calling compute_geometry on local cells [{}]",
-                        cell_list.size());
-          compute_geometry(Q, cell_list);
-          device_synchronize();
-        }
+      dim3 block_size(Q, Q, Q);
+      dim3 grid_size(_lcells.size());
+      stiffness_operator<T, P, Q><<<grid_size, block_size>>>(
+          x, thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
+          thrust::raw_pointer_cast(_cell_dofmap.data()),
+          thrust::raw_pointer_cast(_lcells.data()), _lcells.size(),
+          thrust::raw_pointer_cast(_bc_marker.data()), _is_identity);
 
-        spdlog::debug("Calling stiffness_operator on local cells [{}]",
-                      cell_list.size());
-        T* x = in.mutable_array().data();
-        T* y = out.mutable_array().data();
-
-        dim3 block_size(Q, Q, Q);
-        dim3 grid_size(cell_list.size());
-        stiffness_operator<T, P, Q><<<grid_size, block_size>>>(
-            x, thrust::raw_pointer_cast(_cell_constants.data()), y,
-            geometry_ptr, thrust::raw_pointer_cast(_cell_dofmap.data()),
-            cell_list.data(), cell_list.size(),
-            thrust::raw_pointer_cast(_bc_marker.data()), _is_identity);
-
-        check_device_last_error();
-      }
+      check_device_last_error();
     }
 
     spdlog::debug("impl_operator done lcells");
@@ -388,33 +361,24 @@ private:
     {
       spdlog::debug("impl_operator doing bcells. bcells size = {}",
                     _bcells.size());
-      std::span<int> cell_list(thrust::raw_pointer_cast(_bcells.data()),
-                               _bcells.size());
 
-      if (_batch_size > 0)
-      {
-        compute_geometry(Q, cell_list);
-        device_synchronize();
-      }
-      else
-        geometry_ptr += 6 * Q * Q * Q * _lcells.size();
+      geometry_ptr += 6 * Q * Q * Q * _lcells.size();
 
       T* x = in.mutable_array().data();
       T* y = out.mutable_array().data();
 
       dim3 block_size(Q, Q, Q);
-      dim3 grid_size(cell_list.size());
+      dim3 grid_size(_bcells.size());
       stiffness_operator<T, P, Q><<<grid_size, block_size>>>(
           x, thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
-          thrust::raw_pointer_cast(_cell_dofmap.data()), cell_list.data(),
-          cell_list.size(), thrust::raw_pointer_cast(_bc_marker.data()),
-          _is_identity);
+          thrust::raw_pointer_cast(_cell_dofmap.data()),
+          thrust::raw_pointer_cast(_bcells.data()), _bcells.size(),
+          thrust::raw_pointer_cast(_bc_marker.data()), _is_identity);
 
       check_device_last_error();
     }
 
     device_synchronize();
-
     spdlog::debug("impl_operator done bcells");
   }
 
@@ -507,9 +471,6 @@ private:
 
   // Cells on partition boundaries
   thrust::device_vector<int> _bcells;
-
-  // Batch size for geometry computation (set to 0 for no batching)
-  std::size_t _batch_size;
 
   // Copy data to __constant__ on the device
   template <int P, int Q>
