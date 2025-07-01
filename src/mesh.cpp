@@ -11,6 +11,7 @@
 #include <dolfinx/mesh/generation.h>
 #include <dolfinx/mesh/utils.h>
 #include <map>
+#include <random>
 #include <span>
 
 namespace
