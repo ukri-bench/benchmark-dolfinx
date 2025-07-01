@@ -9,6 +9,7 @@
 #include <array>
 #include <basix/finite-element.h>
 #include <boost/program_options.hpp>
+#include <dolfinx/fem/utils.h>
 #include <format>
 #include <iostream>
 #include <json/json.h>
@@ -20,6 +21,7 @@ namespace po = boost::program_options;
 
 namespace
 {
+#if defined(USE_CUDA) || defined(USE_HIP)
 template <typename T>
 void run_gpu(MPI_Comm comm, std::array<std::int64_t, 3> nx,
              double geom_perturb_fact, int degree, int qmode, int nreps,
@@ -86,6 +88,7 @@ void run_gpu(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   benchdolfinx::laplace_action<T>(a, L, bc, degree, qmode, kappa->value[0],
                                   nreps, use_gauss);
 }
+#endif
 } // namespace
 
 int main(int argc, char* argv[])
