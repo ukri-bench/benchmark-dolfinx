@@ -112,11 +112,6 @@ ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
 }
 } // namespace
 
-/// @brief TODO
-/// @param ndofs
-/// @param degree
-/// @param mpi_size
-/// @return
 std::array<std::int64_t, 3>
 benchdolfinx::compute_mesh_size(std::int64_t ndofs, int degree, int mpi_size)
 {
@@ -153,10 +148,6 @@ benchdolfinx::compute_mesh_size(std::int64_t ndofs, int degree, int mpi_size)
   return nx;
 }
 
-/// @brief Compute two lists of cell indices:
-/// 1. cells which are "local", i.e. the dofs on
-/// these cells are not shared with any other process.
-/// 2. cells which share dofs with other processes.
 template <typename T>
 std::array<std::vector<std::int32_t>, 2>
 benchdolfinx::compute_boundary_cells(const dolfinx::fem::FunctionSpace<T>& V)

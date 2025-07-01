@@ -33,6 +33,12 @@ template <typename T>
 dolfinx::mesh::Mesh<T> create_mesh(MPI_Comm comm, std::array<std::int64_t, 3> n,
                                    T geom_perturb_fact);
 
+/// @brief Compute two lists of cell indices:
+/// 1. cells which are "local", i.e. the dofs on
+/// these cells are not shared with any other process.
+/// 2. cells which share dofs with other processes.
+/// @param V FunctionSpace of the degrees-of-freedom
+/// @returns An array of two lists: (local cells, boundary cells)
 template <typename T>
 std::array<std::vector<std::int32_t>, 2>
 compute_boundary_cells(const dolfinx::fem::FunctionSpace<T>& V);
