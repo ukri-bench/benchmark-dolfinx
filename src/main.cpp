@@ -11,6 +11,7 @@
 #include <boost/program_options.hpp>
 #include <dolfinx/fem/utils.h>
 #include <format>
+#include <fstream>
 #include <iostream>
 #include <json/json.h>
 #include <memory>
@@ -25,7 +26,7 @@ namespace
 template <typename T>
 void run_gpu(MPI_Comm comm, std::array<std::int64_t, 3> nx,
              double geom_perturb_fact, int degree, int qmode, int nreps,
-             bool use_gauss, Json::Value& in_root)
+             bool use_gauss, Json::Value& root)
 {
   int rank(0), size(0);
   MPI_Comm_rank(comm, &rank);
@@ -204,8 +205,7 @@ int main(int argc, char* argv[])
     Json::Value& in_root = root["input"];
     in_root["p"] = (Json::UInt64)degree;
     in_root["mpi_size"] = size;
-    // in_root["ncells"] = (Json::UInt64)ncells;
-    // in_root["ndofs"] = (Json::UInt64)ndofs_global;
+    in_root["ndofs_requested"] = (Json::UInt64)ndofs;
     in_root["nreps"] = (Json::UInt64)nreps;
     in_root["scalar_size"] = (Json::UInt64)float_size;
     in_root["mat_comp"] = matrix_comparison;
@@ -218,12 +218,12 @@ int main(int argc, char* argv[])
     {
       throw std::runtime_error("Float32 not implemented yet.");
       // run_gpu<float>(comm, nx, geom_perturb_fact, degree, qmode, nreps,
-      //                use_gauss, in_root);
+      //                use_gauss, root);
     }
     else if (float_size == 64)
     {
       run_gpu<double>(comm, nx, geom_perturb_fact, degree, qmode, nreps,
-                      use_gauss, in_root);
+                      use_gauss, root);
     }
     else
     {
@@ -231,17 +231,18 @@ int main(int argc, char* argv[])
           std::format("Invalid float size {}. Must be 32 or 64.", float_size));
     }
 #else
-    std::cout << "CPU version not implemented yet." << std::endl;
+    if (rank == 0)
+      std::cout << "CPU version not implemented yet." << std::endl;
 #endif
-    // if (rank == 0)
-    // {
-    //   Json::StreamWriterBuilder builder;
-    //   builder["indentation"] = "  ";
-    //   const std::unique_ptr<Json::StreamWriter> writer(
-    //       builder.newStreamWriter());
-    //   std::ofstream strm("out.json", std::ofstream::out);
-    //   writer->write(root, &strm);
-    // }
+    if (rank == 0)
+    {
+      Json::StreamWriterBuilder builder;
+      builder["indentation"] = "  ";
+      const std::unique_ptr<Json::StreamWriter> writer(
+          builder.newStreamWriter());
+      std::ofstream strm("benchmark_dolfinx.json", std::ofstream::out);
+      writer->write(root, &strm);
+    }
 
     // Display timings
     dolfinx::list_timings(MPI_COMM_WORLD);
