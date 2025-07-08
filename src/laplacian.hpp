@@ -92,13 +92,13 @@ class MatFreeLaplacian
 public:
   using value_type = T;
 
-  /// @brief TODO
-  /// @param V
-  /// @param bc
-  /// @param degree
-  /// @param qmode
-  /// @param constant
-  /// @param quad_type
+  /// @brief Matrix-free Laplacian operator
+  /// @param V FunctionSpace on which the operator is built
+  /// @param bc Boundary condition, defining constrained degrees of freedom
+  /// @param degree Polynomial degree of operator
+  /// @param qmode Quadrature mode (0 or 1)
+  /// @param constant Coefficient value, used on all cells
+  /// @param quad_type Quadrature type (GLL or Gauss)
   MatFreeLaplacian(const dolfinx::fem::FunctionSpace<T>& V,
                    const dolfinx::fem::DirichletBC<T>& bc, int degree,
                    int qmode, T constant, basix::quadrature::type quad_type)
@@ -279,9 +279,13 @@ public:
   }
 
 private:
-  /// FIXME: explain this function
-  /// @brief Compute weighted geometry data on GPU
-  /// @param nq Number of quadrature points in 1D
+  /// @brief Precompute weighted geometry data on GPU
+  /// Computes the symmetric 3x3 geometric tensor,
+  /// and stores as 6 values for each quadrature point of each cell.
+  /// @note The quadrature weights are also combined into the values of the
+  /// geometric tensor at each point.
+  /// @param nq Number of quadrature points in 1D (total points per cell will be
+  /// nq^3)
   /// @param cell_list List of cell indices to compute for
   template <int Q = 2>
   void compute_geometry(int nq, std::span<const int> cell_list)
@@ -320,12 +324,13 @@ private:
       throw std::runtime_error("Unsupported degree [geometry]");
   }
 
-  /// @brief
-  /// @tparam Vector
-  /// @tparam P
-  /// @tparam Q
-  /// @param in
-  /// @param out
+  /// @brief Implementation of the action of the operator
+  /// @tparam Vector Vector Type
+  /// @tparam P Polynomial degree of the operator
+  /// @tparam Q Number of quadrature points (1D)
+  /// @param in Input vector
+  /// @param out Output vector, with values representing the laplacian of the
+  /// input vector
   template <int P, int Q, typename Vector>
   void impl_operator(Vector& in, Vector& out)
   {
@@ -446,6 +451,7 @@ public:
   }
 
 private:
+  // Polynomial degree
   std::size_t _degree;
 
   // Number of quadrature points in 1D
@@ -481,7 +487,9 @@ private:
   // Cells on partition boundaries
   thrust::device_vector<int> _bcells;
 
-  // Copy data to __constant__ on the device
+  /// @brief Copy data to __constant__ on the device
+  /// @param phi0 Input basis function table
+  /// @param dphi1 Input basis function derivative table
   template <int P, int Q>
   static void copy_phi_tables(std::span<const T> phi0, std::span<const T> dphi1)
   {

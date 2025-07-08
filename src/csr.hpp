@@ -167,7 +167,7 @@ public:
                  _values.begin());
   }
 
-  /// Desctructor
+  /// Destructor
   ~MatrixOperator() = default;
 
   /// @brief Get the inverse of the diagonal values of the matrix
