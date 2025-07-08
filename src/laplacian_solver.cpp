@@ -58,7 +58,7 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
       = use_gauss ? basix::quadrature::type::gauss_jacobi
                   : basix::quadrature::type::gll;
 
-  MatFreeLaplacian<T> op(*V, bc, degree, qmode, kappa, quad_type, 0);
+  MatFreeLaplacian<T> op(*V, bc, degree, qmode, kappa, quad_type);
 
   op_create_timer.stop();
 
