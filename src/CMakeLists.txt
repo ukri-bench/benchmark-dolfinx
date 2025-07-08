@@ -27,13 +27,10 @@ elseif(amd)
 elseif(nvidia AND amd)
   message(
     FATAL_ERROR
-      "You cannot select both AMD and NVIDIA GPU builds. Only set either CUDA_ARCH or HIP_ARCH "
+      "You cannot select both AMD and NVIDIA GPU builds. Only set either CUDA_ARCH or HIP_ARCH."
   )
 else()
-  # message(
-  #   FATAL_ERROR
-  #     "No target selected for the build. Please set either CUDA_ARCH or HIP_ARCH"
-  # )
+  message(STATUS "No GPU arch selected. Building for CPU.")
 endif()
 
 if(amd)
@@ -93,7 +90,8 @@ if(amd)
   find_package(rocthrust REQUIRED CONFIG)
 endif()
 
-add_executable(${PROJECT_NAME} main.cpp forms.cpp laplacian_solver.cpp mesh.cpp util.cpp poisson.c)
+add_executable(${PROJECT_NAME} main.cpp forms.cpp laplacian_solver.cpp mesh.cpp util.cpp poisson.c geometry_cpu.cpp)
+
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
 target_link_libraries(${PROJECT_NAME} dolfinx Basix::basix Boost::program_options jsoncpp_lib)
 

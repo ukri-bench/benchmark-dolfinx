@@ -3,6 +3,7 @@
 // SPDX-License-Identifier:    MIT
 
 #include "laplacian_solver.hpp"
+#include <basix/quadrature.h>
 
 #if defined(USE_CUDA) || defined(USE_HIP)
 
@@ -16,7 +17,6 @@
 #include "vector.hpp"
 #include <basix/finite-element.h>
 #include <basix/interpolation.h>
-#include <basix/quadrature.h>
 #include <dolfinx/fem/FunctionSpace.h>
 #include <dolfinx/la/Vector.h>
 #include <thrust/device_vector.h>
@@ -66,7 +66,7 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
   dolfinx::la::Vector<T> b(map, 1);
   dolfinx::fem::assemble_vector(b.mutable_array(), L);
   u.copy_from_host(b); // Copy data from host vector to device vector
-  u.scatter_fwd_begin();
+  u.scatter_fwd();
 
   // Matrix free
   auto start = std::chrono::high_resolution_clock::now();
@@ -124,14 +124,7 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
   }
 }
 //----------------------------------------------------------------------------
-/// @cond protect from doxygen
-template void benchdolfinx::laplace_action<double>(
-    const dolfinx::fem::Form<double>&, const dolfinx::fem::Form<double>&,
-    const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool);
-/// @endcond
-//----------------------------------------------------------------------------
-
-#else
+#else // CPU
 template <typename T>
 void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
                                   const dolfinx::fem::Form<T>& L,
@@ -139,6 +132,65 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
                                   int degree, int qmode, T kappa, int nreps,
                                   bool use_gauss)
 {
-}
+  auto V = a.function_spaces()[0];
 
-#endif // USE_CUDA || USE_HIP
+  // Input vector
+  auto map = V->dofmap()->index_map;
+
+  spdlog::info("Create vector u");
+  dolfinx::la::Vector<T> u(map, 1);
+  u.set(0.0);
+
+  // Output vector
+  spdlog::info("Create vector y");
+  dolfinx::la::Vector<T> y(map, 1);
+  y.set(0.0);
+
+  // Create matrix free operator
+  spdlog::info("Create MatFreeLaplacian");
+  dolfinx::common::Timer op_create_timer("% Create matfree operator");
+
+  basix::quadrature::type quad_type
+      = use_gauss ? basix::quadrature::type::gauss_jacobi
+                  : basix::quadrature::type::gll;
+
+  //  MatFreeLaplacian<T> op(*V, bc, degree, qmode, kappa, quad_type);
+
+  op_create_timer.stop();
+
+  dolfinx::la::Vector<T> b(map, 1);
+  dolfinx::fem::assemble_vector(b.mutable_array(), L);
+  b.scatter_fwd();
+
+  // Matrix free
+  auto start = std::chrono::high_resolution_clock::now();
+  //  for (int i = 0; i < nreps; ++i)
+  //    op.apply(u, y);
+  auto stop = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> duration = stop - start;
+
+  T unorm = dolfinx::la::norm(u);
+  T ynorm = dolfinx::la::norm(y);
+
+  int rank = dolfinx::MPI::rank(V->mesh()->comm());
+  // Json::Value& out_root = root["results"];
+  if (rank == 0)
+  {
+    std::cout << "Mat-free Matvec time: " << duration.count() << std::endl;
+    // std::cout << "Mat-free action Gdofs/s: "
+    //           << ndofs_global * nreps / (1e9 * duration.count()) <<
+    //           std::endl;
+
+    // out_root["gdofs"] = ndofs_global * nreps / (1e9 * duration.count());
+
+    std::cout << "Norm of u = " << unorm << std::endl;
+    std::cout << "Norm of y = " << ynorm << std::endl;
+  }
+}
+#endif
+
+/// @cond protect from doxygen
+template void benchdolfinx::laplace_action<double>(
+    const dolfinx::fem::Form<double>&, const dolfinx::fem::Form<double>&,
+    const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool);
+/// @endcond
