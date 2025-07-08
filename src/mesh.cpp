@@ -229,6 +229,7 @@ dolfinx::mesh::Mesh<T> benchdolfinx::create_mesh(MPI_Comm comm,
 }
 
 // Explicit instantiation for double and float
+/// @cond
 template dolfinx::mesh::Mesh<double>
 benchdolfinx::create_mesh<double>(MPI_Comm comm, std::array<std::int64_t, 3> n,
                                   double geom_perturb_fact);
@@ -242,3 +243,4 @@ benchdolfinx::compute_boundary_cells(
 template std::array<std::vector<std::int32_t>, 2>
 benchdolfinx::compute_boundary_cells(
     const dolfinx::fem::FunctionSpace<float>& V);
+/// @endcond
