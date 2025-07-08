@@ -28,6 +28,63 @@ void run_cpu(MPI_Comm comm, std::array<std::int64_t, 3> nx,
              double geom_perturb_fact, int degree, int qmode, int nreps,
              bool use_gauss, Json::Value& root)
 {
+  int rank(0), size(0);
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &size);
+
+  // Create mesh
+  spdlog::info("Mesh shape: {}x{}x{}", nx[0], nx[1], nx[2]);
+  auto mesh = std::make_shared<mesh::Mesh<T>>(
+      benchdolfinx::create_mesh<T>(comm, nx, geom_perturb_fact));
+
+  // Finite element for higher-order discretisation
+  auto element = basix::create_tp_element<T>(
+      basix::element::family::P, basix::cell::type::hexahedron, degree,
+      basix::element::lagrange_variant::gll_warped,
+      basix::element::dpc_variant::unset, false);
+
+  auto V = std::make_shared<fem::FunctionSpace<T>>(fem::create_functionspace(
+      mesh, std::make_shared<const fem::FiniteElement<T>>(element)));
+
+  auto topology = V->mesh()->topology_mutable();
+  int tdim = topology->dim();
+  // std::size_t ncells = mesh->topology()->index_map(tdim)->size_global();
+  //  std::size_t ndofs_global = V->dofmap()->index_map->size_global();
+
+  // Prepare and set Constants for the bilinear form
+  spdlog::debug("Define forms");
+  auto kappa = std::make_shared<fem::Constant<T>>(2.0);
+  auto f = std::make_shared<fem::Function<T>>(V);
+
+  // TODO: Handle float type in generated code
+  fem::Form<double> a = benchdolfinx::create_laplacian_form2(
+      V, {{"c0", kappa}}, qmode, use_gauss, degree);
+  fem::Form<double> L = benchdolfinx::create_laplacian_form1(
+      V, {{"w0", f}}, qmode, use_gauss, degree);
+
+  spdlog::debug("Interpolate (rank {})", rank);
+  f->interpolate(
+      [](auto x) -> std::pair<std::vector<T>, std::vector<std::size_t>>
+      {
+        std::vector<T> out;
+        for (std::size_t p = 0; p < x.extent(1); ++p)
+        {
+          auto dx = (x(0, p) - 0.5) * (x(0, p) - 0.5);
+          auto dy = (x(1, p) - 0.5) * (x(1, p) - 0.5);
+          out.push_back(1000 * std::exp(-(dx + dy) / 0.02));
+        }
+        return {out, {out.size()}};
+      });
+
+  int fdim = tdim - 1;
+  spdlog::debug("Create f->c on {}", rank);
+  topology->create_connectivity(fdim, tdim);
+  spdlog::debug("Done f->c on {}", rank);
+
+  auto dofmap = V->dofmap();
+  auto facets = mesh::exterior_facet_indices(*topology);
+  auto bdofs = fem::locate_dofs_topological(*topology, *dofmap, fdim, facets);
+  fem::DirichletBC<T> bc(1.3, bdofs, V);
 }
 
 #if defined(USE_CUDA) || defined(USE_HIP)

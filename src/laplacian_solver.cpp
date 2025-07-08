@@ -2,9 +2,10 @@
 // Garth N. Wells
 // SPDX-License-Identifier:    MIT
 
+#include "laplacian_solver.hpp"
+
 #if defined(USE_CUDA) || defined(USE_HIP)
 
-#include "laplacian_solver.hpp"
 #include "csr.hpp"
 #include "forms.hpp"
 #include "geometry_gpu.hpp"
@@ -129,5 +130,15 @@ template void benchdolfinx::laplace_action<double>(
     const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool);
 /// @endcond
 //----------------------------------------------------------------------------
+
+#else
+template <typename T>
+void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
+                                  const dolfinx::fem::Form<T>& L,
+                                  const dolfinx::fem::DirichletBC<T>& bc,
+                                  int degree, int qmode, T kappa, int nreps,
+                                  bool use_gauss)
+{
+}
 
 #endif // USE_CUDA || USE_HIP
