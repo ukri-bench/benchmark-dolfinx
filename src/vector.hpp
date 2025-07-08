@@ -419,7 +419,9 @@ auto norm(const Vector& a, dolfinx::la::Norm type = dolfinx::la::Norm::l2)
 }
 
 /// @brief Compute vector r = alpha * x + y.
-/// @param [in/out] r Result
+/// @tparam S Scalar Type
+/// @tparam Vector Vector Type
+/// @param [in,out] r Result
 /// @param alpha
 /// @param [in] x
 /// @param [in] y
@@ -437,7 +439,7 @@ void axpy(Vector& r, S alpha, const Vector& x, const Vector& y)
 }
 
 /// @brief Scale vector by alpha.
-/// @param [in/out] r Result
+/// @param [in,out] r Result
 /// @param alpha
 template <typename Vector, typename S>
 void scale(Vector& r, S alpha)
@@ -449,7 +451,7 @@ void scale(Vector& r, S alpha)
 }
 
 /// @brief Copy Vector b into Vector a
-/// @param [in/out] a
+/// @param [in,out] a
 /// @param [in] b
 /// @note Only copies the owned part of the Vector, no ghosts
 /// @note a must be the same size as b
@@ -464,7 +466,7 @@ void copy(Vector& a, const Vector& b)
 }
 
 /// @brief Compute pointwise vector multiplication w[i] = x[i] * y[i]
-/// @param [in/out] w
+/// @param [in,out] w
 /// @param [in] x
 /// @param [in] y
 /// @note w, x, and y must all be the same size

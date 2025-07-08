@@ -57,6 +57,10 @@ static const std::map<int, int> q_map_gq
 
 namespace impl
 {
+/// @brief Return the number of cells in the mesh
+/// @param mesh Mesh
+/// @tparam T Scalar type of mesh
+/// @returns number of cells in the mesh
 template <typename T>
 std::size_t num_cells(const dolfinx::mesh::Mesh<T>& mesh)
 {
@@ -65,6 +69,11 @@ std::size_t num_cells(const dolfinx::mesh::Mesh<T>& mesh)
          + mesh.topology()->index_map(tdim)->num_ghosts();
 }
 
+/// @brief Create markers for boundary conditions
+/// @param bc Dirichlet boundary condition
+/// @tparam T Scalar type
+/// @returns List of markers for each DoF, zero if no BC, and one if a BC is
+/// set.
 template <typename T>
 std::vector<std::int8_t>
 build_bc_markers(const dolfinx::fem::DirichletBC<T>& bc)

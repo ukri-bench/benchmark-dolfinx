@@ -12,7 +12,7 @@ using namespace dolfinx;
 
 namespace
 {
-// qmode == 0, Guass
+// qmode == 0, Gauss
 static std::vector aforms_gl0{form_poisson_a_1_2_GL, form_poisson_a_2_3_GL,
                               form_poisson_a_3_4_GL, form_poisson_a_4_5_GL,
                               form_poisson_a_5_6_GL, form_poisson_a_6_7_GL,
@@ -22,7 +22,7 @@ static std::vector Lforms_gl0{form_poisson_L_1_2_GL, form_poisson_L_2_3_GL,
                               form_poisson_L_5_6_GL, form_poisson_L_6_7_GL,
                               form_poisson_L_7_8_GL};
 
-// qmode == 1, Guass
+// qmode == 1, Gauss
 static std::vector aforms_gl1{form_poisson_a_1_3_GL, form_poisson_a_2_4_GL,
                               form_poisson_a_3_5_GL, form_poisson_a_4_6_GL,
                               form_poisson_a_5_7_GL, form_poisson_a_6_8_GL,

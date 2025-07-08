@@ -123,9 +123,11 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
   }
 }
 //----------------------------------------------------------------------------
+/// @cond protect from doxygen
 template void benchdolfinx::laplace_action<double>(
     const dolfinx::fem::Form<double>&, const dolfinx::fem::Form<double>&,
     const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool);
+/// @endcond
 //----------------------------------------------------------------------------
 
 #endif // USE_CUDA || USE_HIP
