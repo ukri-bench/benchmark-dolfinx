@@ -20,7 +20,7 @@
 
 namespace benchdolfinx
 {
-/// @brief Check is a 2D array (matrix) is the i
+/// @brief Check if a 2D array (matrix) is the identity matrix
 /// @tparam T Type
 /// @param[in] mat Matrix data in row-major order.
 /// @param[in] shape Shape of the matrix.
@@ -193,6 +193,8 @@ public:
     _is_identity = matrix_is_identity(mat, shape_I);
 
     spdlog::info("Identity: {}", _is_identity);
+    if (qmode == 0 and !_is_identity)
+      throw std::runtime_error("Expecting identity matrix for qmode=0");
 
     // Tabulate 1D
     auto [table, shape] = element1.tabulate(1, points, {weights.size(), 1});
