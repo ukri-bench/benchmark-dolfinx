@@ -2,6 +2,7 @@
 // Garth N. Wells
 // SPDX-License-Identifier:    MIT
 
+#include <cstddef>
 #include <cstdint>
 
 #pragma once

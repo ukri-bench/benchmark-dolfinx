@@ -4,8 +4,6 @@
 
 #pragma once
 
-#if defined(USE_CUDA) || defined(USE_HIP)
-
 #include "geometry_gpu.hpp"
 #include "laplacian_gpu.hpp"
 #include "mesh.hpp"
@@ -15,6 +13,9 @@
 #include <basix/quadrature.h>
 #include <dolfinx/fem/DirichletBC.h>
 #include <dolfinx/fem/FunctionSpace.h>
+
+#if defined(USE_CUDA) || defined(USE_HIP)
+
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 
