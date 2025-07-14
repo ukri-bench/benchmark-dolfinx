@@ -22,6 +22,7 @@ namespace po = boost::program_options;
 
 namespace
 {
+
 /// @brief Run benchmark
 /// @param comm MPI Communicator
 /// @param nx Cube mesh dimensions (nx, ny, nz)
