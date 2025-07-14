@@ -4,6 +4,7 @@
 
 #include "laplacian_solver.hpp"
 #include <basix/quadrature.h>
+#include <dolfinx/la/MatrixCSR.h>
 
 #if defined(USE_CUDA) || defined(USE_HIP)
 
@@ -185,6 +186,35 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
 
     std::cout << "Norm of u = " << unorm << std::endl;
     std::cout << "Norm of y = " << ynorm << std::endl;
+  }
+
+  bool matrix_comparison = true;
+  if (matrix_comparison)
+  {
+    dolfinx::la::Vector<T> z(map, 1);
+    z.set(T{0.0});
+
+    //    dolfinx::la::MatrixCSR<T> mat_op();
+    dolfinx::common::Timer mtimer("% CSR Matvec");
+    //    for (int i = 0; i < nreps; ++i)
+    //      mat_op.apply(u, z);
+    mtimer.stop();
+
+    T unorm = dolfinx::la::norm(u);
+    T znorm = dolfinx::la::norm(z);
+    // Compute error
+    dolfinx::la::Vector<T> e(map, 1);
+    //    benchdolfinx::axpy(e, T{-1}, y, z);
+    T enorm = dolfinx::la::norm(e);
+
+    if (rank == 0)
+    {
+      std::cout << "Norm of u = " << unorm << std::endl;
+      std::cout << "Norm of z = " << znorm << std::endl;
+      std::cout << "Norm of error = " << enorm << std::endl;
+      std::cout << "Relative norm of error = " << enorm / znorm << std::endl;
+      // out_root["error_norm"] = enorm;
+    }
   }
 }
 #endif
