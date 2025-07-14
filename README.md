@@ -57,7 +57,7 @@ spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.gi
 spack info bench-dolfinx
 ```
 
-Options are used tp specify CPU and GPU (AMD or CUDA) builds. The
+Options are used to pecify CPU and GPU (AMD or CUDA) builds. The
 benchmark builds an executable `bench_dolfinx`.
 
 ### CMake
@@ -88,48 +88,44 @@ TODO
 
 ### Performance tests
 
-TODO
+Single device (single GPU or single CPU):
+```bash
+bench_dolfinx --float=64 --degree=6 --ndofs=10000000 --use_gauss --qmode=1
+```
+This runs the benchmark with $10^{7}$ degrees-of-freedom per device
+(`--ndofs`) using 64-bit floats (`--float`), finite element basis degree
+6 (`--degree`), Gauss-Legendre quadrature (`--use_gauss`)  and 'full'
+quadrature (`--qmode=1`).
+
+Multiple MPI ranks (1 MPI rank per logical GPU):
+```bash
+mpiexec -n 12 bench_dolfinx --float=64 --degree=6 --ndofs=10000000 --qmode=1 --use_gauss
+```
 
 ### Suggested performance test configuration
 
+```bash
+mpiexec -n 12 bench_dolfinx --float=64 --degree=6 --ndofs=10000000 --qmode=1 --use_gauss
+```
 
 ### Figures of merit
 
-TODO
+Performance data is written to the output JSON file. The figures of
+merit include:
 
+1. Throughout (degrees-of-freedom per second)
+   - First iteration
+   - Average of subsequent iterations
+2. Geometry computation
+3. Mesh creation
 
-### Old text
+For GPU execution, (3) is executed on the CPU. All other operations are
+executed on the GPU.
 
-The DOLFINx timers provide information about the CPU portion of the
-code, which creates the mesh, e.g.
-- `Build BoxMesh (hexahedra)`: time taken to build the initial mesh
+#### Degrees-of-freedom per second
 
-The GPU performance is presented as the number of GigaDOFs processed per
-second: e.g. `Mat-free action Gdofs/s: 3.88691`
-
-The norms of the input and output vectors are also provided, which can
-be checked against the matrix (CSR) implementation be using the
-`--mat_comp` option. In this case the norm of the error should be around
-machine precision, i.e. about 1e-15 for `float64`.
-
-### OLD: Recommended test configuration
-
-Suggested options for running the test are listed below.
-
-Single-GPU basic test for correctness (small problem)
-```bash
-bench_dolfinx --float=64 --degree=5 --perturb_geom_fact=0.1 --mat_comp --ndofs=5000
-```
-
-Single-GPU performance test (10M dofs)
-```bash
-bench_dolfinx --float=64 --degree=6 --ndofs=10000000 --qmode=1 --use_gauss
-```
-
-Multi-GPU performance test (40M dofs)
-```bash
-mpirun -n 4 bench_dolfinx --float=64  --degree=6 --ndofs=10000000 --qmode=1 --use_gauss
-```
+Using the options, ...., report the degrees-of-freedom per second for:
+- `ndofs * np = 5e9`
 
 ## License
 
