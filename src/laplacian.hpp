@@ -17,6 +17,8 @@
 #if defined(USE_CUDA) || defined(USE_HIP)
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
+#else
+#include "geometry_cpu.hpp"
 #endif
 
 namespace benchdolfinx
@@ -81,7 +83,6 @@ build_bc_markers(const dolfinx::fem::DirichletBC<T>& bc)
 } // namespace impl
 
 #if defined(USE_CUDA) || defined(USE_HIP)
-
 template <typename T>
 class MatFreeLaplacian
 {
@@ -472,6 +473,142 @@ public:
                              + V.mesh()->geometry().dofmap().size()),
         _bc_marker(impl::build_bc_markers(bc))
   {
+    {
+      auto [lcells, bcells] = benchdolfinx::compute_boundary_cells<T>(V);
+      _lcells = lcells;
+      _bcells = bcells;
+    }
+
+    basix::element::lagrange_variant variant;
+    std::function<int(int)> q_map;
+    if (quad_type == basix::quadrature::type::gauss_jacobi)
+    {
+      variant = basix::element::lagrange_variant::gl_warped;
+      q_map = [](int p) { return 2 * p; };
+    }
+    else if (quad_type == basix::quadrature::type::gll)
+    {
+      variant = basix::element::lagrange_variant::gll_warped;
+      q_map = [](int p) { return (p > 2) ? 2 * p - 2 : 2 * p - 1; };
+    }
+    else
+    {
+      throw std::runtime_error(
+          "Unsupported quadrature type for mat-free operator");
+    }
+
+    // NOTE: Basix generates quadrature points in tensor-product
+    // ordering, so this is OK
+
+    auto [Gpoints, Gweights] = basix::quadrature::make_quadrature<T>(
+        quad_type, basix::cell::type::hexahedron,
+        basix::polyset::type::standard, q_map(_degree + qmode));
+
+    const dolfinx::fem::CoordinateElement<T>& cmap
+        = V.mesh()->geometry().cmap();
+    std::array<std::size_t, 4> phi_shape
+        = cmap.tabulate_shape(1, Gweights.size());
+    std::vector<T> phi_b(
+        std::reduce(phi_shape.begin(), phi_shape.end(), 1, std::multiplies{}));
+    cmap.tabulate(1, Gpoints, {Gweights.size(), 3}, phi_b);
+
+    // Copy dphi to device (skipping phi in table)
+    _dphi_geometry.assign(phi_b.begin() + phi_b.size() / 4, phi_b.end());
+    _g_weights.assign(Gweights.begin(), Gweights.end());
+
+    // Create 1D element
+    basix::FiniteElement<T> element0 = basix::create_element<T>(
+        basix::element::family::P, basix::cell::type::interval, _degree,
+        basix::element::lagrange_variant::gll_warped,
+        basix::element::dpc_variant::unset, false);
+
+    // Create quadrature
+    auto [points, weights] = basix::quadrature::make_quadrature<T>(
+        quad_type, basix::cell::type::interval, basix::polyset::type::standard,
+        q_map(_degree + qmode));
+
+    // Make sure geometry weights for 3D cell match size of 1D
+    // quadrature weights
+    _op_nq = weights.size();
+    if (Gweights.size() != _op_nq * _op_nq * _op_nq)
+      throw std::runtime_error("3D and 1D weight mismatch");
+
+    // Create higher-order 1D element for which the dofs coincide with
+    // the quadrature points
+    basix::FiniteElement<T> element1 = basix::create_element<T>(
+        basix::element::family::P, basix::cell::type::interval, _op_nq - 1,
+        variant, basix::element::dpc_variant::unset, true);
+
+    // Compute interpolation matrix from element0 to element1
+    auto [mat, shape_I]
+        = basix::compute_interpolation_operator(element0, element1);
+
+    // Check whether the interpolation matrix is the identity
+    T precision = std::numeric_limits<T>::epsilon();
+    for (auto& v : mat)
+    {
+      if (std::abs(v) < 5 * precision)
+        v = 0;
+    }
+    _is_identity = matrix_is_identity(mat, shape_I);
+
+    spdlog::info("Identity: {}", _is_identity);
+    if (qmode == 0 and !_is_identity)
+      throw std::runtime_error("Expecting identity matrix for qmode=0");
+
+    // Tabulate 1D
+    auto [table, shape] = element1.tabulate(1, points, {weights.size(), 1});
+
+    // Copy interpolation matrix to device
+    spdlog::debug("Copy interpolation matrix to device ({} bytes)",
+                  mat.size() * sizeof(T));
+    _phi0_const.assign(mat.begin(), mat.end());
+
+    // Copy derivative to device (second half of table)
+    _dphi1_const.assign(std::next(table.begin(), table.size() / 2),
+                        table.end());
+
+    spdlog::info("Precomputing geometry");
+    std::vector<std::int32_t> cells_d(_lcells.size() + _bcells.size());
+    std::copy(_lcells.begin(), _lcells.end(), cells_d.begin());
+    std::copy(_bcells.begin(), _bcells.end(), cells_d.begin() + _lcells.size());
+
+    compute_geometry(_op_nq, cells_d);
+
+    spdlog::debug("Done MatFreeLaplacian constructor");
+  }
+
+  template <int Q = 2>
+  void compute_geometry(int nq, std::span<const int> cell_list)
+  {
+    if constexpr (Q < 10)
+    {
+      if (nq > Q)
+        compute_geometry<Q + 1>(nq, cell_list);
+      else
+      {
+        assert(nq == Q);
+        _g_entity.resize(_g_weights.size() * cell_list.size() * 6);
+
+        spdlog::info("xgeom size {}", _xgeom.size());
+        spdlog::info("G_entity size {}", _g_entity.size());
+        spdlog::info("geometry_dofmap size {}", _geometry_dofmap.size());
+        spdlog::info("dphi_geometry size {}", _dphi_geometry.size());
+        spdlog::info("Gweights size {}", _g_weights.size());
+        spdlog::info("cell_list size {}", cell_list.size());
+        spdlog::info("Calling geometry_computation [{} {}]", Q, nq);
+
+        geometry_computation<T, Q>(_xgeom.data(), _g_entity.data(),
+                                   _geometry_dofmap.data(),
+                                   _dphi_geometry.data(), _g_weights.data(),
+                                   cell_list.data(), cell_list.size());
+
+        spdlog::debug("Done geometry_computation");
+      }
+    }
+    else
+      throw std::runtime_error("Unsupported degree [geometry]: "
+                               + std::to_string(nq));
   }
 
 private:
@@ -510,6 +647,12 @@ private:
 
   // Cells on partition boundaries
   std::vector<int> _bcells;
+
+  /// phi0 Input basis function table
+  std::vector<T> _phi0_const;
+
+  /// dphi1 Input basis function derivative table
+  std::vector<T> _dphi1_const;
 };
 #endif
 } // namespace benchdolfinx
