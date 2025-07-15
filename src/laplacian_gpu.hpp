@@ -16,12 +16,6 @@
 
 namespace benchdolfinx
 {
-template <typename T, int P, int Q>
-__constant__ T phi0_const[Q * (P + 1)];
-
-template <typename T, int Q>
-__constant__ T dphi1_const[Q * Q];
-
 /// @brief Compute 3d index from 1d indices.
 ///
 /// Compute the index `idx = ld0 * i + ld1 * j + ld2 * k`.
@@ -101,6 +95,8 @@ __launch_bounds__(Q* Q* Q) __global__
     void stiffness_operator(const T* __restrict__ u,
                             const T* __restrict__ entity_constants,
                             T* __restrict__ b, const T* __restrict__ G_entity,
+                            const T* __restrict__ phi0_const,
+                            const T* __restrict__ dphi1_const,
                             const std::int32_t* __restrict__ entity_dofmap,
                             const int* __restrict__ entities, int n_entities,
                             const std::int8_t* __restrict__ bc_marker,
@@ -152,10 +148,10 @@ __launch_bounds__(Q* Q* Q) __global__
   __shared__ T dphi1[nq1 * nq];
 
   if (thread_id < nd * nq)
-    phi0[thread_id] = phi0_const<T, P, Q>[thread_id];
+    phi0[thread_id] = phi0_const[thread_id];
 
   if (tz < nq and ty < nq and tx == 0)
-    dphi1[ty * nq1 + tz] = dphi1_const<T, Q>[ty * nq + tz];
+    dphi1[ty * nq1 + tz] = dphi1_const[ty * nq + tz];
 
   // Get dof value (in x) that this thread is responsible for, and
   // place in shared memory.
@@ -431,81 +427,6 @@ __launch_bounds__(Q* Q* Q) __global__
   // Write back to global memory
   if (dof != -1)
     atomicAdd(&b[dof], yd);
-}
-
-template <typename T, int P, int Q>
-__global__ void mat_diagonal(const T* entity_constants, T* b, const T* G_entity,
-                             const std::int32_t* entity_dofmap,
-                             const int* entities, int n_entities,
-                             const std::int8_t* bc_marker)
-{
-  constexpr int nd = P + 1; // Number of dofs per direction in 1D
-  constexpr int nq = Q;     // Number of quadrature points in 1D
-
-  int tx = threadIdx.x; // 1d dofs x direction
-  int ty = threadIdx.y; // 1d dofs y direction
-  int tz = threadIdx.z; // 1d dofs z direction
-
-  // block_id is the cell (or facet) index
-  int block_id = blockIdx.x;
-
-  // Check if the block_id is valid (i.e. within the number of entities)
-  if (block_id >= n_entities)
-    return;
-
-  // Get transform at quadrature point (thread)
-  constexpr int nq3 = nq * nq * nq;
-
-  // DG-0 Coefficient
-  T coeff = entity_constants[block_id];
-
-  T val = 0.0;
-
-  auto dphi_ = [&](int ix, int iy)
-  {
-    T w = 0.0;
-    for (int i = 0; i < nq; ++i)
-      w += phi0_const<T, P, Q>[i * nd + iy] * dphi1_const<T, Q>[ix * nq + i];
-    return w;
-  };
-
-  auto phi_ = [&](int ix, int iy) { return phi0_const<T, P, Q>[ix * nd + iy]; };
-  auto G_ = [&](int r, int ix, int iy, int iz)
-  {
-    int qid = ix * nq * nq + iy * nq + iz;
-    const int offset = block_id * nq3 * 6 + qid;
-    return G_entity[offset + r * nq3];
-  };
-
-  for (int iq2 = 0; iq2 < nq; ++iq2)
-  {
-    for (int iq1 = 0; iq1 < nq; ++iq1)
-    {
-      for (int iq0 = 0; iq0 < nq; ++iq0)
-      {
-        T w1 = dphi_(iq0, tx) * phi_(iq1, ty) * phi_(iq2, tz);
-        T w2 = phi_(iq0, tx) * dphi_(iq1, ty) * phi_(iq2, tz);
-        T w3 = phi_(iq0, tx) * phi_(iq1, ty) * dphi_(iq2, tz);
-        val += G_(0, iq0, iq1, iq2) * w1 * w1;
-        val += G_(3, iq0, iq1, iq2) * w2 * w2;
-        val += G_(5, iq0, iq1, iq2) * w3 * w3;
-
-        w1 = dphi_(iq0, tx) * phi_(iq1, ty) * phi_(iq2, tz);
-        w2 = phi_(iq0, tx) * dphi_(iq1, ty) * phi_(iq2, tz);
-        w3 = phi_(iq0, tx) * phi_(iq1, ty) * dphi_(iq2, tz);
-        val += 2 * G_(1, iq0, iq1, iq2) * w1 * w2;
-        val += 2 * G_(2, iq0, iq1, iq2) * w1 * w3;
-        val += 2 * G_(4, iq0, iq1, iq2) * w2 * w3;
-      }
-    }
-  }
-
-  int dof_thread_id = tx * nd * nd + ty * nd + tz;
-  int dof = entity_dofmap[entities[block_id] * nd * nd * nd + dof_thread_id];
-  if (bc_marker[dof])
-    b[dof] = T(1.0);
-  else
-    atomicAdd(&b[dof], coeff * val);
 }
 
 } // namespace benchdolfinx
