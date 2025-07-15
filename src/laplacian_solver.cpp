@@ -165,8 +165,8 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
 
   // Matrix free
   auto start = std::chrono::high_resolution_clock::now();
-  //  for (int i = 0; i < nreps; ++i)
-  //    op.apply(u, y);
+  for (int i = 0; i < nreps; ++i)
+    op.apply(u, y);
   auto stop = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> duration = stop - start;
 

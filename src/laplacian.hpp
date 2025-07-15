@@ -579,6 +579,60 @@ public:
     spdlog::debug("Done MatFreeLaplacian constructor");
   }
 
+  /// @brief Apply Laplacian operator
+  /// @param in Input vector
+  /// @param out Output vector
+  template <typename Vector>
+  void apply(Vector& in, Vector& out)
+  {
+    spdlog::debug("Mat free operator start");
+    out.set(0);
+
+    if (_op_nq == _degree + 1)
+    {
+      if (_degree == 1)
+        impl_operator<1, 2>(in, out);
+      else if (_degree == 2)
+        impl_operator<2, 3>(in, out);
+      else if (_degree == 3)
+        impl_operator<3, 4>(in, out);
+      else if (_degree == 4)
+        impl_operator<4, 5>(in, out);
+      else if (_degree == 5)
+        impl_operator<5, 6>(in, out);
+      else if (_degree == 6)
+        impl_operator<6, 7>(in, out);
+      else if (_degree == 7)
+        impl_operator<7, 8>(in, out);
+      else
+        throw std::runtime_error("Unsupported degree [operator]");
+    }
+    else if (_op_nq == _degree + 2)
+    {
+      if (_degree == 1)
+        impl_operator<1, 3>(in, out);
+      else if (_degree == 2)
+        impl_operator<2, 4>(in, out);
+      else if (_degree == 3)
+        impl_operator<3, 5>(in, out);
+      else if (_degree == 4)
+        impl_operator<4, 6>(in, out);
+      else if (_degree == 5)
+        impl_operator<5, 7>(in, out);
+      else if (_degree == 6)
+        impl_operator<6, 8>(in, out);
+      else if (_degree == 7)
+        impl_operator<7, 9>(in, out);
+      else
+        throw std::runtime_error("Unsupported degree [operator]");
+    }
+    else
+      throw std::runtime_error("Unsupported nq");
+
+    spdlog::debug("Mat free operator end");
+  }
+
+private:
   template <int Q = 2>
   void compute_geometry(int nq, std::span<const int> cell_list)
   {
@@ -610,6 +664,67 @@ public:
     else
       throw std::runtime_error("Unsupported degree [geometry]: "
                                + std::to_string(nq));
+  }
+
+  /// @brief Implementation of the action of the operator
+  /// @tparam Vector Vector Type
+  /// @tparam P Polynomial degree of the operator
+  /// @tparam Q Number of quadrature points (1D)
+  /// @param in Input vector
+  /// @param out Output vector, with values representing the laplacian of the
+  /// input vector
+  template <int P, int Q, typename Vector>
+  void impl_operator(Vector& in, Vector& out)
+  {
+    spdlog::debug("impl_operator operator start");
+
+    in.scatter_fwd_begin();
+
+    T* geometry_ptr = _g_entity.data();
+
+    if (!_lcells.empty())
+    {
+      spdlog::debug("Calling stiffness_operator on local cells [{}]",
+                    _lcells.size());
+      T* x = in.mutable_array().data();
+      T* y = out.mutable_array().data();
+
+      stiffness_operator<T, P, Q>(
+          x, _cell_constants.data(), y, geometry_ptr, _phi0_const.data(),
+          _dphi1_const.data(), _cell_dofmap.data(), _lcells.data(),
+          _lcells.size(), _bc_marker.data(), _is_identity);
+    }
+
+    spdlog::debug("impl_operator done lcells");
+
+    spdlog::debug("cell_constants size {}", _cell_constants.size());
+    //    spdlog::debug("in size {}", in.array().size());
+    //    spdlog::debug("out size {}", out.array().size());
+    spdlog::debug("G_entity size {}", _g_entity.size());
+    spdlog::debug("cell_dofmap size {}", _cell_dofmap.size());
+    spdlog::debug("bc_marker size {}", _bc_marker.size());
+
+    in.scatter_fwd_end();
+
+    spdlog::debug("impl_operator after scatter");
+
+    if (!_bcells.empty())
+    {
+      spdlog::debug("impl_operator doing bcells. bcells size = {}",
+                    _bcells.size());
+
+      geometry_ptr += 6 * Q * Q * Q * _lcells.size();
+
+      T* x = in.mutable_array().data();
+      T* y = out.mutable_array().data();
+
+      stiffness_operator<T, P, Q>(
+          x, _cell_constants.data(), y, geometry_ptr, _phi0_const.data(),
+          _dphi1_const.data(), _cell_dofmap.data(), _bcells.data(),
+          _bcells.size(), _bc_marker.data(), _is_identity);
+    }
+
+    spdlog::debug("impl_operator done bcells");
   }
 
 private:
