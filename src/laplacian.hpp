@@ -195,71 +195,16 @@ public:
     // Tabulate 1D
     auto [table, shape] = element1.tabulate(1, points, {weights.size(), 1});
 
-    // Basis value gradient evaluation table
-    if (_op_nq == _degree + 1) // Number of quadrature points == P + 1
-    {
-      switch (_degree)
-      {
-      case 1:
-        copy_phi_tables<1, 2>(mat, table);
-        break;
-      case 2:
-        copy_phi_tables<2, 3>(mat, table);
-        break;
-      case 3:
-        copy_phi_tables<3, 4>(mat, table);
-        break;
-      case 4:
-        copy_phi_tables<4, 5>(mat, table);
-        break;
-      case 5:
-        copy_phi_tables<5, 6>(mat, table);
-        break;
-      case 6:
-        copy_phi_tables<6, 7>(mat, table);
-        break;
-      case 7:
-        copy_phi_tables<7, 8>(mat, table);
-        break;
-      default:
-        throw std::runtime_error("Unsupported degree");
-      }
-    }
-    else if (_op_nq == _degree + 2) // Number of quadrature points == P + 2
-    {
-      switch (_degree)
-      {
-      case 1:
-        copy_phi_tables<1, 3>(mat, table);
-        break;
-      case 2:
-        copy_phi_tables<2, 4>(mat, table);
-        break;
-      case 3:
-        copy_phi_tables<3, 5>(mat, table);
-        break;
-      case 4:
-        copy_phi_tables<4, 6>(mat, table);
-        break;
-      case 5:
-        copy_phi_tables<5, 7>(mat, table);
-        break;
-      case 6:
-        copy_phi_tables<6, 8>(mat, table);
-        break;
-      case 7:
-        copy_phi_tables<7, 9>(mat, table);
-        break;
-      default:
-        throw std::runtime_error("Unsupported degree");
-      }
-    }
-    else
-      throw std::runtime_error("Unsupported nq");
-
     // Copy interpolation matrix to device
     spdlog::debug("Copy interpolation matrix to device ({} bytes)",
                   mat.size() * sizeof(T));
+    _phi0_const.resize(mat.size());
+    thrust::copy(mat.begin(), mat.end(), _phi0_const.begin());
+
+    // Copy derivative to device (second half of table)
+    _dphi1_const.resize(table.size() / 2);
+    thrust::copy(std::next(table.begin(), table.size() / 2), table.end(),
+                 _dphi1_const.begin());
 
     spdlog::info("Precomputing geometry");
     thrust::device_vector<std::int32_t> cells_d(_lcells.size()
@@ -349,6 +294,8 @@ private:
       dim3 grid_size(_lcells.size());
       stiffness_operator<T, P, Q><<<grid_size, block_size>>>(
           x, thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
+          thrust::raw_pointer_cast(_phi0_const.data()),
+          thrust::raw_pointer_cast(_dphi1_const.data()),
           thrust::raw_pointer_cast(_cell_dofmap.data()),
           thrust::raw_pointer_cast(_lcells.data()), _lcells.size(),
           thrust::raw_pointer_cast(_bc_marker.data()), _is_identity);
@@ -383,6 +330,8 @@ private:
       dim3 grid_size(_bcells.size());
       stiffness_operator<T, P, Q><<<grid_size, block_size>>>(
           x, thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
+          thrust::raw_pointer_cast(_phi0_const.data()),
+          thrust::raw_pointer_cast(_dphi1_const.data()),
           thrust::raw_pointer_cast(_cell_dofmap.data()),
           thrust::raw_pointer_cast(_bcells.data()), _bcells.size(),
           thrust::raw_pointer_cast(_bc_marker.data()), _is_identity);
@@ -485,18 +434,11 @@ private:
   // Cells on partition boundaries
   thrust::device_vector<int> _bcells;
 
-  /// @brief Copy data to __constant__ on the device
-  /// @param phi0 Input basis function table
-  /// @param dphi1 Input basis function derivative table
-  template <int P, int Q>
-  static void copy_phi_tables(std::span<const T> phi0, std::span<const T> dphi1)
-  {
-    err_check(deviceMemcpyToSymbol((phi0_const<T, P, Q>), phi0.data(),
-                                   phi0.size() * sizeof(T)));
-    err_check(deviceMemcpyToSymbol((dphi1_const<T, Q>),
-                                   dphi1.data() + dphi1.size() / 2,
-                                   (dphi1.size() / 2) * sizeof(T)));
-  }
+  /// phi0 Input basis function table
+  thrust::device_vector<T> _phi0_const;
+
+  /// dphi1 Input basis function derivative table
+  thrust::device_vector<T> _dphi1_const;
 };
 
 #else
