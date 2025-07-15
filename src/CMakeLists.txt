@@ -27,13 +27,10 @@ elseif(amd)
 elseif(nvidia AND amd)
   message(
     FATAL_ERROR
-      "You cannot select both AMD and NVIDIA GPU builds. Only set either CUDA_ARCH or HIP_ARCH "
+      "You cannot select both AMD and NVIDIA GPU builds. Only set either CUDA_ARCH or HIP_ARCH."
   )
 else()
-  # message(
-  #   FATAL_ERROR
-  #     "No target selected for the build. Please set either CUDA_ARCH or HIP_ARCH"
-  # )
+  message(STATUS "No GPU arch selected. Building for CPU.")
 endif()
 
 if(amd)
@@ -94,6 +91,12 @@ if(amd)
 endif()
 
 add_executable(${PROJECT_NAME} main.cpp forms.cpp laplacian_solver.cpp mesh.cpp util.cpp poisson.c)
+
+if(NOT amd AND NOT nvidia)
+# CPU-only source files
+target_sources(${PROJECT_NAME} PUBLIC geometry_cpu.cpp)
+endif()
+
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
 target_link_libraries(${PROJECT_NAME} dolfinx Basix::basix Boost::program_options jsoncpp_lib)
 

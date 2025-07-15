@@ -23,16 +23,7 @@ namespace po = boost::program_options;
 namespace
 {
 
-template <typename T>
-void run_cpu(MPI_Comm comm, std::array<std::int64_t, 3> nx,
-             double geom_perturb_fact, int degree, int qmode, int nreps,
-             bool use_gauss, Json::Value& root)
-{
-}
-
-#if defined(USE_CUDA) || defined(USE_HIP)
-
-/// @brief Run GPU benchmark
+/// @brief Run benchmark
 /// @param comm MPI Communicator
 /// @param nx Cube mesh dimensions (nx, ny, nz)
 /// @param geom_perturb_fact Geometry perturbation factor
@@ -42,9 +33,9 @@ void run_cpu(MPI_Comm comm, std::array<std::int64_t, 3> nx,
 /// @param use_gauss Use Gauss quadrature, rather than GLL
 /// @param root JSON document root for output metrics
 template <typename T>
-void run_gpu(MPI_Comm comm, std::array<std::int64_t, 3> nx,
-             double geom_perturb_fact, int degree, int qmode, int nreps,
-             bool use_gauss, Json::Value& root)
+void run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
+                   double geom_perturb_fact, int degree, int qmode, int nreps,
+                   bool use_gauss, Json::Value& root)
 {
   int rank(0), size(0);
   MPI_Comm_rank(comm, &rank);
@@ -107,7 +98,6 @@ void run_gpu(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   benchdolfinx::laplace_action<T>(a, L, bc, degree, qmode, kappa->value[0],
                                   nreps, use_gauss);
 }
-#endif
 } // namespace
 
 int main(int argc, char* argv[])
@@ -231,29 +221,23 @@ int main(int argc, char* argv[])
     std::array<std::int64_t, 3> nx
         = benchdolfinx::compute_mesh_size(ndofs, degree, size);
 
-#if defined(USE_CUDA) || defined(USE_HIP)
     if (float_size == 32)
     {
       throw std::runtime_error("Float32 not implemented yet.");
-      // run_gpu<float>(comm, nx, geom_perturb_fact, degree, qmode, nreps,
+      // run_benchmark<float>(comm, nx, geom_perturb_fact, degree, qmode, nreps,
       //                use_gauss, root);
     }
     else if (float_size == 64)
     {
-      run_gpu<double>(comm, nx, geom_perturb_fact, degree, qmode, nreps,
-                      use_gauss, root);
+      run_benchmark<double>(comm, nx, geom_perturb_fact, degree, qmode, nreps,
+                            use_gauss, root);
     }
     else
     {
       throw std::runtime_error(
           std::format("Invalid float size {}. Must be 32 or 64.", float_size));
     }
-#else
-    run_cpu<double>(comm, nx, geom_perturb_fact, degree, qmode, nreps,
-                    use_gauss, root);
-    if (rank == 0)
-      std::cout << "CPU version not implemented yet." << std::endl;
-#endif
+
     if (rank == 0)
     {
       Json::StreamWriterBuilder builder;

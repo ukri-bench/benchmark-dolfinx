@@ -4,8 +4,6 @@
 
 #pragma once
 
-#if defined(USE_CUDA) || defined(USE_HIP)
-
 #include "geometry_gpu.hpp"
 #include "laplacian_gpu.hpp"
 #include "mesh.hpp"
@@ -15,6 +13,9 @@
 #include <basix/quadrature.h>
 #include <dolfinx/fem/DirichletBC.h>
 #include <dolfinx/fem/FunctionSpace.h>
+
+#if defined(USE_CUDA) || defined(USE_HIP)
+
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 
@@ -47,13 +48,6 @@ bool matrix_is_identity(const std::vector<T>& mat,
   else
     return false;
 }
-
-// FIXME: Could just replace these maps with expression
-static const std::map<int, int> q_map_gll
-    = {{1, 1}, {2, 3}, {3, 4}, {4, 6}, {5, 8}, {6, 10}, {7, 12}, {8, 14}};
-
-static const std::map<int, int> q_map_gq
-    = {{1, 2}, {2, 4}, {3, 6}, {4, 8}, {5, 10}, {6, 12}, {7, 14}, {8, 16}};
 
 namespace impl
 {
@@ -120,16 +114,16 @@ public:
     }
 
     basix::element::lagrange_variant variant;
-    std::map<int, int> q_map;
+    std::function<int(int)> q_map;
     if (quad_type == basix::quadrature::type::gauss_jacobi)
     {
       variant = basix::element::lagrange_variant::gl_warped;
-      q_map = q_map_gq;
+      q_map = [](int p) { return 2 * p; };
     }
     else if (quad_type == basix::quadrature::type::gll)
     {
       variant = basix::element::lagrange_variant::gll_warped;
-      q_map = q_map_gll;
+      q_map = [](int p) { return (p > 2) ? 2 * p - 2 : 2 * p - 1; };
     }
     else
     {
@@ -142,7 +136,7 @@ public:
 
     auto [Gpoints, Gweights] = basix::quadrature::make_quadrature<T>(
         quad_type, basix::cell::type::hexahedron,
-        basix::polyset::type::standard, q_map.at(_degree + qmode));
+        basix::polyset::type::standard, q_map(_degree + qmode));
 
     const dolfinx::fem::CoordinateElement<T>& cmap
         = V.mesh()->geometry().cmap();
@@ -165,7 +159,7 @@ public:
     // Create quadrature
     auto [points, weights] = basix::quadrature::make_quadrature<T>(
         quad_type, basix::cell::type::interval, basix::polyset::type::standard,
-        q_map.at(_degree + qmode));
+        q_map(_degree + qmode));
 
     // Make sure geometry weights for 3D cell match size of 1D
     // quadrature weights
@@ -286,8 +280,8 @@ private:
   /// and stores as 6 values for each quadrature point of each cell.
   /// @note The quadrature weights are also combined into the values of the
   /// geometric tensor at each point.
-  /// @param nq Number of quadrature points in 1D (total points per cell will be
-  /// nq^3)
+  /// @param nq Number of quadrature points in 1D (total points per cell will
+  /// be nq^3)
   /// @param cell_list List of cell indices to compute for
   template <int Q = 2>
   void compute_geometry(int nq, std::span<const int> cell_list)
