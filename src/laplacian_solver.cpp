@@ -3,6 +3,7 @@
 // SPDX-License-Identifier:    MIT
 
 #include "laplacian_solver.hpp"
+#include "laplacian.hpp"
 #include <basix/quadrature.h>
 #include <dolfinx/la/MatrixCSR.h>
 
@@ -11,7 +12,6 @@
 #include "csr.hpp"
 #include "forms.hpp"
 #include "geometry_gpu.hpp"
-#include "laplacian.hpp"
 #include "laplacian_gpu.hpp"
 #include "mesh.hpp"
 #include "util.hpp"
@@ -155,7 +155,7 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
       = use_gauss ? basix::quadrature::type::gauss_jacobi
                   : basix::quadrature::type::gll;
 
-  //  MatFreeLaplacian<T> op(*V, bc, degree, qmode, kappa, quad_type);
+  MatFreeLaplacian<T> op(*V, bc, degree, qmode, kappa, quad_type);
 
   op_create_timer.stop();
 
@@ -194,9 +194,12 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
     dolfinx::la::Vector<T> z(map, 1);
     z.set(T{0.0});
 
-    //    dolfinx::la::MatrixCSR<T> mat_op();
+    dolfinx::la::SparsityPattern sp = dolfinx::fem::create_sparsity_pattern(a);
+    sp.finalize();
+    dolfinx::la::MatrixCSR<T> mat_op(sp);
+    dolfinx::fem::assemble_matrix(mat_op.mat_add_values(), a, {bc});
     dolfinx::common::Timer mtimer("% CSR Matvec");
-    //    for (int i = 0; i < nreps; ++i)
+    // for (int i = 0; i < nreps; ++i)
     //      mat_op.apply(u, z);
     mtimer.stop();
 

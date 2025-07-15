@@ -15,9 +15,9 @@
 #include <dolfinx/fem/FunctionSpace.h>
 
 #if defined(USE_CUDA) || defined(USE_HIP)
-
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
+#endif
 
 namespace benchdolfinx
 {
@@ -79,6 +79,8 @@ build_bc_markers(const dolfinx::fem::DirichletBC<T>& bc)
   return bc_marker;
 }
 } // namespace impl
+
+#if defined(USE_CUDA) || defined(USE_HIP)
 
 template <typename T>
 class MatFreeLaplacian
@@ -496,6 +498,76 @@ private:
                                    (dphi1.size() / 2) * sizeof(T)));
   }
 };
-} // namespace benchdolfinx
 
+#else
+
+// CPU Version
+
+template <typename T>
+class MatFreeLaplacian
+{
+public:
+  using value_type = T;
+
+  /// @brief Matrix-free Laplacian operator
+  /// @param V FunctionSpace on which the operator is built
+  /// @param bc Boundary condition, defining constrained degrees of freedom
+  /// @param degree Polynomial degree of operator
+  /// @param qmode Quadrature mode (0 or 1)
+  /// @param constant Coefficient value, used on all cells
+  /// @param quad_type Quadrature type (GLL or Gauss)
+  MatFreeLaplacian(const dolfinx::fem::FunctionSpace<T>& V,
+                   const dolfinx::fem::DirichletBC<T>& bc, int degree,
+                   int qmode, T constant, basix::quadrature::type quad_type)
+      : _degree(degree), _cell_constants(impl::num_cells(*V.mesh()), constant),
+        _cell_dofmap(V.dofmap()->map().data_handle(),
+                     V.dofmap()->map().data_handle()
+                         + V.dofmap()->map().size()),
+        _xgeom(V.mesh()->geometry().x().begin(),
+               V.mesh()->geometry().x().end()),
+        _geometry_dofmap(V.mesh()->geometry().dofmap().data_handle(),
+                         V.mesh()->geometry().dofmap().data_handle()
+                             + V.mesh()->geometry().dofmap().size()),
+        _bc_marker(impl::build_bc_markers(bc))
+  {
+  }
+
+private:
+  // Polynomial degree
+  std::size_t _degree;
+
+  // Number of quadrature points in 1D
+  std::size_t _op_nq;
+
+  // Reference to on-device storage for constants, dofmap etc.
+  std::vector<T> _cell_constants;
+  std::vector<std::int32_t> _cell_dofmap;
+
+  // Reference to on-device storage of geometry data
+  std::vector<T> _xgeom;
+  std::vector<std::int32_t> _geometry_dofmap;
+
+  // geometry tables dphi on device
+  std::vector<T> _dphi_geometry;
+
+  std::vector<std::int8_t> _bc_marker;
+
+  // On device storage for geometry quadrature weights
+  std::vector<T> _g_weights;
+
+  // On device storage for geometry data (computed for each batch of cells)
+  std::vector<T> _g_entity;
+
+  // Interpolation is the identity
+  bool _is_identity;
+
+  // Lists of cells which are local (lcells) and boundary (bcells)
+
+  // Exclusively owned cells (not not share dofs with other processes)
+  std::vector<int> _lcells;
+
+  // Cells on partition boundaries
+  std::vector<int> _bcells;
+};
 #endif
+} // namespace benchdolfinx
