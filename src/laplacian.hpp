@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "geometry_gpu.hpp"
-#include "laplacian_gpu.hpp"
 #include "mesh.hpp"
 #include "util.hpp"
 #include <basix/finite-element.h>
@@ -15,10 +13,13 @@
 #include <dolfinx/fem/FunctionSpace.h>
 
 #if defined(USE_CUDA) || defined(USE_HIP)
+#include "geometry_gpu.hpp"
+#include "laplacian_gpu.hpp"
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 #else
 #include "geometry_cpu.hpp"
+#include "laplacian_cpu.hpp"
 #endif
 
 namespace benchdolfinx
