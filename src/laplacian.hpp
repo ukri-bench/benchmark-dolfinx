@@ -258,8 +258,7 @@ private:
         spdlog::info("cell_list size {}", cell_list.size());
         spdlog::info("Calling geometry_computation [{} {}]", Q, nq);
 
-        std::size_t shm_size = 24 * sizeof(T); // coordinate size (8x3)
-        geometry_computation<T, Q><<<grid_size, block_size, shm_size, 0>>>(
+        geometry_computation<T, Q><<<grid_size, block_size>>>(
             thrust::raw_pointer_cast(_xgeom.data()),
             thrust::raw_pointer_cast(_g_entity.data()),
             thrust::raw_pointer_cast(_geometry_dofmap.data()),
@@ -312,8 +311,8 @@ private:
     spdlog::debug("impl_operator done lcells");
 
     spdlog::debug("cell_constants size {}", _cell_constants.size());
-    spdlog::debug("in size {}", in.array().size());
-    spdlog::debug("out size {}", out.array().size());
+    //    spdlog::debug("in size {}", in.array().size());
+    //    spdlog::debug("out size {}", out.array().size());
     spdlog::debug("G_entity size {}", _g_entity.size());
     spdlog::debug("cell_dofmap size {}", _cell_dofmap.size());
     spdlog::debug("bc_marker size {}", _bc_marker.size());

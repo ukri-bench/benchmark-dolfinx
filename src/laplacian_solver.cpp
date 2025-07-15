@@ -10,19 +10,9 @@
 #if defined(USE_CUDA) || defined(USE_HIP)
 
 #include "csr.hpp"
-#include "forms.hpp"
-#include "geometry_gpu.hpp"
-#include "laplacian_gpu.hpp"
-#include "mesh.hpp"
-#include "util.hpp"
 #include "vector.hpp"
-#include <basix/finite-element.h>
-#include <basix/interpolation.h>
-#include <dolfinx/fem/FunctionSpace.h>
-#include <dolfinx/la/Vector.h>
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
-
 #include <thrust/sequence.h>
 
 using namespace benchdolfinx;
@@ -169,6 +159,8 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
   auto stop = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> duration = stop - start;
 
+  //  bc.set(y.mutable_array(), std::nullopt, 0.0);
+  
   T unorm = dolfinx::la::norm(u);
   T ynorm = dolfinx::la::norm(y);
 
@@ -203,6 +195,7 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
     {
       z.set(T{0.0});
       mat_op.mult(u, z);
+      bc.set(z.mutable_array(), std::nullopt, 0.0);
     }
     mtimer.stop();
 
@@ -236,4 +229,8 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
 template void benchdolfinx::laplace_action<double>(
     const dolfinx::fem::Form<double>&, const dolfinx::fem::Form<double>&,
     const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool);
+
+ template void benchdolfinx::laplace_action<float>(
+     const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
+    const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool);
 /// @endcond
