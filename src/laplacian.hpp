@@ -13,11 +13,13 @@
 #include <dolfinx/fem/FunctionSpace.h>
 
 #if defined(USE_CUDA) || defined(USE_HIP)
+// GPU
 #include "geometry_gpu.hpp"
 #include "laplacian_gpu.hpp"
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 #else
+// CPU
 #include "geometry_cpu.hpp"
 #include "laplacian_cpu.hpp"
 #endif
@@ -84,6 +86,8 @@ build_bc_markers(const dolfinx::fem::DirichletBC<T>& bc)
 } // namespace impl
 
 #if defined(USE_CUDA) || defined(USE_HIP)
+  // GPU
+
 template <typename T>
 class MatFreeLaplacian
 {
@@ -607,25 +611,25 @@ public:
       else
         throw std::runtime_error("Unsupported degree [operator]");
     }
-    else if (_op_nq == _degree + 2)
-    {
-      if (_degree == 1)
-        impl_operator<1, 3>(in, out);
-      else if (_degree == 2)
-        impl_operator<2, 4>(in, out);
-      else if (_degree == 3)
-        impl_operator<3, 5>(in, out);
-      else if (_degree == 4)
-        impl_operator<4, 6>(in, out);
-      else if (_degree == 5)
-        impl_operator<5, 7>(in, out);
-      else if (_degree == 6)
-        impl_operator<6, 8>(in, out);
-      else if (_degree == 7)
-        impl_operator<7, 9>(in, out);
-      else
-        throw std::runtime_error("Unsupported degree [operator]");
-    }
+    // else if (_op_nq == _degree + 2)
+    // {
+    //   if (_degree == 1)
+    //     impl_operator<1, 3>(in, out);
+    //   else if (_degree == 2)
+    //     impl_operator<2, 4>(in, out);
+    //   else if (_degree == 3)
+    //     impl_operator<3, 5>(in, out);
+    //   else if (_degree == 4)
+    //     impl_operator<4, 6>(in, out);
+    //   else if (_degree == 5)
+    //     impl_operator<5, 7>(in, out);
+    //   else if (_degree == 6)
+    //     impl_operator<6, 8>(in, out);
+    //   else if (_degree == 7)
+    //     impl_operator<7, 9>(in, out);
+    //   else
+    //     throw std::runtime_error("Unsupported degree [operator]");
+    // }
     else
       throw std::runtime_error("Unsupported nq");
 

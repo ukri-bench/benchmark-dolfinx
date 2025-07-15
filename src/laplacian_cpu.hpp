@@ -89,13 +89,76 @@ template <typename T, int P, int Q>
 void stiffness_operator(const T* __restrict__ u,
                         const T* __restrict__ entity_constants,
                         T* __restrict__ b, const T* __restrict__ G_entity,
-                        const T* __restrict__ phi0_const,
-                        const T* __restrict__ dphi1_const,
+                        const T* __restrict__ phi0, const T* __restrict__ dphi1,
                         const std::int32_t* __restrict__ entity_dofmap,
                         const int* __restrict__ entities, int n_entities,
                         const std::int8_t* __restrict__ bc_marker,
                         bool identity)
 {
+  constexpr int nd = (P + 1);
+  constexpr int cube_nd = nd * nd * nd;
+  constexpr int nq = Q;
+  constexpr int cube_nq = nq * nq * nq;
+
+  std::array<T, cube_nd> local_dofs;
+  for (int c = 0; c < n_entities; ++c)
+  {
+    // Copy input dofs for this cell
+    const std::int32_t* dofs = entity_dofmap + c * cube_nd;
+    for (int i = 0; i < cube_nd; ++i)
+      local_dofs[i] = u[dofs[i]];
+
+    T coeff = entity_constants[c];
+
+    T scratch1[nq][nq][nq];
+    T scratch2[nq][nq][nq];
+    T scratch3[nq][nq][nq];
+
+    // (du/dx0)_(q0, q1, q2) = (d\phi1_(i)/dx)(q0) u_(i, q1, q2)
+    for (int ix = 0; ix < nq; ++ix)
+      for (int iy = 0; iy < nq; ++iy)
+        for (int iz = 0; iz < nq; ++iz)
+        {
+          const T* G = G_entity + c * cube_nq * 6 + ix * nq * nq + iy * nq + iz;
+          const T G0 = G[0];
+          const T G1 = G[cube_nq];
+          const T G2 = G[2 * cube_nq];
+          const T G3 = G[3 * cube_nq];
+          const T G4 = G[4 * cube_nq];
+          const T G5 = G[5 * cube_nq];
+
+          T val_x = 0;
+          T val_y = 0;
+          T val_z = 0;
+          for (int i = 0; i < nq; ++i)
+          {
+            val_x
+                += dphi1[ix * nq + i] * local_dofs[i * nd * nd + iy * nd + iz];
+            val_y
+                += dphi1[iy * nq + i] * local_dofs[ix * nd * nd + i * nd + iz];
+            val_z
+                += dphi1[iz * nq + i] * local_dofs[ix * nd * nd + iy * nd + i];
+          }
+          scratch1[ix][iy][iz] = coeff * (G0 * val_x + G1 * val_y + G2 * val_z);
+          scratch2[ix][iy][iz] = coeff * (G1 * val_x + G3 * val_y + G4 * val_z);
+          scratch3[ix][iy][iz] = coeff * (G2 * val_x + G4 * val_y + G5 * val_z);
+        }
+
+    // (du/dx0)_(q0, q1, q2) = (d\phi1_(i)/dx)(q0) u_(i, q1, q2)
+    for (int ix = 0; ix < nd; ++ix)
+      for (int iy = 0; iy < nd; ++iy)
+        for (int iz = 0; iz < nd; ++iz)
+        {
+          T yd = 0;
+          for (int i = 0; i < nq; ++i)
+          {
+            yd += dphi1[i * nq + ix] * scratch1[i][iy][iz];
+            yd += dphi1[i * nq + iy] * scratch2[ix][i][iz];
+            yd += dphi1[i * nq + iz] * scratch3[ix][iy][i];
+          }
+          b[dofs[iz * nd * nd + iy * nd + ix]] += yd;
+        }
+  }
 }
 
 } // namespace benchdolfinx

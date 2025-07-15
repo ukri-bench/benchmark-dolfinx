@@ -159,9 +159,8 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
 
   op_create_timer.stop();
 
-  dolfinx::la::Vector<T> b(map, 1);
-  dolfinx::fem::assemble_vector(b.mutable_array(), L);
-  b.scatter_fwd();
+  dolfinx::fem::assemble_vector(u.mutable_array(), L);
+  u.scatter_fwd();
 
   // Matrix free
   auto start = std::chrono::high_resolution_clock::now();
@@ -207,7 +206,14 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
     T znorm = dolfinx::la::norm(z);
     // Compute error
     dolfinx::la::Vector<T> e(map, 1);
-    //    benchdolfinx::axpy(e, T{-1}, y, z);
+
+    auto axpy = [](auto&& r, auto alpha, auto&& x, auto&& y)
+    {
+      std::ranges::transform(x.array(), y.array(), r.mutable_array().begin(),
+                             [alpha](auto x, auto y) { return alpha * x + y; });
+    };
+
+    axpy(e, T{-1}, y, z);
     T enorm = dolfinx::la::norm(e);
 
     if (rank == 0)
