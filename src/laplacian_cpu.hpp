@@ -37,11 +37,11 @@ namespace benchdolfinx
 /// operator G for each entity
 /// @param entity_dofmap Array of size (n_entities, ndofs) with the
 /// dofmap for each entity
-/// @param phi0_in Array of size (nq, ndofs) with the interpolation basis
+/// @param phi0 Array of size (nq, ndofs) with the interpolation basis
 /// functions in 1D. u1_i = phi0_(ij) u_j, where u are the dofs
 /// associated with the element (degree P), and u1 are the dofs for the
 /// finite elment (degree >= P) that u is interpolated into.
-/// @param dphi1_in Array of size (nq, nq) with the 1D basis function
+/// @param dphi1 Array of size (nq, nq) with the 1D basis function
 /// derivatives. FIXME: layout is (point_idx, dphi_i)?
 /// @param entities List of entities to compute on
 /// @param n_entities Number of entries in `entities`
