@@ -106,8 +106,16 @@ void stiffness_operator(const T* __restrict__ u,
     // Copy input dofs for this cell
     const std::int32_t* dofs = entity_dofmap + c * cube_nd;
     for (int i = 0; i < cube_nd; ++i)
-      local_dofs[i] = u[dofs[i]];
-
+    {
+      std::int32_t dof = dofs[i];
+      if (bc_marker[dof])
+      {
+        b[dof] = u[dof];
+        local_dofs[i] = 0;
+      }
+      else
+        local_dofs[i] = u[dofs[i]];
+    }
     T coeff = entity_constants[c];
 
     T scratch1[nq][nq][nq];
@@ -156,7 +164,10 @@ void stiffness_operator(const T* __restrict__ u,
             yd += dphi1[i * nq + iy] * scratch2[ix][i][iz];
             yd += dphi1[i * nq + iz] * scratch3[ix][iy][i];
           }
-          b[dofs[iz * nd * nd + iy * nd + ix]] += yd;
+          std::int32_t i = ix * nd * nd + iy * nd + iz;
+          std::int32_t dof = dofs[i];
+          if (!bc_marker[dof])
+            b[dof] += yd;
         }
   }
 }
