@@ -197,9 +197,13 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
     sp.finalize();
     dolfinx::la::MatrixCSR<T> mat_op(sp);
     dolfinx::fem::assemble_matrix(mat_op.mat_add_values(), a, {bc});
+    mat_op.scatter_rev();
     dolfinx::common::Timer mtimer("% CSR Matvec");
-    // for (int i = 0; i < nreps; ++i)
-    //      mat_op.apply(u, z);
+    for (int i = 0; i < nreps; ++i)
+    {
+      z.set(T{0.0});
+      mat_op.mult(u, z);
+    }
     mtimer.stop();
 
     T unorm = dolfinx::la::norm(u);
