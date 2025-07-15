@@ -115,7 +115,7 @@ int main(int argc, char* argv[])
       ("ndofs", po::value<std::size_t>()->default_value(1000),
        "Number of degrees-of-freedom per MPI process")
       //
-      ("qmode", po::value<std::size_t>()->default_value(1),
+      ("qmode", po::value<std::size_t>()->default_value(0),
        "Quadrature mode (0 or 1): qmode=0 has P+1 points in each direction,"
        "qmode=1 has P+2 points in each direction.")
       //

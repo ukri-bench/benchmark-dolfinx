@@ -11,37 +11,6 @@
 
 namespace benchdolfinx
 {
-/// @brief Compute 3d index from 1d indices.
-///
-/// Compute the index `idx = ld0 * i + ld1 * j + ld2 * k`.
-///
-/// For contiguous, row-major storage of a tensor with shape `(n0, n1,
-/// n2)`, use `ld0=n1*n2`, `ld1=n2`, `ld2=1` (`k` varies fastest,
-/// followed by `j`).
-///
-/// For contiguous, column-major storage of a tensor with shape `(n0,
-/// n1, n2)`, use `ld0=1`, `ld1=n0`, `ld2=n0*n1` (`i` varies fastest,
-/// followed by `j`).
-///
-/// For contiguous storage with `j` varying fastest and `i` slowest, use
-/// `ld0=n1*n2`, `ld1=1`, `ld2=n1`
-///
-/// For contiguous storage with `j` varying fastest and `k` slowest, use
-/// `ld0=n1`, `ld1=1`, `ld2=n0*n1`
-///
-/// @tparam ld0 Stride for first (`i`) index.
-/// @tparam ld1 Stride for second (`k`) index.
-/// @tparam ld2 Stride for third (`k`) index.
-/// @param[in] i
-/// @param[in] j
-/// @param[in] k
-/// @return Flattened index.
-template <int ld0, int ld1, int ld2>
-int ijk(int i, int j, int k)
-{
-  return i * ld0 + j * ld1 + k * ld2;
-}
-
 /// Compute b = A * u where A is the stiffness operator for a set of
 /// entities (cells or facets) in a mesh.
 ///
@@ -99,6 +68,9 @@ void stiffness_operator(const T* __restrict__ u,
   constexpr int cube_nd = nd * nd * nd;
   constexpr int nq = Q;
   constexpr int cube_nq = nq * nq * nq;
+
+  // FIXME: qmode0 only
+  static_assert(Q == P + 1);
 
   std::array<T, cube_nd> local_dofs;
   for (int c = 0; c < n_entities; ++c)
