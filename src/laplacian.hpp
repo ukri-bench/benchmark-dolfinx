@@ -198,8 +198,11 @@ public:
                   mat.size() * sizeof(T));
     _phi0_const.resize(mat.size());
     thrust::copy(mat.begin(), mat.end(), _phi0_const.begin());
-    _dphi1_const.resize(table.size());
-    thrust::copy(table.begin(), table.end(), _dphi1_const.begin());
+
+    // Copy derivative to device (second half of table)
+    _dphi1_const.resize(table.size() / 2);
+    thrust::copy(std::next(table.begin(), table.size() / 2), table.end(),
+                 _dphi1_const.begin());
 
     spdlog::info("Precomputing geometry");
     thrust::device_vector<std::int32_t> cells_d(_lcells.size()
