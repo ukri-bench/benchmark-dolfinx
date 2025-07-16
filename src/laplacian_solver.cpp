@@ -160,7 +160,7 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
   std::chrono::duration<double> duration = stop - start;
 
   //  bc.set(y.mutable_array(), std::nullopt, 0.0);
-  
+
   T unorm = dolfinx::la::norm(u);
   T ynorm = dolfinx::la::norm(y);
 
@@ -190,12 +190,13 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
     dolfinx::la::MatrixCSR<T> mat_op(sp);
     dolfinx::fem::assemble_matrix(mat_op.mat_add_values(), a, {bc});
     mat_op.scatter_rev();
+    dolfinx::fem::set_diagonal<T>(mat_op.mat_set_values(), *V, {bc}, 1.0);
+
     dolfinx::common::Timer mtimer("% CSR Matvec");
     for (int i = 0; i < nreps; ++i)
     {
       z.set(T{0.0});
       mat_op.mult(u, z);
-      bc.set(z.mutable_array(), std::nullopt, 0.0);
     }
     mtimer.stop();
 
@@ -230,7 +231,7 @@ template void benchdolfinx::laplace_action<double>(
     const dolfinx::fem::Form<double>&, const dolfinx::fem::Form<double>&,
     const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool);
 
- template void benchdolfinx::laplace_action<float>(
-     const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
+template void benchdolfinx::laplace_action<float>(
+    const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
     const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool);
 /// @endcond
