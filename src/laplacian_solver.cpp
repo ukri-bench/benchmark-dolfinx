@@ -7,6 +7,8 @@
 #include <basix/quadrature.h>
 #include <dolfinx/la/MatrixCSR.h>
 
+using namespace benchdolfinx;
+
 #if defined(USE_CUDA) || defined(USE_HIP)
 
 #include "csr.hpp"
@@ -15,15 +17,12 @@
 #include <thrust/execution_policy.h>
 #include <thrust/sequence.h>
 
-using namespace benchdolfinx;
-
 //----------------------------------------------------------------------------
 template <typename T>
-void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
-                                  const dolfinx::fem::Form<T>& L,
-                                  const dolfinx::fem::DirichletBC<T>& bc,
-                                  int degree, int qmode, T kappa, int nreps,
-                                  bool use_gauss)
+BenchmarkResults benchdolfinx::laplace_action(
+    const dolfinx::fem::Form<T>& a, const dolfinx::fem::Form<T>& L,
+    const dolfinx::fem::DirichletBC<T>& bc, int degree, int qmode, T kappa,
+    int nreps, bool use_gauss, bool matrix_comparison)
 {
   auto V = a.function_spaces()[0];
 
@@ -59,6 +58,8 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
   u.copy_from_host(b); // Copy data from host vector to device vector
   u.scatter_fwd();
 
+  BenchmarkResults b_results;
+
   // Matrix free
   auto start = std::chrono::high_resolution_clock::now();
   for (int i = 0; i < nreps; ++i)
@@ -70,21 +71,17 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
   T ynorm = benchdolfinx::norm(y);
 
   int rank = dolfinx::MPI::rank(V->mesh()->comm());
-  // Json::Value& out_root = root["results"];
   if (rank == 0)
   {
+    b_results.mat_free_time = duration.count();
     std::cout << "Mat-free Matvec time: " << duration.count() << std::endl;
-    // std::cout << "Mat-free action Gdofs/s: "
-    //           << ndofs_global * nreps / (1e9 * duration.count()) <<
-    //           std::endl;
-
-    // out_root["gdofs"] = ndofs_global * nreps / (1e9 * duration.count());
+    std::cout << "Mat-free action Gdofs/s: "
+              << ndofs_global * nreps / (1e9 * duration.count()) << std::endl;
 
     std::cout << "Norm of u = " << unorm << std::endl;
     std::cout << "Norm of y = " << ynorm << std::endl;
   }
 
-  bool matrix_comparison = true;
   if (matrix_comparison)
   {
     // Compare to assembling on CPU and copying matrix to GPU
@@ -113,15 +110,16 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
       // out_root["error_norm"] = enorm;
     }
   }
+
+  return b_results;
 }
 //----------------------------------------------------------------------------
 #else // CPU
 template <typename T>
-void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
-                                  const dolfinx::fem::Form<T>& L,
-                                  const dolfinx::fem::DirichletBC<T>& bc,
-                                  int degree, int qmode, T kappa, int nreps,
-                                  bool use_gauss)
+BenchmarkResults benchdolfinx::laplace_action(
+    const dolfinx::fem::Form<T>& a, const dolfinx::fem::Form<T>& L,
+    const dolfinx::fem::DirichletBC<T>& bc, int degree, int qmode, T kappa,
+    int nreps, bool use_gauss, bool matrix_comparison)
 {
   auto V = a.function_spaces()[0];
 
@@ -152,6 +150,7 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
   dolfinx::fem::assemble_vector(u.mutable_array(), L);
   u.scatter_fwd();
 
+  BenchmarkResults b_results = {0};
   // Matrix free
   auto start = std::chrono::high_resolution_clock::now();
   for (int i = 0; i < nreps; ++i)
@@ -159,27 +158,23 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
   auto stop = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> duration = stop - start;
 
-  //  bc.set(y.mutable_array(), std::nullopt, 0.0);
-
   T unorm = dolfinx::la::norm(u);
   T ynorm = dolfinx::la::norm(y);
 
   int rank = dolfinx::MPI::rank(V->mesh()->comm());
-  // Json::Value& out_root = root["results"];
   if (rank == 0)
   {
-    std::cout << "Mat-free Matvec time: " << duration.count() << std::endl;
-    // std::cout << "Mat-free action Gdofs/s: "
-    //           << ndofs_global * nreps / (1e9 * duration.count()) <<
-    //           std::endl;
+    b_results.mat_free_time = duration.count();
 
-    // out_root["gdofs"] = ndofs_global * nreps / (1e9 * duration.count());
+    std::int64_t ndofs_global = V->dofmap()->index_map->size_global();
+    std::cout << "Mat-free Matvec time: " << duration.count() << std::endl;
+    std::cout << "Mat-free action Gdofs/s: "
+              << ndofs_global * nreps / (1e9 * duration.count()) << std::endl;
 
     std::cout << "Norm of u = " << unorm << std::endl;
     std::cout << "Norm of y = " << ynorm << std::endl;
   }
 
-  bool matrix_comparison = true;
   if (matrix_comparison)
   {
     dolfinx::la::Vector<T> z(map, 1);
@@ -223,15 +218,19 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
       // out_root["error_norm"] = enorm;
     }
   }
+
+  return b_results;
 }
 #endif
 
 /// @cond protect from doxygen
-template void benchdolfinx::laplace_action<double>(
-    const dolfinx::fem::Form<double>&, const dolfinx::fem::Form<double>&,
-    const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool);
+template benchdolfinx::BenchmarkResults
+benchdolfinx::laplace_action<double>(const dolfinx::fem::Form<double>&,
+                                     const dolfinx::fem::Form<double>&,
+                                     const dolfinx::fem::DirichletBC<double>&,
+                                     int, int, double, int, bool, bool);
 
-template void benchdolfinx::laplace_action<float>(
+template benchdolfinx::BenchmarkResults benchdolfinx::laplace_action<float>(
     const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
-    const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool);
+    const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool, bool);
 /// @endcond

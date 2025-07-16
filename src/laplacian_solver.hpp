@@ -10,9 +10,17 @@
 
 namespace benchdolfinx
 {
+struct BenchmarkResults
+{
+  double mat_free_time;
+};
+
+using BenchmarkResults = struct BenchmarkResults;
+
+/// @brief Compute action of Laplacian on GPU or CPU
 template <typename T>
-void laplace_action(const dolfinx::fem::Form<T>& a,
-                    const dolfinx::fem::Form<T>& L,
-                    const dolfinx::fem::DirichletBC<T>& bc, int degree,
-                    int qmode, T kappa, int nreps, bool use_gauss);
+BenchmarkResults
+laplace_action(const dolfinx::fem::Form<T>& a, const dolfinx::fem::Form<T>& L,
+               const dolfinx::fem::DirichletBC<T>& bc, int degree, int qmode,
+               T kappa, int nreps, bool use_gauss, bool matrix_comparison);
 } // namespace benchdolfinx
