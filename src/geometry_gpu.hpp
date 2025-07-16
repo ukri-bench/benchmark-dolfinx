@@ -4,8 +4,6 @@
 
 #pragma once
 
-#if defined(USE_CUDA) || defined(USE_HIP)
-
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 
@@ -49,7 +47,7 @@ __global__ void geometry_computation(const T* xgeom, T* G_entity,
   // Geometric dimension
   constexpr int gdim = 3;
 
-  extern __shared__ T shared_mem[];
+  __shared__ T shared_mem[ncdofs * gdim];
 
   // coord_dofs has shape [ncdofs, gdim]
   T* _coord_dofs = shared_mem;
@@ -137,4 +135,3 @@ __global__ void geometry_computation(const T* xgeom, T* G_entity,
 
 } // namespace benchdolfinx
 
-#endif

@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "geometry_gpu.hpp"
-#include "laplacian_gpu.hpp"
 #include "mesh.hpp"
 #include "util.hpp"
 #include <basix/finite-element.h>
@@ -15,9 +13,16 @@
 #include <dolfinx/fem/FunctionSpace.h>
 
 #if defined(USE_CUDA) || defined(USE_HIP)
-
+// GPU
+#include "geometry_gpu.hpp"
+#include "laplacian_gpu.hpp"
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
+#else
+// CPU
+#include "geometry_cpu.hpp"
+#include "laplacian_cpu.hpp"
+#endif
 
 namespace benchdolfinx
 {
@@ -79,6 +84,9 @@ build_bc_markers(const dolfinx::fem::DirichletBC<T>& bc)
   return bc_marker;
 }
 } // namespace impl
+
+#if defined(USE_CUDA) || defined(USE_HIP)
+  // GPU
 
 template <typename T>
 class MatFreeLaplacian
@@ -250,8 +258,7 @@ private:
         spdlog::info("cell_list size {}", cell_list.size());
         spdlog::info("Calling geometry_computation [{} {}]", Q, nq);
 
-        std::size_t shm_size = 24 * sizeof(T); // coordinate size (8x3)
-        geometry_computation<T, Q><<<grid_size, block_size, shm_size, 0>>>(
+        geometry_computation<T, Q><<<grid_size, block_size>>>(
             thrust::raw_pointer_cast(_xgeom.data()),
             thrust::raw_pointer_cast(_g_entity.data()),
             thrust::raw_pointer_cast(_geometry_dofmap.data()),
@@ -304,8 +311,8 @@ private:
     spdlog::debug("impl_operator done lcells");
 
     spdlog::debug("cell_constants size {}", _cell_constants.size());
-    spdlog::debug("in size {}", in.array().size());
-    spdlog::debug("out size {}", out.array().size());
+    //    spdlog::debug("in size {}", in.array().size());
+    //    spdlog::debug("out size {}", out.array().size());
     spdlog::debug("G_entity size {}", _g_entity.size());
     spdlog::debug("cell_dofmap size {}", _cell_dofmap.size());
     spdlog::debug("bc_marker size {}", _bc_marker.size());
@@ -438,6 +445,333 @@ private:
   /// dphi1 Input basis function derivative table
   thrust::device_vector<T> _dphi1_const;
 };
-} // namespace benchdolfinx
 
+#else
+
+// CPU Version
+
+template <typename T>
+class MatFreeLaplacian
+{
+public:
+  using value_type = T;
+
+  /// @brief Matrix-free Laplacian operator
+  /// @param V FunctionSpace on which the operator is built
+  /// @param bc Boundary condition, defining constrained degrees of freedom
+  /// @param degree Polynomial degree of operator
+  /// @param qmode Quadrature mode (0 or 1)
+  /// @param constant Coefficient value, used on all cells
+  /// @param quad_type Quadrature type (GLL or Gauss)
+  MatFreeLaplacian(const dolfinx::fem::FunctionSpace<T>& V,
+                   const dolfinx::fem::DirichletBC<T>& bc, int degree,
+                   int qmode, T constant, basix::quadrature::type quad_type)
+      : _degree(degree), _cell_constants(impl::num_cells(*V.mesh()), constant),
+        _cell_dofmap(V.dofmap()->map().data_handle(),
+                     V.dofmap()->map().data_handle()
+                         + V.dofmap()->map().size()),
+        _xgeom(V.mesh()->geometry().x().begin(),
+               V.mesh()->geometry().x().end()),
+        _geometry_dofmap(V.mesh()->geometry().dofmap().data_handle(),
+                         V.mesh()->geometry().dofmap().data_handle()
+                             + V.mesh()->geometry().dofmap().size()),
+        _bc_marker(impl::build_bc_markers(bc))
+  {
+    {
+      auto [lcells, bcells] = benchdolfinx::compute_boundary_cells<T>(V);
+      _lcells = lcells;
+      _bcells = bcells;
+    }
+
+    basix::element::lagrange_variant variant;
+    std::function<int(int)> q_map;
+    if (quad_type == basix::quadrature::type::gauss_jacobi)
+    {
+      variant = basix::element::lagrange_variant::gl_warped;
+      q_map = [](int p) { return 2 * p; };
+    }
+    else if (quad_type == basix::quadrature::type::gll)
+    {
+      variant = basix::element::lagrange_variant::gll_warped;
+      q_map = [](int p) { return (p > 2) ? 2 * p - 2 : 2 * p - 1; };
+    }
+    else
+    {
+      throw std::runtime_error(
+          "Unsupported quadrature type for mat-free operator");
+    }
+
+    // NOTE: Basix generates quadrature points in tensor-product
+    // ordering, so this is OK
+
+    auto [Gpoints, Gweights] = basix::quadrature::make_quadrature<T>(
+        quad_type, basix::cell::type::hexahedron,
+        basix::polyset::type::standard, q_map(_degree + qmode));
+
+    const dolfinx::fem::CoordinateElement<T>& cmap
+        = V.mesh()->geometry().cmap();
+    std::array<std::size_t, 4> phi_shape
+        = cmap.tabulate_shape(1, Gweights.size());
+    std::vector<T> phi_b(
+        std::reduce(phi_shape.begin(), phi_shape.end(), 1, std::multiplies{}));
+    cmap.tabulate(1, Gpoints, {Gweights.size(), 3}, phi_b);
+
+    // Copy dphi to device (skipping phi in table)
+    _dphi_geometry.assign(phi_b.begin() + phi_b.size() / 4, phi_b.end());
+    _g_weights.assign(Gweights.begin(), Gweights.end());
+
+    // Create 1D element
+    basix::FiniteElement<T> element0 = basix::create_element<T>(
+        basix::element::family::P, basix::cell::type::interval, _degree,
+        basix::element::lagrange_variant::gll_warped,
+        basix::element::dpc_variant::unset, false);
+
+    // Create quadrature
+    auto [points, weights] = basix::quadrature::make_quadrature<T>(
+        quad_type, basix::cell::type::interval, basix::polyset::type::standard,
+        q_map(_degree + qmode));
+
+    // Make sure geometry weights for 3D cell match size of 1D
+    // quadrature weights
+    _op_nq = weights.size();
+    if (Gweights.size() != _op_nq * _op_nq * _op_nq)
+      throw std::runtime_error("3D and 1D weight mismatch");
+
+    // Create higher-order 1D element for which the dofs coincide with
+    // the quadrature points
+    basix::FiniteElement<T> element1 = basix::create_element<T>(
+        basix::element::family::P, basix::cell::type::interval, _op_nq - 1,
+        variant, basix::element::dpc_variant::unset, true);
+
+    // Compute interpolation matrix from element0 to element1
+    auto [mat, shape_I]
+        = basix::compute_interpolation_operator(element0, element1);
+
+    // Check whether the interpolation matrix is the identity
+    T precision = std::numeric_limits<T>::epsilon();
+    for (auto& v : mat)
+    {
+      if (std::abs(v) < 5 * precision)
+        v = 0;
+    }
+    _is_identity = matrix_is_identity(mat, shape_I);
+
+    spdlog::info("Identity: {}", _is_identity);
+    if (qmode == 0 and !_is_identity)
+      throw std::runtime_error("Expecting identity matrix for qmode=0");
+
+    // Tabulate 1D
+    auto [table, shape] = element1.tabulate(1, points, {weights.size(), 1});
+
+    // Copy interpolation matrix to device
+    spdlog::debug("Copy interpolation matrix to device ({} bytes)",
+                  mat.size() * sizeof(T));
+    _phi0_const.assign(mat.begin(), mat.end());
+
+    // Copy derivative to device (second half of table)
+    _dphi1_const.assign(std::next(table.begin(), table.size() / 2),
+                        table.end());
+
+    spdlog::info("Precomputing geometry");
+    std::vector<std::int32_t> cells_d(_lcells.size() + _bcells.size());
+    std::copy(_lcells.begin(), _lcells.end(), cells_d.begin());
+    std::copy(_bcells.begin(), _bcells.end(), cells_d.begin() + _lcells.size());
+
+    compute_geometry(_op_nq, cells_d);
+
+    spdlog::debug("Done MatFreeLaplacian constructor");
+  }
+
+  /// @brief Apply Laplacian operator
+  /// @param in Input vector
+  /// @param out Output vector
+  template <typename Vector>
+  void apply(Vector& in, Vector& out)
+  {
+    spdlog::debug("Mat free operator start");
+    out.set(0);
+
+    if (_op_nq == _degree + 1)
+    {
+      if (_degree == 1)
+        impl_operator<1, 2>(in, out);
+      else if (_degree == 2)
+        impl_operator<2, 3>(in, out);
+      else if (_degree == 3)
+        impl_operator<3, 4>(in, out);
+      else if (_degree == 4)
+        impl_operator<4, 5>(in, out);
+      else if (_degree == 5)
+        impl_operator<5, 6>(in, out);
+      else if (_degree == 6)
+        impl_operator<6, 7>(in, out);
+      else if (_degree == 7)
+        impl_operator<7, 8>(in, out);
+      else
+        throw std::runtime_error("Unsupported degree [operator]");
+    }
+    // else if (_op_nq == _degree + 2)
+    // {
+    //   if (_degree == 1)
+    //     impl_operator<1, 3>(in, out);
+    //   else if (_degree == 2)
+    //     impl_operator<2, 4>(in, out);
+    //   else if (_degree == 3)
+    //     impl_operator<3, 5>(in, out);
+    //   else if (_degree == 4)
+    //     impl_operator<4, 6>(in, out);
+    //   else if (_degree == 5)
+    //     impl_operator<5, 7>(in, out);
+    //   else if (_degree == 6)
+    //     impl_operator<6, 8>(in, out);
+    //   else if (_degree == 7)
+    //     impl_operator<7, 9>(in, out);
+    //   else
+    //     throw std::runtime_error("Unsupported degree [operator]");
+    // }
+    else
+      throw std::runtime_error("Unsupported nq");
+
+    spdlog::debug("Mat free operator end");
+  }
+
+private:
+  template <int Q = 2>
+  void compute_geometry(int nq, std::span<const int> cell_list)
+  {
+    if constexpr (Q < 10)
+    {
+      if (nq > Q)
+        compute_geometry<Q + 1>(nq, cell_list);
+      else
+      {
+        assert(nq == Q);
+        _g_entity.resize(_g_weights.size() * cell_list.size() * 6);
+
+        spdlog::info("xgeom size {}", _xgeom.size());
+        spdlog::info("G_entity size {}", _g_entity.size());
+        spdlog::info("geometry_dofmap size {}", _geometry_dofmap.size());
+        spdlog::info("dphi_geometry size {}", _dphi_geometry.size());
+        spdlog::info("Gweights size {}", _g_weights.size());
+        spdlog::info("cell_list size {}", cell_list.size());
+        spdlog::info("Calling geometry_computation [{} {}]", Q, nq);
+
+        geometry_computation<T, Q>(_xgeom.data(), _g_entity.data(),
+                                   _geometry_dofmap.data(),
+                                   _dphi_geometry.data(), _g_weights.data(),
+                                   cell_list.data(), cell_list.size());
+
+        spdlog::debug("Done geometry_computation");
+      }
+    }
+    else
+      throw std::runtime_error("Unsupported degree [geometry]: "
+                               + std::to_string(nq));
+  }
+
+  /// @brief Implementation of the action of the operator
+  /// @tparam Vector Vector Type
+  /// @tparam P Polynomial degree of the operator
+  /// @tparam Q Number of quadrature points (1D)
+  /// @param in Input vector
+  /// @param out Output vector, with values representing the laplacian of the
+  /// input vector
+  template <int P, int Q, typename Vector>
+  void impl_operator(Vector& in, Vector& out)
+  {
+    spdlog::debug("impl_operator operator start");
+
+    in.scatter_fwd_begin();
+
+    T* geometry_ptr = _g_entity.data();
+
+    if (!_lcells.empty())
+    {
+      spdlog::debug("Calling stiffness_operator on local cells [{}]",
+                    _lcells.size());
+      T* x = in.mutable_array().data();
+      T* y = out.mutable_array().data();
+
+      stiffness_operator<T, P, Q>(
+          x, _cell_constants.data(), y, geometry_ptr, _phi0_const.data(),
+          _dphi1_const.data(), _cell_dofmap.data(), _lcells.data(),
+          _lcells.size(), _bc_marker.data(), _is_identity);
+    }
+
+    spdlog::debug("impl_operator done lcells");
+
+    spdlog::debug("cell_constants size {}", _cell_constants.size());
+    //    spdlog::debug("in size {}", in.array().size());
+    //    spdlog::debug("out size {}", out.array().size());
+    spdlog::debug("G_entity size {}", _g_entity.size());
+    spdlog::debug("cell_dofmap size {}", _cell_dofmap.size());
+    spdlog::debug("bc_marker size {}", _bc_marker.size());
+
+    in.scatter_fwd_end();
+
+    spdlog::debug("impl_operator after scatter");
+
+    if (!_bcells.empty())
+    {
+      spdlog::debug("impl_operator doing bcells. bcells size = {}",
+                    _bcells.size());
+
+      geometry_ptr += 6 * Q * Q * Q * _lcells.size();
+
+      T* x = in.mutable_array().data();
+      T* y = out.mutable_array().data();
+
+      stiffness_operator<T, P, Q>(
+          x, _cell_constants.data(), y, geometry_ptr, _phi0_const.data(),
+          _dphi1_const.data(), _cell_dofmap.data(), _bcells.data(),
+          _bcells.size(), _bc_marker.data(), _is_identity);
+    }
+
+    spdlog::debug("impl_operator done bcells");
+  }
+
+private:
+  // Polynomial degree
+  std::size_t _degree;
+
+  // Number of quadrature points in 1D
+  std::size_t _op_nq;
+
+  // Reference to on-device storage for constants, dofmap etc.
+  std::vector<T> _cell_constants;
+  std::vector<std::int32_t> _cell_dofmap;
+
+  // Reference to on-device storage of geometry data
+  std::vector<T> _xgeom;
+  std::vector<std::int32_t> _geometry_dofmap;
+
+  // geometry tables dphi on device
+  std::vector<T> _dphi_geometry;
+
+  std::vector<std::int8_t> _bc_marker;
+
+  // On device storage for geometry quadrature weights
+  std::vector<T> _g_weights;
+
+  // On device storage for geometry data (computed for each batch of cells)
+  std::vector<T> _g_entity;
+
+  // Interpolation is the identity
+  bool _is_identity;
+
+  // Lists of cells which are local (lcells) and boundary (bcells)
+
+  // Exclusively owned cells (not not share dofs with other processes)
+  std::vector<int> _lcells;
+
+  // Cells on partition boundaries
+  std::vector<int> _bcells;
+
+  /// phi0 Input basis function table
+  std::vector<T> _phi0_const;
+
+  /// dphi1 Input basis function derivative table
+  std::vector<T> _dphi1_const;
+};
 #endif
+} // namespace benchdolfinx

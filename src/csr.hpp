@@ -4,8 +4,6 @@
 
 #pragma once
 
-#if defined(USE_CUDA) || defined(USE_HIP)
-
 #include "util.hpp"
 #include <dolfinx/la/MatrixCSR.h>
 #include <thrust/device_vector.h>
@@ -292,4 +290,4 @@ private:
   MPI_Comm _comm;
 };
 } // namespace benchdolfinx
-#endif
+

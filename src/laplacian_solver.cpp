@@ -3,26 +3,16 @@
 // SPDX-License-Identifier:    MIT
 
 #include "laplacian_solver.hpp"
+#include "laplacian.hpp"
 #include <basix/quadrature.h>
 #include <dolfinx/la/MatrixCSR.h>
 
 #if defined(USE_CUDA) || defined(USE_HIP)
 
 #include "csr.hpp"
-#include "forms.hpp"
-#include "geometry_gpu.hpp"
-#include "laplacian.hpp"
-#include "laplacian_gpu.hpp"
-#include "mesh.hpp"
-#include "util.hpp"
 #include "vector.hpp"
-#include <basix/finite-element.h>
-#include <basix/interpolation.h>
-#include <dolfinx/fem/FunctionSpace.h>
-#include <dolfinx/la/Vector.h>
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
-
 #include <thrust/sequence.h>
 
 using namespace benchdolfinx;
@@ -155,20 +145,21 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
       = use_gauss ? basix::quadrature::type::gauss_jacobi
                   : basix::quadrature::type::gll;
 
-  //  MatFreeLaplacian<T> op(*V, bc, degree, qmode, kappa, quad_type);
+  MatFreeLaplacian<T> op(*V, bc, degree, qmode, kappa, quad_type);
 
   op_create_timer.stop();
 
-  dolfinx::la::Vector<T> b(map, 1);
-  dolfinx::fem::assemble_vector(b.mutable_array(), L);
-  b.scatter_fwd();
+  dolfinx::fem::assemble_vector(u.mutable_array(), L);
+  u.scatter_fwd();
 
   // Matrix free
   auto start = std::chrono::high_resolution_clock::now();
-  //  for (int i = 0; i < nreps; ++i)
-  //    op.apply(u, y);
+  for (int i = 0; i < nreps; ++i)
+    op.apply(u, y);
   auto stop = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> duration = stop - start;
+
+  //  bc.set(y.mutable_array(), std::nullopt, 0.0);
 
   T unorm = dolfinx::la::norm(u);
   T ynorm = dolfinx::la::norm(y);
@@ -194,17 +185,33 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
     dolfinx::la::Vector<T> z(map, 1);
     z.set(T{0.0});
 
-    //    dolfinx::la::MatrixCSR<T> mat_op();
+    dolfinx::la::SparsityPattern sp = dolfinx::fem::create_sparsity_pattern(a);
+    sp.finalize();
+    dolfinx::la::MatrixCSR<T> mat_op(sp);
+    dolfinx::fem::assemble_matrix(mat_op.mat_add_values(), a, {bc});
+    mat_op.scatter_rev();
+    dolfinx::fem::set_diagonal<T>(mat_op.mat_set_values(), *V, {bc}, 1.0);
+
     dolfinx::common::Timer mtimer("% CSR Matvec");
-    //    for (int i = 0; i < nreps; ++i)
-    //      mat_op.apply(u, z);
+    for (int i = 0; i < nreps; ++i)
+    {
+      z.set(T{0.0});
+      mat_op.mult(u, z);
+    }
     mtimer.stop();
 
     T unorm = dolfinx::la::norm(u);
     T znorm = dolfinx::la::norm(z);
     // Compute error
     dolfinx::la::Vector<T> e(map, 1);
-    //    benchdolfinx::axpy(e, T{-1}, y, z);
+
+    auto axpy = [](auto&& r, auto alpha, auto&& x, auto&& y)
+    {
+      std::ranges::transform(x.array(), y.array(), r.mutable_array().begin(),
+                             [alpha](auto x, auto y) { return alpha * x + y; });
+    };
+
+    axpy(e, T{-1}, y, z);
     T enorm = dolfinx::la::norm(e);
 
     if (rank == 0)
@@ -223,4 +230,8 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
 template void benchdolfinx::laplace_action<double>(
     const dolfinx::fem::Form<double>&, const dolfinx::fem::Form<double>&,
     const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool);
+
+template void benchdolfinx::laplace_action<float>(
+    const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
+    const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool);
 /// @endcond

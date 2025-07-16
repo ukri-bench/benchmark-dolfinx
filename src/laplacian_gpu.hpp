@@ -4,8 +4,6 @@
 
 #pragma once
 
-#if defined(USE_CUDA) || defined(USE_HIP)
-
 #include "geometry_gpu.hpp"
 #include "util.hpp"
 #include <basix/finite-element.h>
@@ -431,4 +429,3 @@ __launch_bounds__(Q* Q* Q) __global__
 
 } // namespace benchdolfinx
 
-#endif

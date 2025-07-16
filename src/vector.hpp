@@ -4,8 +4,6 @@
 
 #pragma once
 
-#if defined(USE_CUDA) || defined(USE_HIP)
-
 #include "util.hpp"
 #include <dolfinx/common/Scatterer.h>
 #include <dolfinx/common/log.h>
@@ -486,4 +484,4 @@ void pointwise_mult(Vector& w, const Vector& x, const Vector& y)
 }
 
 } // namespace benchdolfinx
-#endif
+

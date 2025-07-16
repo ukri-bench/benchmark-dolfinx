@@ -92,10 +92,10 @@ endif()
 
 add_executable(${PROJECT_NAME} main.cpp forms.cpp laplacian_solver.cpp mesh.cpp util.cpp poisson.c)
 
-if(NOT amd AND NOT nvidia)
+# if(NOT amd AND NOT nvidia)
 # CPU-only source files
-target_sources(${PROJECT_NAME} PUBLIC geometry_cpu.cpp)
-endif()
+# target_sources(${PROJECT_NAME} PUBLIC geometry_cpu.cpp)
+# endif()
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
 target_link_libraries(${PROJECT_NAME} dolfinx Basix::basix Boost::program_options jsoncpp_lib)
