@@ -73,6 +73,7 @@ BenchmarkResults benchdolfinx::laplace_action(
   int rank = dolfinx::MPI::rank(V->mesh()->comm());
   if (rank == 0)
   {
+    std::int64_t ndofs_global = V->dofmap()->index_map->size_global();
     b_results.mat_free_time = duration.count();
     std::cout << "Mat-free Matvec time: " << duration.count() << std::endl;
     std::cout << "Mat-free action Gdofs/s: "
