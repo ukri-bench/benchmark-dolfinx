@@ -75,8 +75,9 @@ void stiffness_operator(const T* __restrict__ u,
   std::array<T, cube_nd> local_dofs;
   for (int c = 0; c < n_entities; ++c)
   {
+    int entity_index = entities[c];
     // Copy input dofs for this cell
-    const std::int32_t* dofs = entity_dofmap + c * cube_nd;
+    const std::int32_t* dofs = entity_dofmap + entity_index * cube_nd;
     for (int i = 0; i < cube_nd; ++i)
     {
       std::int32_t dof = dofs[i];

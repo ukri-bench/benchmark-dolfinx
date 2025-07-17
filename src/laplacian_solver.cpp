@@ -151,6 +151,7 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
 
   dolfinx::fem::assemble_vector(u.mutable_array(), L);
   u.scatter_rev(std::plus<T>());
+  bc.set(u.mutable_array(), std::nullopt);
 
   // Matrix free
   auto start = std::chrono::high_resolution_clock::now();
