@@ -150,7 +150,7 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
   op_create_timer.stop();
 
   dolfinx::fem::assemble_vector(u.mutable_array(), L);
-  u.scatter_fwd();
+  u.scatter_rev(std::plus<T>());
 
   // Matrix free
   auto start = std::chrono::high_resolution_clock::now();
@@ -158,8 +158,6 @@ void benchdolfinx::laplace_action(const dolfinx::fem::Form<T>& a,
     op.apply(u, y);
   auto stop = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> duration = stop - start;
-
-  //  bc.set(y.mutable_array(), std::nullopt, 0.0);
 
   T unorm = dolfinx::la::norm(u);
   T ynorm = dolfinx::la::norm(y);
