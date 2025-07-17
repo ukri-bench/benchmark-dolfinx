@@ -1,8 +1,11 @@
 import json
 import pprint
 import numpy as np
+import sys
 
-f = open("benchmark_dolfinx.json", "r")
+filename = sys.argv[1]
+
+f = open(filename, "r")
 data = json.load(f)
 f.close()
 

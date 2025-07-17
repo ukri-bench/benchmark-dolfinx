@@ -44,7 +44,7 @@ jobs:
     - name: Run tests
       run: |
         cd build
-        ./bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64
-        python3 ../src/test_output.py
-        mpirun -n 2 ./bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64
-        python3 ../src/test_output.py
+        ./bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+        python3 ../src/test_output.py a.json
+        mpirun -n 2 ./bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+        python3 ../src/test_output.py b.json

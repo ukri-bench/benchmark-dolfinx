@@ -141,7 +141,10 @@ int main(int argc, char* argv[])
        "correctness)")
       //
       ("use_gauss", po::bool_switch()->default_value(false),
-       "Use Gauss quadrature rather than GLL quadrature");
+       "Use Gauss quadrature rather than GLL quadrature")
+      //
+      ("json", po::value<std::string>()->default_value(""),
+       "Filename for JSON output");
 
   po::variables_map vm;
   po::store(po::command_line_parser(argc, argv)
@@ -171,6 +174,7 @@ int main(int argc, char* argv[])
   bool matrix_comparison = vm["mat_comp"].as<bool>();
   double geom_perturb_fact = vm["geom_perturb_fact"].as<double>();
   bool use_gauss = vm["use_gauss"].as<bool>();
+  std::string json_filename = vm["json"].as<std::string>();
 
   // Quadrature mode (qmode=0: nq = P + 1, qmode=1: nq = P + 2)
   std::size_t qmode = vm["qmode"].as<std::size_t>();
@@ -235,13 +239,13 @@ int main(int argc, char* argv[])
           std::format("Invalid float size {}. Must be 32 or 64.", float_size));
     }
 
-    if (rank == 0)
+    if (rank == 0 and json_filename.size() > 0)
     {
       Json::StreamWriterBuilder builder;
       builder["indentation"] = "  ";
       const std::unique_ptr<Json::StreamWriter> writer(
           builder.newStreamWriter());
-      std::ofstream strm("benchmark_dolfinx.json", std::ofstream::out);
+      std::ofstream strm(json_filename, std::ofstream::out);
       writer->write(root, &strm);
     }
 
