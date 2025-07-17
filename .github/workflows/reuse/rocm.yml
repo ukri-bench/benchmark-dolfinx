@@ -37,7 +37,7 @@ jobs:
     #   packages: write
 
     steps:
-      - uses: actions/checkout@v4
+      # - uses: actions/checkout@v4
       - name: Install rocm
         if: ${{ matrix.backend.runtime == 'rocm' }}
         run: |
