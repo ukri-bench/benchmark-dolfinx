@@ -13,6 +13,10 @@ namespace benchdolfinx
 struct BenchmarkResults
 {
   double mat_free_time;
+  double enorm;
+  double unorm;
+  double ynorm;
+  double znorm;
 };
 
 using BenchmarkResults = struct BenchmarkResults;

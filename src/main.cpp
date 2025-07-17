@@ -91,7 +91,7 @@ Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   auto dofmap = V->dofmap();
   auto facets = mesh::exterior_facet_indices(*topology);
   auto bdofs = fem::locate_dofs_topological(*topology, *dofmap, fdim, facets);
-  fem::DirichletBC<T> bc(1.3, bdofs, V);
+  fem::DirichletBC<T> bc(0.0, bdofs, V);
 
   auto results = benchdolfinx::laplace_action<T>(a, L, bc, degree, qmode,
                                                  kappa->value[0], nreps,
@@ -101,6 +101,9 @@ Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   output["ncells_global"] = mesh->topology()->index_map(tdim)->size_global();
   output["ndofs_global"] = dofmap->index_map->size_global();
   output["mat_free_time"] = results.mat_free_time;
+  output["u_norm"] = results.unorm;
+  output["y_norm"] = results.ynorm;
+  output["z_norm"] = results.znorm;
   output["gdof_per_second"] = dofmap->index_map->size_global() * nreps
                               / (1e9 * results.mat_free_time);
 
@@ -133,7 +136,7 @@ int main(int argc, char* argv[])
       ("mat_comp", po::bool_switch()->default_value(false),
        "Compare result to matrix operator (slow with large ndofs)")
       //
-      ("geom_perturb_fact", po::value<double>()->default_value(0.125),
+      ("geom_perturb_fact", po::value<double>()->default_value(0.0),
        "Randomly perturb the geometry (useful to check "
        "correctness)")
       //

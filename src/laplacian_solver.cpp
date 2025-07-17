@@ -148,7 +148,8 @@ BenchmarkResults benchdolfinx::laplace_action(
   op_create_timer.stop();
 
   dolfinx::fem::assemble_vector(u.mutable_array(), L);
-  u.scatter_fwd();
+  u.scatter_rev(std::plus<T>());
+  bc.set(u.mutable_array(), std::nullopt);
 
   BenchmarkResults b_results = {0};
   // Matrix free
@@ -160,6 +161,9 @@ BenchmarkResults benchdolfinx::laplace_action(
 
   T unorm = dolfinx::la::norm(u);
   T ynorm = dolfinx::la::norm(y);
+
+  b_results.unorm = unorm;
+  b_results.ynorm = ynorm;
 
   int rank = dolfinx::MPI::rank(V->mesh()->comm());
   if (rank == 0)
@@ -208,6 +212,9 @@ BenchmarkResults benchdolfinx::laplace_action(
 
     axpy(e, T{-1}, y, z);
     T enorm = dolfinx::la::norm(e);
+
+    b_results.znorm = znorm;
+    b_results.enorm = enorm;
 
     if (rank == 0)
     {

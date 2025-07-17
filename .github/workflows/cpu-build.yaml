@@ -1,0 +1,48 @@
+name: Configure and build
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "main" ]
+  merge_group:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: dolfinx/dolfinx:nightly
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Doxygen check
+      run: |
+        apt-get update
+        apt-get -y install doxygen
+        cd src
+        doxygen
+
+    - name: Install dependencies
+      run: |
+        df -h
+        apt-get -y install rsync wget python3-setuptools python3-wheel libboost-program-options-dev libjsoncpp-dev doxygen
+
+    - name: Configure CMake (CPU)
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} src/
+
+    - name: Build
+      run: |
+        cmake --build build --config ${{env.BUILD_TYPE}}
+
+    - name: Run tests
+      run: |
+        cd build
+        ./bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64
+        mpirun -n 2 ./bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64
