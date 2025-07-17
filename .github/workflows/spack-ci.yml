@@ -33,11 +33,13 @@ jobs:
     permissions:
       packages: write
 
+    uses: ukri-bench/benchmark-dolfinx/.github/workflows/rocm.ymlactions-rocm
     steps:
+      # uses: ukri-bench/benchmark-dolfinx/.github/workflows/rocm.ymlactions-rocm
       - name: Install rocm
         if: ${{ matrix.backend.runtime == 'rocm' }}
-        uses: ukri-bench/benchmark-dolfinx/.github/workflows/rocm.ymlactions-rocm
-        #   # run: |
+        run: ls -alh
+          # run: |
       #   #   wget https://repo.radeon.com/amdgpu-install/6.4.1/ubuntu/noble/amdgpu-install_6.4.60401-1_all.deb
       #   #   sudo apt-get install ./amdgpu-install_6.4.60401-1_all.deb
       #   #   sudo apt-get update
