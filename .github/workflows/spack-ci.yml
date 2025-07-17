@@ -29,7 +29,7 @@ jobs:
     #         { runtime: rocm, driver: amdgpu_target=gfx90a },
     #         { runtime: cuda, driver: cuda_arch=80 },
     #       ]
-    uses: ukri-bench/benchmark-dolfinx/.github/workflows/rocm.ymlactions-rocm
+    uses: ukri-bench/benchmark-dolfinx/.github/workflows/rocm.yml@actions-rocm
     # runs-on: ubuntu-24.04
     # permissions:
     #   packages: write
