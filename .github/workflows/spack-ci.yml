@@ -36,21 +36,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-      - name: Get rocm
-        if: ${{ matrix.backend.runtime == 'rocm' }}
-        uses: mrodden/get-rocm@v1
-        with:
-          rocm_version: '6.4.1'
-
-      # - name: Install rocm
+      # - uses: actions/setup-python@v5
+      # - name: Get rocm
       #   if: ${{ matrix.backend.runtime == 'rocm' }}
-      #   uses: ukri-bench/spack-configs/actions/rocm@main
+      #   uses: mrodden/get-rocm@v1
+      #   with:
+      #     rocm_version: '6.4.1'
+
+      - name: Install rocm
+        if: ${{ matrix.backend.runtime == 'rocm' }}
+        uses: ukri-bench/spack-configs/actions/rocm@main
 
       - name: Get CUDA
         if: ${{ matrix.backend.runtime == 'cuda' }}
         uses: Jimver/cuda-toolkit@v0.2.26
-        id: cuda-toolkit
+        # id: cuda-toolkit
         # with:
         #   cuda: '12.9.1'
 
