@@ -15,39 +15,35 @@ on:
   #   - cron: "0 2 * * THU"
   workflow_dispatch:
 
-# env:
-#   GITHUB_USER: ${{ github.actor }}
-#   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+env:
+  GITHUB_USER: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   build:
-    # strategy:
-    #   matrix:
-    #     backend:
-    #       [
-    #         { runtime: cpu, driver: ''},
-    #         { runtime: rocm, driver: amdgpu_target=gfx90a },
-    #         { runtime: cuda, driver: cuda_arch=80 },
-    #       ]
-    uses: ukri-bench/benchmark-dolfinx/.github/workflows/rocm.yml@actions-rocm
+    strategy:
+      matrix:
+        backend:
+          [
+            # { runtime: cpu, driver: ''},
+            { runtime: rocm, driver: amdgpu_target=gfx90a },
+            # { runtime: cuda, driver: cuda_arch=80 },
+          ]
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
 
-    # runs-on: ubuntu-24.04
-    # permissions:
-    #   packages: write
-
-    # steps:
-    #   # uses: ukri-bench/benchmark-dolfinx/.github/workflows/rocm.ymlactions-rocm
-    - name: Install rocm
-      # if: ${{ matrix.backend.runtime == 'rocm' }}
-      run: ls -alh
-
-      # run: |
-      #   #   wget https://repo.radeon.com/amdgpu-install/6.4.1/ubuntu/noble/amdgpu-install_6.4.60401-1_all.deb
-      #   #   sudo apt-get install ./amdgpu-install_6.4.60401-1_all.deb
-      #   #   sudo apt-get update
-      #   #   sudo apt-get install python3-setuptools python3-wheel
-      #   #   DEBIAN_FRONTEND=noninteractive amdgpu-install --accept-eula -y --usecase=rocmdev --no-dkms
-      #   #   sudo apt-get install hipcc rocm-core rocthrust
+    steps:
+      - name: Install rocm
+        if: ${{ matrix.backend.runtime == 'rocm' }}
+        uses: ukri-bench/benchmark-dolfinx/.github/workflows/rocm@actions-rocm
+        # run: |
+        #   wget https://repo.radeon.com/amdgpu-install/6.3.3/ubuntu/noble/amdgpu-install_6.3.60303-1_all.deb
+        #   sudo apt-get install ./amdgpu-install_6.3.60303-1_all.deb
+        #   sudo apt-get update
+        #   sudo apt-get install python3-setuptools python3-wheel
+        #   DEBIAN_FRONTEND=noninteractive amdgpu-install --accept-eula -y --usecase=rocmdev --no-dkms
+        #   sudo apt-get install hipcc rocm-core rocthrust
 
       # - name: Install CUDA
       #   if: ${{ matrix.backend.runtime == 'cuda' }}
@@ -67,12 +63,12 @@ jobs:
       #     path: spack-src # Where to clone Spack      # - name: Get Spack
 
       # - name: Install (CPU)
-      #   if: ${{ matrix.backend.runtime == 'cpu' }}
+      #   if: ${{ matrix.backend.runtime != 'cuda' && matrix.backend.runtime != 'rocm' }}
       #   shell: spack-bash {0}
       #   run: |
       #     spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
       #     spack env create . spack-configs/gh-actions-env.yaml
-      #     spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx~cuda~rocm %gcc
+      #     spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx
 
       # - name: Install (GPU)
       #   if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
