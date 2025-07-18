@@ -36,11 +36,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: rocm-setup
-        if: ${{ matrix.backend.runtime == 'rocm' }}
-        uses: neoblizz/rocm-setup@v0.1.4-beta
-        # with:
-        #   rocm: '6.4.1'
+      - uses: mrodden/get-rocm@v1
+        with:
+          rocm_version: '6.4.1'
+
 
       # - name: Install rocm
       #   if: ${{ matrix.backend.runtime == 'rocm' }}
