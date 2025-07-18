@@ -91,7 +91,7 @@ Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   auto dofmap = V->dofmap();
   auto facets = mesh::exterior_facet_indices(*topology);
   auto bdofs = fem::locate_dofs_topological(*topology, *dofmap, fdim, facets);
-  fem::DirichletBC<T> bc(0.0, bdofs, V);
+  fem::DirichletBC<T> bc(1.3, bdofs, V);
 
   auto results = benchdolfinx::laplace_action<T>(a, L, bc, degree, qmode,
                                                  kappa->value[0], nreps,
