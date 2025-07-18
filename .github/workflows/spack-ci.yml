@@ -36,11 +36,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install rocm
+      - name: rocm-setup
         if: ${{ matrix.backend.runtime == 'rocm' }}
-        uses: ukri-bench/spack-configs/actions/rocm@main
+        uses: neoblizz/rocm-setup@v0.1.4-beta
+        with:
+          rocm: '6.4.1'
+
+      # - name: Install rocm
+      #   if: ${{ matrix.backend.runtime == 'rocm' }}
+      #   uses: ukri-bench/spack-configs/actions/rocm@main
 
       - uses: Jimver/cuda-toolkit@v0.2.26
+        if: ${{ matrix.backend.runtime == 'cuda' }}
         id: cuda-toolkit
         with:
           cuda: '12.9.1'
