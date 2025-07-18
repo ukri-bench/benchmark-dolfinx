@@ -51,8 +51,8 @@ jobs:
         if: ${{ matrix.backend.runtime == 'cuda' }}
         uses: Jimver/cuda-toolkit@v0.2.26
         id: cuda-toolkit
-        with:
-          cuda: '12.9.1'
+        # with:
+        #   cuda: '12.9.1'
 
       # - name: Install CUDA
       #   if: ${{ matrix.backend.runtime == 'cuda' }}
