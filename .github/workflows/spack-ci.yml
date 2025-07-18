@@ -27,7 +27,7 @@ jobs:
           [
             { runtime: cpu, driver: ''},
             { runtime: rocm, driver: amdgpu_target=gfx90a },
-            { runtime: cuda, driver: cuda_arch=80 },
+            # { runtime: cuda, driver: cuda_arch=80 },
           ]
     runs-on: ubuntu-24.04
     permissions:
@@ -40,9 +40,14 @@ jobs:
         if: ${{ matrix.backend.runtime == 'rocm' }}
         uses: ukri-bench/spack-configs/actions/rocm@main
 
-      - name: Install CUDA
-        if: ${{ matrix.backend.runtime == 'cuda' }}
-        uses: ukri-bench/spack-configs/actions/cuda@main
+      - uses: Jimver/cuda-toolkit@v0.2.26
+        id: cuda-toolkit
+        with:
+          cuda: '12.9.1'
+
+      # - name: Install CUDA
+      #   if: ${{ matrix.backend.runtime == 'cuda' }}
+      #   uses: ukri-bench/spack-configs/actions/cuda@main
 
       - name: Set up Spack
         uses: spack/setup-spack@v2
