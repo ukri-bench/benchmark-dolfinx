@@ -40,13 +40,6 @@ jobs:
         name: Install rocm
         uses: ukri-bench/spack-configs/actions/rocm@main
 
-      # # - name: Get CUDA
-      # #   if: ${{ matrix.backend.runtime == 'cuda' }}
-      # #   uses: Jimver/cuda-toolkit@v0.2.26
-      # #   # id: cuda-toolkit
-      # #   # with:
-      # #   #   cuda: '12.9.1'
-
       - if: ${{ matrix.backend.runtime == 'cuda' }}
         name: Install CUDA
         uses: ukri-bench/spack-configs/actions/cuda@main
@@ -63,7 +56,8 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
-          spack env create . spack-configs/gh-actions-env.yaml
+          spack env create . https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/gh-actions-env.yml
+          # spack env create . spack-configs/gh-actions-env.yaml
           spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx
 
       - if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
