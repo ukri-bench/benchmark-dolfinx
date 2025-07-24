@@ -25,9 +25,9 @@ jobs:
       matrix:
         backend:
           [
-            { runtime: cpu, driver: ''},
+            # { runtime: cpu, driver: ''},
             { runtime: rocm, driver: amdgpu_target=gfx90a },
-            { runtime: cuda, driver: cuda_arch=80 },
+            # { runtime: cuda, driver: cuda_arch=80 },
           ]
     runs-on: ubuntu-24.04
     permissions:
@@ -36,9 +36,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install rocm
-        if: ${{ matrix.backend.runtime == 'rocm' }}
-        uses: spack-configs/actions/rocm@main
+      - if: ${{ matrix.backend.runtime == 'rocm' }}
+        name: Install rocm
+        uses: ukri-bench/spack-configs/actions/rocm@main
 
       # # - name: Get CUDA
       # #   if: ${{ matrix.backend.runtime == 'cuda' }}
