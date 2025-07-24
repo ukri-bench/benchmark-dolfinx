@@ -69,7 +69,7 @@ jobs:
         run: |
           spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
           spack env create . spack.yml
-          spack config get mirrors
+          spack -e . config get mirrors
 
 
       - if: ${{ matrix.backend.runtime == 'cpu' }}
