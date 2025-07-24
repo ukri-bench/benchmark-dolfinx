@@ -31,11 +31,11 @@ namespace
 /// @param qmode Quadrature mode (0 or 1)
 /// @param nreps Number of repetitions
 /// @param use_gauss Use Gauss quadrature, rather than GLL
-/// @param root JSON document root for output metrics
+/// @param matrix_comparison Compare to assembled CSR Matrix
 template <typename T>
-void run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
-                   double geom_perturb_fact, int degree, int qmode, int nreps,
-                   bool use_gauss, Json::Value& root)
+Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
+                          double geom_perturb_fact, int degree, int qmode,
+                          int nreps, bool use_gauss, bool matrix_comparison)
 {
   int rank(0), size(0);
   MPI_Comm_rank(comm, &rank);
@@ -57,8 +57,6 @@ void run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
 
   auto topology = V->mesh()->topology_mutable();
   int tdim = topology->dim();
-  // std::size_t ncells = mesh->topology()->index_map(tdim)->size_global();
-  //  std::size_t ndofs_global = V->dofmap()->index_map->size_global();
 
   // Prepare and set Constants for the bilinear form
   spdlog::debug("Define forms");
@@ -95,8 +93,21 @@ void run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   auto bdofs = fem::locate_dofs_topological(*topology, *dofmap, fdim, facets);
   fem::DirichletBC<T> bc(1.3, bdofs, V);
 
-  benchdolfinx::laplace_action<T>(a, L, bc, degree, qmode, kappa->value[0],
-                                  nreps, use_gauss);
+  auto results = benchdolfinx::laplace_action<T>(a, L, bc, degree, qmode,
+                                                 kappa->value[0], nreps,
+                                                 use_gauss, matrix_comparison);
+
+  Json::Value output;
+  output["ncells_global"] = mesh->topology()->index_map(tdim)->size_global();
+  output["ndofs_global"] = dofmap->index_map->size_global();
+  output["mat_free_time"] = results.mat_free_time;
+  output["u_norm"] = results.unorm;
+  output["y_norm"] = results.ynorm;
+  output["z_norm"] = results.znorm;
+  output["gdof_per_second"] = dofmap->index_map->size_global() * nreps
+                              / (1e9 * results.mat_free_time);
+
+  return output;
 }
 } // namespace
 
@@ -105,9 +116,6 @@ int main(int argc, char* argv[])
   // Program options
   po::options_description desc("Options");
   desc.add_options()("help,h", "Print usage message")
-      //
-      ("benchmark,b", po::value<std::size_t>()->default_value(0),
-       "Test to run: 0=off, 1=correctness, 2=performance")
       //
       ("float", po::value<std::size_t>()->default_value(64),
        "Float size (bits). 32 or 64.")
@@ -128,12 +136,15 @@ int main(int argc, char* argv[])
       ("mat_comp", po::bool_switch()->default_value(false),
        "Compare result to matrix operator (slow with large ndofs)")
       //
-      ("geom_perturb_fact", po::value<double>()->default_value(0.125),
+      ("geom_perturb_fact", po::value<double>()->default_value(0.0),
        "Randomly perturb the geometry (useful to check "
        "correctness)")
       //
       ("use_gauss", po::bool_switch()->default_value(false),
-       "Use Gauss quadrature rather than GLL quadrature");
+       "Use Gauss quadrature rather than GLL quadrature")
+      //
+      ("json", po::value<std::string>()->default_value(""),
+       "Filename for JSON output");
 
   po::variables_map vm;
   po::store(po::command_line_parser(argc, argv)
@@ -163,23 +174,12 @@ int main(int argc, char* argv[])
   bool matrix_comparison = vm["mat_comp"].as<bool>();
   double geom_perturb_fact = vm["geom_perturb_fact"].as<double>();
   bool use_gauss = vm["use_gauss"].as<bool>();
+  std::string json_filename = vm["json"].as<std::string>();
 
   // Quadrature mode (qmode=0: nq = P + 1, qmode=1: nq = P + 2)
   std::size_t qmode = vm["qmode"].as<std::size_t>();
   if (qmode > 1)
     throw std::runtime_error("Invalid qmode.");
-
-  const std::size_t benchmark = vm["benchmark"].as<std::size_t>();
-  if (benchmark == 1)
-  {
-    ndofs = 15625;
-    nreps = 1;
-    degree = 6;
-    qmode = 1;
-    matrix_comparison = true;
-    geom_perturb_fact = 0.125;
-    use_gauss = true;
-  }
 
   init_logging(argc, argv);
   MPI_Init(&argc, &argv);
@@ -197,11 +197,10 @@ int main(int argc, char* argv[])
       std::cout << "-----------------------------------\n";
       std::cout << "Polynomial degree : " << degree << "\n";
       std::cout << "Number of ranks : " << size << std::endl;
-      // std::cout << "Number of cells-global : " << ncells << std::endl;
-      // std::cout << "Number of dofs-global : " << ndofs_global << std::endl;
+      std::cout << "Requested number of local DoFs : " << ndofs << std::endl;
       std::cout << "Number of repetitions : " << nreps << std::endl;
-      // std::cout << "Scalar Type: " << fp_type << std::endl;
-      std::cout << "Use GLL: " << use_gauss << std::endl;
+      std::cout << "Scalar Type: " << float_size << std::endl;
+      std::cout << "Use Gauss-Jacobi: " << use_gauss << std::endl;
       std::cout << "Compare to matrix: " << matrix_comparison << std::endl;
       std::cout << "-----------------------------------" << std::endl;
       ;
@@ -213,9 +212,10 @@ int main(int argc, char* argv[])
     Json::Value& in_root = root["input"];
     in_root["p"] = (Json::UInt64)degree;
     in_root["mpi_size"] = size;
-    in_root["ndofs_requested"] = (Json::UInt64)ndofs;
+    in_root["ndofs_local_requested"] = (Json::UInt64)ndofs;
     in_root["nreps"] = (Json::UInt64)nreps;
     in_root["scalar_size"] = (Json::UInt64)float_size;
+    in_root["use_gauss"] = use_gauss;
     in_root["mat_comp"] = matrix_comparison;
 
     std::array<std::int64_t, 3> nx
@@ -225,12 +225,13 @@ int main(int argc, char* argv[])
     {
       throw std::runtime_error("Float32 not implemented yet.");
       // run_benchmark<float>(comm, nx, geom_perturb_fact, degree, qmode, nreps,
-      //                use_gauss, root);
+      //                use_gauss, matrix_comparison);
     }
     else if (float_size == 64)
     {
-      run_benchmark<double>(comm, nx, geom_perturb_fact, degree, qmode, nreps,
-                            use_gauss, root);
+      root["output"]
+          = run_benchmark<double>(comm, nx, geom_perturb_fact, degree, qmode,
+                                  nreps, use_gauss, matrix_comparison);
     }
     else
     {
@@ -238,13 +239,13 @@ int main(int argc, char* argv[])
           std::format("Invalid float size {}. Must be 32 or 64.", float_size));
     }
 
-    if (rank == 0)
+    if (rank == 0 and json_filename.size() > 0)
     {
       Json::StreamWriterBuilder builder;
       builder["indentation"] = "  ";
       const std::unique_ptr<Json::StreamWriter> writer(
           builder.newStreamWriter());
-      std::ofstream strm("benchmark_dolfinx.json", std::ofstream::out);
+      std::ofstream strm(json_filename, std::ofstream::out);
       writer->write(root, &strm);
     }
 

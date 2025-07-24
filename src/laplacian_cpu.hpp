@@ -72,22 +72,26 @@ void stiffness_operator(const T* __restrict__ u,
   // FIXME: qmode0 only
   static_assert(Q == P + 1);
 
-  std::array<T, cube_nd> local_dofs;
+  T local_dofs[nd][nd][nd];
   for (int c = 0; c < n_entities; ++c)
   {
+    int entity_index = entities[c];
     // Copy input dofs for this cell
-    const std::int32_t* dofs = entity_dofmap + c * cube_nd;
-    for (int i = 0; i < cube_nd; ++i)
-    {
-      std::int32_t dof = dofs[i];
-      if (bc_marker[dof])
-      {
-        b[dof] = u[dof];
-        local_dofs[i] = 0;
-      }
-      else
-        local_dofs[i] = u[dofs[i]];
-    }
+    const std::int32_t* dofs = entity_dofmap + entity_index * cube_nd;
+    for (int ix = 0; ix < nd; ++ix)
+      for (int iy = 0; iy < nd; ++iy)
+        for (int iz = 0; iz < nd; ++iz)
+        {
+          std::int32_t dof = dofs[ix * nd * nd + iy * nd + iz];
+          if (bc_marker[dof])
+          {
+            b[dof] = u[dof];
+            local_dofs[ix][iy][iz] = 0;
+          }
+          else
+            local_dofs[ix][iy][iz] = u[dof];
+        }
+
     T coeff = entity_constants[c];
 
     T scratch1[nq][nq][nq];
@@ -112,12 +116,9 @@ void stiffness_operator(const T* __restrict__ u,
           T val_z = 0;
           for (int i = 0; i < nq; ++i)
           {
-            val_x
-                += dphi1[ix * nq + i] * local_dofs[i * nd * nd + iy * nd + iz];
-            val_y
-                += dphi1[iy * nq + i] * local_dofs[ix * nd * nd + i * nd + iz];
-            val_z
-                += dphi1[iz * nq + i] * local_dofs[ix * nd * nd + iy * nd + i];
+            val_x += dphi1[ix * nq + i] * local_dofs[i][iy][iz];
+            val_y += dphi1[iy * nq + i] * local_dofs[ix][i][iz];
+            val_z += dphi1[iz * nq + i] * local_dofs[ix][iy][i];
           }
           scratch1[ix][iy][iz] = coeff * (G0 * val_x + G1 * val_y + G2 * val_z);
           scratch2[ix][iy][iz] = coeff * (G1 * val_x + G3 * val_y + G4 * val_z);
@@ -136,8 +137,7 @@ void stiffness_operator(const T* __restrict__ u,
             yd += dphi1[i * nq + iy] * scratch2[ix][i][iz];
             yd += dphi1[i * nq + iz] * scratch3[ix][iy][i];
           }
-          std::int32_t i = ix * nd * nd + iy * nd + iz;
-          std::int32_t dof = dofs[i];
+          std::int32_t dof = dofs[ix * nd * nd + iy * nd + iz];
           if (!bc_marker[dof])
             b[dof] += yd;
         }
