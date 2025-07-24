@@ -38,45 +38,45 @@ jobs:
 
       - name: Install rocm
         if: ${{ matrix.backend.runtime == 'rocm' }}
-        uses: ukri-bench/spack-configs/actions/rocm@main
+        uses: spack-configs/actions/rocm
 
-      # - name: Get CUDA
+      # # - name: Get CUDA
+      # #   if: ${{ matrix.backend.runtime == 'cuda' }}
+      # #   uses: Jimver/cuda-toolkit@v0.2.26
+      # #   # id: cuda-toolkit
+      # #   # with:
+      # #   #   cuda: '12.9.1'
+
+      # - name: Install CUDA
       #   if: ${{ matrix.backend.runtime == 'cuda' }}
-      #   uses: Jimver/cuda-toolkit@v0.2.26
-      #   # id: cuda-toolkit
-      #   # with:
-      #   #   cuda: '12.9.1'
+      #   uses: ukri-bench/spack-configs/actions/cuda@main
 
-      - name: Install CUDA
-        if: ${{ matrix.backend.runtime == 'cuda' }}
-        uses: ukri-bench/spack-configs/actions/cuda@main
+      # - name: Set up Spack
+      #   uses: spack/setup-spack@v2
+      #   with:
+      #     ref: develop # Spack version (examples: develop, releases/v0.23)
+      #     color: true # Force color output (SPACK_COLOR=always)
+      #     path: spack-src # Where to clone Spack      # - name: Get Spack
 
-      - name: Set up Spack
-        uses: spack/setup-spack@v2
-        with:
-          ref: develop # Spack version (examples: develop, releases/v0.23)
-          color: true # Force color output (SPACK_COLOR=always)
-          path: spack-src # Where to clone Spack      # - name: Get Spack
+      # - name: Install (CPU)
+      #   if: ${{ matrix.backend.runtime != 'cuda' && matrix.backend.runtime != 'rocm' }}
+      #   shell: spack-bash {0}
+      #   run: |
+      #     spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
+      #     spack env create . spack-configs/gh-actions-env.yaml
+      #     spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx
 
-      - name: Install (CPU)
-        if: ${{ matrix.backend.runtime != 'cuda' && matrix.backend.runtime != 'rocm' }}
-        shell: spack-bash {0}
-        run: |
-          spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
-          spack env create . spack-configs/gh-actions-env.yaml
-          spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx
+      # - name: Install (GPU)
+      #   if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
+      #   shell: spack-bash {0}
+      #   run: |
+      #     spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
+      #     spack env create . spack-configs/gh-actions-env.yaml
+      #     spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
 
-      - name: Install (GPU)
-        if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
-        shell: spack-bash {0}
-        run: |
-          spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
-          spack env create . spack-configs/gh-actions-env.yaml
-          spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
-
-      - name: Push packages and update index
-        env:
-          GITHUB_USER: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: spack -e . buildcache push --base-image ubuntu:24.04 --update-index local-buildcache
-        if: ${{ !cancelled() }}
+      # - name: Push packages and update index
+      #   env:
+      #     GITHUB_USER: ${{ github.actor }}
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   run: spack -e . buildcache push --base-image ubuntu:24.04 --update-index local-buildcache
+      #   if: ${{ !cancelled() }}
