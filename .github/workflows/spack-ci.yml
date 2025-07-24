@@ -56,8 +56,8 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
-          spack env create . https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/gh-actions-env.yml
-          # spack env create . spack-configs/gh-actions-env.yaml
+          wget https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/gh-actions-env.yml
+          spack env create . gh-actions-env.yml
           spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx
 
       - if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
