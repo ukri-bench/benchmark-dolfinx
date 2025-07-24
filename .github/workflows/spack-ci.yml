@@ -2,9 +2,9 @@ name: Spack build
 
 on:
   # Uncomment the below 'push' to trigger on push
-  # push:
-  #   branches:
-  #     - "**"
+  push:
+    branches:
+      - "**"
   pull_request:
     branches: [ "main" ]
   merge_group:
@@ -34,25 +34,15 @@ jobs:
       packages: write
 
     steps:
-      - name: Install rocm
-        if: ${{ matrix.backend.runtime == 'rocm' }}
-        run: |
-          wget https://repo.radeon.com/amdgpu-install/6.4.1/ubuntu/noble/amdgpu-install_6.4.60401-1_all.deb
-          sudo apt-get install ./amdgpu-install_6.4.60401-1_all.deb
-          sudo apt-get update
-          sudo apt-get install python3-setuptools python3-wheel
-          DEBIAN_FRONTEND=noninteractive amdgpu-install --accept-eula -y --usecase=rocmdev --no-dkms
-          sudo apt-get install hipcc rocm-core rocthrust
-
-      - name: Install CUDA
-        if: ${{ matrix.backend.runtime == 'cuda' }}
-        run: |
-          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
-          sudo dpkg -i cuda-keyring_1.1-1_all.deb
-          sudo apt-get update
-          sudo apt-get -y install cuda-compiler-12-9
-
       - uses: actions/checkout@v4
+
+      - if: ${{ matrix.backend.runtime == 'rocm' }}
+        name: Install ROCm
+        uses: ukri-bench/spack-configs/actions/rocm@main
+
+      - if: ${{ matrix.backend.runtime == 'cuda' }}
+        name: Install CUDA
+        uses: ukri-bench/spack-configs/actions/cuda@main
 
       - name: Set up Spack
         uses: spack/setup-spack@v2
@@ -61,20 +51,35 @@ jobs:
           color: true # Force color output (SPACK_COLOR=always)
           path: spack-src # Where to clone Spack      # - name: Get Spack
 
-      - name: Install (CPU)
-        if: ${{ matrix.backend.runtime == 'cpu' }}
-        shell: spack-bash {0}
+      - if: ${{ matrix.backend.runtime == 'cpu' }}
+        name: Get Spack config (CPU)
         run: |
-          spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
-          spack env create . spack-configs/gh-actions-env.yaml
-          spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx~cuda~rocm %gcc
+          wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack.yml
+      - if: ${{ matrix.backend.runtime == 'cuda' }}
+        name: Get Spack config (CUDA)
+        run: |
+          wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack-cuda.yml
+      - if: ${{ matrix.backend.runtime == 'rocm' }}
+        name: Get Spack config (ROCm)
+        run: |
+          wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack-rocm.yml
 
-      - name: Install (GPU)
-        if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
+      - name: Add ukri-bench Spack repository and create environment
         shell: spack-bash {0}
         run: |
           spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
-          spack env create . spack-configs/gh-actions-env.yaml
+          spack env create . spack.yml
+
+      - if: ${{ matrix.backend.runtime == 'cpu' }}
+        name: Install (CPU)
+        shell: spack-bash {0}
+        run: |
+          spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx
+
+      - if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
+        name: Install (GPU)
+        shell: spack-bash {0}
+        run: |
           spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
 
       - name: Push packages and update index
