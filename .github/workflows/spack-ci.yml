@@ -38,7 +38,7 @@ jobs:
 
       - name: Install rocm
         if: ${{ matrix.backend.runtime == 'rocm' }}
-        uses: spack-configs/actions/rocm
+        uses: spack-configs/actions/rocm@main
 
       # # - name: Get CUDA
       # #   if: ${{ matrix.backend.runtime == 'cuda' }}
