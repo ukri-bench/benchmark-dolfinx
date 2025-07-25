@@ -70,7 +70,6 @@ jobs:
           spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
           spack env create . spack.yml
           spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
-          spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache-x oci://ghcr.io/ukri-bench/spack-buildcache-x
           spack -e . config get mirrors
 
 
@@ -91,5 +90,5 @@ jobs:
         env:
           GITHUB_USER: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: spack -e . buildcache push --base-image ubuntu:24.04 --update-index local-buildcache-x
+        run: spack -e . buildcache push --base-image ubuntu:24.04 --update-index local-buildcache
         if: ${{ !cancelled() }}
