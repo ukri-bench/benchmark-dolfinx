@@ -67,28 +67,28 @@ jobs:
       - name: Add ukri-bench Spack repository and create environment
         shell: spack-bash {0}
         run: |
-          spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
+          spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git ./bench_pkgs
           spack env create . spack.yml
-          spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
-          spack -e . config get mirrors
+        # spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
+        # spack -e . config get mirrors
 
 
-      - if: ${{ matrix.backend.runtime == 'cpu' }}
-        name: Install (CPU)
-        shell: spack-bash {0}
-        run: |
-          spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx
+      # - if: ${{ matrix.backend.runtime == 'cpu' }}
+      #   name: Install (CPU)
+      #   shell: spack-bash {0}
+      #   run: |
+      #     spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx
 
-      - if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
-        name: Install (GPU)
-        shell: spack-bash {0}
-        run: |
-          spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
+      # - if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
+      #   name: Install (GPU)
+      #   shell: spack-bash {0}
+      #   run: |
+      #     spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
 
-      - name: Push packages and update index
-        shell: spack-bash {0}
-        env:
-          GITHUB_USER: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: spack -e . buildcache push --base-image ubuntu:24.04 --update-index local-buildcache
-        if: ${{ !cancelled() }}
+      # - name: Push packages and update index
+      #   shell: spack-bash {0}
+      #   env:
+      #     GITHUB_USER: ${{ github.actor }}
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   run: spack -e . buildcache push --base-image ubuntu:24.04 --update-index local-buildcache
+      #   if: ${{ !cancelled() }}
