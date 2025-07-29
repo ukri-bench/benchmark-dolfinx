@@ -78,6 +78,8 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack -d -v -e . install -j 1 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx@main
+          spack config get
+          spack config get packages
 
       - if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
         name: Install (GPU)
