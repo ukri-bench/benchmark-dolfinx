@@ -72,7 +72,6 @@ jobs:
           spack -e . config get mirrors
         # spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
 
-
       - if: ${{ matrix.backend.runtime == 'cpu' }}
         name: Install (CPU)
         shell: spack-bash {0}
