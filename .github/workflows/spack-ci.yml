@@ -103,7 +103,7 @@ jobs:
           mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
           python src/test_output.py b.json
 
-          - name: Push packages and update index
+      - name: Push packages and update index
         shell: spack-bash {0}
         env:
           GITHUB_USER: ${{ github.actor }}
