@@ -1,0 +1,8 @@
+name: Test AWS
+on: [push]
+jobs:
+  Hello-World-Job:
+    runs-on:
+      - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - run: echo "Hello World"
