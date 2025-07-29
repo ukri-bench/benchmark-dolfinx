@@ -85,6 +85,31 @@ jobs:
         run: |
           spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
 
+      - if: ${{ matrix.backend.runtime == 'cpu' }}
+        name: Run (CPU)
+        shell: spack-bash {0}
+        run: |
+          spack env activate .
+          bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+          ls -alh
+          mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+
+      - if: ${{ matrix.backend.runtime == 'cpu' }}
+        name: Post-process (CPU)
+        shell: spack-bash {0}
+        run: |
+          spack env activate .
+          pwd
+          echo "ls"
+          ls -alh
+          echo "src"
+          ls -alh src/
+          echo "higher-level output"
+          ls -alh ../
+          spack install --add py-numpy
+          python src/test_output.py a.json
+          python src/test_output.py b.json
+
       - name: Push packages and update index
         shell: spack-bash {0}
         env:
