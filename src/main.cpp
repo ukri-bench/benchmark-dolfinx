@@ -10,6 +10,7 @@
 #include <basix/finite-element.h>
 #include <boost/program_options.hpp>
 #include <dolfinx/fem/utils.h>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -243,9 +244,13 @@ int main(int argc, char* argv[])
     {
       Json::StreamWriterBuilder builder;
       builder["indentation"] = "  ";
-      const std::unique_ptr<Json::StreamWriter> writer(
-          builder.newStreamWriter());
-      std::ofstream strm(json_filename, std::ofstream::out);
+      std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+
+      std::filesystem::path filename(json_filename);
+      std::cout << "Writing output to:       " << filename << std::endl;
+      std::cout << "Writing output to (abs): "
+                << std::filesystem::absolute(filename) << std::endl;
+      std::ofstream strm(filename, std::ofstream::out);
       writer->write(root, &strm);
     }
 

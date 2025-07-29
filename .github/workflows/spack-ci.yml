@@ -101,6 +101,8 @@ jobs:
           spack env activate .
           pwd
           ls -alh
+          ls -alh src/
+          ls -alh ../
           python src/test_output.py a.json
           python src/test_output.py b.json
 
