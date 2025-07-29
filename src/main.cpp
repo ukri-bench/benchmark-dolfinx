@@ -240,7 +240,7 @@ int main(int argc, char* argv[])
           std::format("Invalid float size {}. Must be 32 or 64.", float_size));
     }
 
-    if (rank == 0 and json_filename.size() > 0)
+    if (rank == 0 and !json_filename.empty())
     {
       Json::StreamWriterBuilder builder;
       builder["indentation"] = "  ";
@@ -259,7 +259,7 @@ int main(int argc, char* argv[])
     }
 
     // Display timings
-    dolfinx::list_timings(MPI_COMM_WORLD);
+    // dolfinx::list_timings(MPI_COMM_WORLD);
   }
 
   MPI_Finalize();
