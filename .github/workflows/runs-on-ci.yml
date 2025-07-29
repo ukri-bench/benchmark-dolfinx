@@ -34,7 +34,7 @@ jobs:
     # runs-on: runs-on=${{github.run_id}}/runner=2cpu-linux-x64/image=ubuntu24-full-x64
     runs-on: runs-on=${{github.run_id}}/runner=2cpu-linux-x64/image=ubuntu24-gpu-x64
 
-    container: dolfinx/dolfinx:nightly
+    container: ubuntu:24.04
 
     permissions:
       packages: write
@@ -43,7 +43,7 @@ jobs:
       - name: Info
         run: |
           uname -a
-          lsb_release -a
+        # lsb_release -a
         # gcc -v
         # nvcc --version
         # hipcc --version
