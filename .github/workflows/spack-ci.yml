@@ -73,6 +73,14 @@ jobs:
           spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
 
       - if: ${{ matrix.backend.runtime == 'cpu' }}
+        name: Fetch
+        shell: spack-bash {0}
+        run: |
+          spack -d -v -e . fetch bench-dolfinx@main
+          spack config get
+          spack config get packages
+
+      - if: ${{ matrix.backend.runtime == 'cpu' }}
         name: Install (CPU)
         shell: spack-bash {0}
         run: |
