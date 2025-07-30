@@ -75,7 +75,7 @@ jobs:
         name: Install dependencies (CPU)
         shell: spack-bash {0}
         run: |
-          spack -v -e . install -j 4 --fresh-roots --use-buildcache auto --only dependencies --add bench-dolfinx@main
+          spack -e . install -j 4 --fresh-roots --use-buildcache auto --only dependencies --add bench-dolfinx@main
 
       - if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
         name: Install dependencies (GPU)
@@ -87,6 +87,7 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack env activate .
+          spack load py-fenics-ffcx
           cmake -G Ninja -B build -S src/
           cmake --build build
           cmake --install build
@@ -96,7 +97,6 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack env activate .
-          spack load py-fenics-ffcx
           bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
           mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
 
