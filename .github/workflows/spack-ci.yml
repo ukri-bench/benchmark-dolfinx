@@ -72,11 +72,11 @@ jobs:
           spack -e . config get mirrors
           spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
 
-      - name: Add external
-        shell: spack-bash {0}
-        run: |
-          spack -e . external find --all
-          spack -e . config get packages
+      # - name: Add external packages to Spack
+      #   shell: spack-bash {0}
+      #   run: |
+      #     spack -e . external find --all
+      #     spack -e . config get packages
 
       # - if: ${{ matrix.backend.runtime == 'cpu' }}
       #   name: Fetch
@@ -100,8 +100,7 @@ jobs:
         run: |
           spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx@main+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
 
-      - if: ${{ matrix.backend.runtime == 'cpu' }}
-        name: Run (CPU)
+      - name: Run (CPU)
         shell: spack-bash {0}
         run: |
           spack env activate .
@@ -109,18 +108,10 @@ jobs:
           ls -alh
           mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
 
-      - if: ${{ matrix.backend.runtime == 'cpu' }}
-        name: Post-process (CPU)
+      - name: Post-process
         shell: spack-bash {0}
         run: |
           spack env activate .
-          pwd
-          echo "ls"
-          ls -alh
-          echo "src"
-          ls -alh src/
-          echo "higher-level output"
-          ls -alh ../
           spack install --add py-numpy
           python src/test_output.py a.json
           python src/test_output.py b.json
@@ -130,5 +121,6 @@ jobs:
         env:
           GITHUB_USER: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: spack -e . buildcache push --base-image ubuntu:24.04 --update-index --only dependencies local-buildcache
+        run: spack -e . buildcache push --base-image ubuntu:24.04 --update-index local-buildcache
         if: ${{ !cancelled() }}
+      # run: spack -e . buildcache push --base-image ubuntu:24.04 --update-index --only dependencies local-buildcache
