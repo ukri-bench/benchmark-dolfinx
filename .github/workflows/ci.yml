@@ -90,7 +90,8 @@ jobs:
           spack find
           echo "*** Loaded"
           spack find --loaded
-          spack load cmake fenics-dolfinx ninja py-fenics-ffcx
+          spack load fenics-dolfinx ninja py-fenics-ffcx
+          spack find --loaded
           cmake -G Ninja -B build -S src/
           cmake --build build
           cmake --install build
