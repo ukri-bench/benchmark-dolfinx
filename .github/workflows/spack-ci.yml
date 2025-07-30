@@ -76,7 +76,7 @@ jobs:
         name: Fetch
         shell: spack-bash {0}
         run: |
-          spack -d -v -e . fetch bench-dolfinx@main
+          spack -d -v -e . fetch --fresh-roots bench-dolfinx@main
           spack config get
           spack config get packages
 
