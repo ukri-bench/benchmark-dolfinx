@@ -90,7 +90,7 @@ jobs:
           spack find
           echo "*** Loaded"
           spack find --loaded
-          spack load fenics-dolfinx ninja py-fenics-ffcx
+          spack install --add fenics-dolfinx ninja py-fenics-ffcx
           spack find --loaded
           cmake -G Ninja -B build -S src/
           cmake --build build
@@ -103,9 +103,6 @@ jobs:
         run: |
           spack env activate .
           echo "*** Loaded (0)"
-          spack find --loaded
-          spack load fenics-dolfinx
-          echo "*** Loaded (1)"
           spack find --loaded
           bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
           mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
