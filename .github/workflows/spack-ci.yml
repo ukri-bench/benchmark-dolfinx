@@ -90,7 +90,7 @@ jobs:
         name: Install (CPU)
         shell: spack-bash {0}
         run: |
-          spack -d -v -e . install -j 4 --fresh-roots --use-buildcache=package:never,dependencies:auto --add bench-dolfinx@main
+          spack -d -v -e . install -j 4 --fresh --use-buildcache=package:never,dependencies:auto --add bench-dolfinx@main
           spack -e . config get
           spack -e . config get packages
 
