@@ -1,4 +1,4 @@
-name: Spack build
+name: Test benchmark
 
 on:
   # Uncomment the below 'push' to trigger on push
