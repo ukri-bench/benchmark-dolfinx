@@ -75,7 +75,7 @@ jobs:
         name: Install dependencies (CPU)
         shell: spack-bash {0}
         run: |
-          spack -e . install -j 4 --fresh-roots --use-buildcache auto --only dependencies --add bench-dolfinx@main
+          spack -e . install -j 4 --use-buildcache auto --only dependencies --add bench-dolfinx@main
 
       - if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
         name: Install dependencies (GPU)
@@ -95,6 +95,7 @@ jobs:
           cmake -G Ninja -B build -S src/
           cmake --build build
           cmake --install build
+          ldd `which bench_dolfinx`
 
       - if: ${{ matrix.backend.runtime == 'cpu' }}
         name: Run benchmark (CPU)
