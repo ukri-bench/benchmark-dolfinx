@@ -26,8 +26,8 @@ jobs:
         backend:
           [
             { runtime: cpu, driver: ''},
-            # { runtime: rocm, driver: amdgpu_target=gfx90a },
-            # { runtime: cuda, driver: cuda_arch=80 },
+            { runtime: rocm, driver: amdgpu_target=gfx90a },
+            { runtime: cuda, driver: cuda_arch=80 },
           ]
     runs-on: ubuntu-24.04
     permissions:
@@ -69,43 +69,26 @@ jobs:
         run: |
           spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git ./bench_pkgs
           spack env create . spack.yml
-          spack -e . config get mirrors
           spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
 
-      # - name: Add external packages to Spack
-      #   shell: spack-bash {0}
-      #   run: |
-      #     spack -e . external find --all
-      #     spack -e . config get packages
-
-      # - if: ${{ matrix.backend.runtime == 'cpu' }}
-      #   name: Fetch
-      #   shell: spack-bash {0}
-      #   run: |
-      #     spack -d -v -e . fetch --fresh-roots bench-dolfinx@main
-      #     spack config get
-      #     spack config get packages
 
       - if: ${{ matrix.backend.runtime == 'cpu' }}
         name: Install (CPU)
         shell: spack-bash {0}
         run: |
-          spack -v -e . install -j 4 --fresh-roots --use-buildcache=package:never,dependencies:auto --add bench-dolfinx@main
-          spack -e . config get
-          spack -e . config get packages
+          spack -e . install -j 4 --fresh-roots --use-buildcache=package:never,dependencies:auto --add bench-dolfinx
 
       - if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
         name: Install (GPU)
         shell: spack-bash {0}
         run: |
-          spack -e . install -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx@main+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
+          spack -e . install -j 4 --fresh-roots --use-buildcache=package:never,dependencies:auto --add bench-dolfin+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
 
       - name: Run (CPU)
         shell: spack-bash {0}
         run: |
           spack env activate .
           bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-          ls -alh
           mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
 
       - name: Post-process
@@ -123,4 +106,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: spack -e . buildcache push --base-image ubuntu:24.04 --update-index local-buildcache
         if: ${{ !cancelled() }}
-      # run: spack -e . buildcache push --base-image ubuntu:24.04 --update-index --only dependencies local-buildcache
