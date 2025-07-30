@@ -87,6 +87,7 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack env activate .
+          spack find
           spack load py-fenics-ffcx
           cmake -G Ninja -B build -S src/
           cmake --build build
