@@ -88,13 +88,15 @@ jobs:
         run: |
           spack env activate .
           spack find
+          echo "*** Loaded"
+          spack find --loaded
           spack load py-fenics-ffcx
           cmake -G Ninja -B build -S src/
           cmake --build build
           cmake --install build
 
       - if: ${{ matrix.backend.runtime == 'cpu' }}
-        name: Run (CPU)
+        name: Run benchmark (CPU)
         shell: spack-bash {0}
         run: |
           spack env activate .
