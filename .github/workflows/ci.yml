@@ -92,6 +92,7 @@ jobs:
           echo $PATH
           spack env activate .
           echo $PATH
+          spack build-env bench-dolfinx -- which python
           spack build-env bench-dolfinx -- sh
           echo $PATH
           which python
