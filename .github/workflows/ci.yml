@@ -26,8 +26,8 @@ jobs:
         backend:
           [
             { runtime: cpu, driver: ''},
-            # { runtime: rocm, driver: amdgpu_target=gfx90a },
-            # { runtime: cuda, driver: cuda_arch=80 },
+            { runtime: rocm, driver: amdgpu_target=gfx90a, cmake_opt: HIP_ARCH=gfx90a },
+            { runtime: cuda, driver: cuda_arch=80, cmake_opt: CUDA_ARCH=80 },
           ]
     runs-on: ubuntu-24.04
     permissions:
@@ -47,8 +47,8 @@ jobs:
       - name: Set up Spack
         uses: spack/setup-spack@v2
         with:
-          ref: develop # Spack version (examples: develop, releases/v0.23)
-          color: true # Force color output (SPACK_COLOR=always)
+          ref: develop    # Spack version (examples: develop, releases/v0.23)
+          color: true     # Force color output (SPACK_COLOR=always)
           path: spack-src # Where to clone Spack      # - name: Get Spack
 
       - if: ${{ matrix.backend.runtime == 'cpu' }}
@@ -76,34 +76,38 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack -e . install -j 4 --use-buildcache auto --only dependencies --add bench-dolfinx@main
+          spack install --add fenics-dolfinx ninja py-fenics-ffcx
 
       - if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
         name: Install dependencies (GPU)
         shell: spack-bash {0}
         run: |
           spack -e . install -j 4 --use-buildcache auto --only dependencies --add bench-dolfinx@main+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
+          spack install --add fenics-dolfinx ninja py-fenics-ffcx
 
-      - name: Build benchmark
+      - if: ${{ matrix.backend.runtime == 'cpu' }}
+        name: Build benchmark (CPU)
         shell: spack-bash {0}
         run: |
           spack env activate .
-          spack find
-          echo "*** Loaded"
-          spack find --loaded
-          spack install --add fenics-dolfinx ninja py-fenics-ffcx
-          spack find --loaded
           cmake -G Ninja -B build -S src/
           cmake --build build
           cmake --install build
-          ldd `which bench_dolfinx`
+
+      - if: ${{ matrix.backend.runtime != 'cpu' }}
+        name: Build benchmark (GPU)
+        shell: spack-bash {0}
+        run: |
+          spack env activate .
+          cmake -G Ninja -D${{ matrix.backend.cmake_opt }}  -B build -S src/
+          cmake --build build
+          cmake --install build
 
       - if: ${{ matrix.backend.runtime == 'cpu' }}
         name: Run benchmark (CPU)
         shell: spack-bash {0}
         run: |
           spack env activate .
-          echo "*** Loaded (0)"
-          spack find --loaded
           bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
           mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
 
@@ -121,5 +125,7 @@ jobs:
         env:
           GITHUB_USER: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: spack -e . buildcache push --base-image ubuntu:24.04 --update-index local-buildcache
+        run: |
+          spack -e . buildcache push --only dependencies --with-build-dependencies \
+            --base-image ubuntu:24.04 --update-index local-buildcache
         if: ${{ !cancelled() }}
