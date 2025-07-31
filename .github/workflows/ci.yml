@@ -85,21 +85,16 @@ jobs:
           spack -e . install -j 4 --use-buildcache auto --only dependencies --add bench-dolfinx@main+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
         # spack install --add fenics-dolfinx ninja py-fenics-ffcx
 
+      - name: Generate Spack build-env
+        shell: spack-bash {0}
+        run: |
+          spack -e . build-env --dump build_env.sh bench-dolfinx -- which python
+
       - if: ${{ matrix.backend.runtime == 'cpu' }}
         name: Build benchmark (CPU)
         shell: spack-bash {0}
         run: |
-          echo $PATH
-          spack env activate .
-          echo $PATH
-          spack build-env bench-dolfinx -- which python
-          spack build-env bench-dolfinx -- sh
-          echo $PATH
-          which python
-          env
-          ls -alh /opt/view/bin
-          spack find
-          spack find --loaded
+          source ./build_env.sh
           which python
           cmake -G Ninja -B build -S src/
           cmake --build build
@@ -122,7 +117,6 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack env activate .
-          spack -e . build-env bench-dolfinx -- sh
           bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
           mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
 
