@@ -89,7 +89,8 @@ jobs:
         name: Build benchmark (CPU)
         shell: spack-bash {0}
         run: |
-          spack -e . build-env bench-dolfinx -- sh
+          spack env activate .
+          spack build-env bench-dolfinx -- sh
           which python
           env
           spack find
