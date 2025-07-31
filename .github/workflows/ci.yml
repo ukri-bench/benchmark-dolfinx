@@ -41,7 +41,9 @@ jobs:
 
       - if: ${{ matrix.backend.device != 'cpu' }}
         name: Install GPU compiler/driver
-        uses: ukri-bench/spack-configs/actions/${{ matrix.backend.device }}@main
+        uses: ukri-bench/spack-configs/actions/install-gpu-driver@main
+        with:
+          runtime: ${{ matrix.backend.device }}
 
       # - if: ${{ matrix.backend.device == 'cuda' }}
       #   name: Install CUDA
@@ -59,7 +61,7 @@ jobs:
         run: |
           wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack.yml
       - if: ${{ matrix.backend.device != 'cpu' }}
-        name: Get Spack config (CUDA)
+        name: Get Spack config (GPU)
         run: |
           wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack-${{ matrix.backend.device }}.yml
 
