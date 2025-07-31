@@ -93,6 +93,7 @@ jobs:
           spack build-env bench-dolfinx -- sh
           which python
           env
+          ls -alh /opt/view/bin
           spack find
           spack find --loaded
           which python
