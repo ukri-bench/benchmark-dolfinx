@@ -26,7 +26,7 @@ jobs:
         backend:
           [
             { runtime: cpu},
-            { runtime: rocm, driver: amdgpu_target=gfx90a, cmake_opt: HIP_ARCH=gfx90a },
+            # { runtime: rocm, driver: amdgpu_target=gfx90a, cmake_opt: HIP_ARCH=gfx90a },
             # { runtime: cuda, driver: cuda_arch=80, cmake_opt: CUDA_ARCH=80 },
           ]
     runs-on: ubuntu-24.04
@@ -91,6 +91,7 @@ jobs:
         run: |
           spack env activate .
           spack build-env bench-dolfinx -- sh
+          spack load py-fenics-ffcx
           spack find
           spack find --loaded
           cmake -G Ninja -B build -S src/
