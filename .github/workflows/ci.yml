@@ -1,7 +1,7 @@
 name: Test benchmark
 
-# Builds the benchmark code against Spack-installed dependencies for CPU
-# and GPU versions. Runs the CPU benchmark version.
+# Builds the branch benchmark code against Spack-installed dependencies
+# for CPU and GPU versions. Runs the CPU benchmark version.
 
 on:
   # Uncomment the below 'push' to trigger on push
