@@ -80,7 +80,7 @@ jobs:
         name: Install (GPU)
         shell: spack-bash {0}
         run: |
-          spack -e . install -j 4 --fresh-roots --use-buildcache=package:never,dependencies:auto --add bench-dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
+          spack -e . install -j 4 --fresh --use-buildcache=package:never,dependencies:auto --add bench-dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
 
       - name: Run (CPU)
         shell: spack-bash {0}
