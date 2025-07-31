@@ -116,6 +116,7 @@ jobs:
         shell: spack-bash {0}
         run: |
           source ./build_env.sh
+          env
           bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
           mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
 
