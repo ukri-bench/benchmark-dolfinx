@@ -39,13 +39,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - if: ${{ matrix.backend.device == 'rocm' }}
-        name: Install ROCm
-        uses: ukri-bench/spack-configs/actions/rocm@main
+      - if: ${{ matrix.backend.device != 'cpu' }}
+        name: Install GPU compiler/driver
+        uses: ukri-bench/spack-configs/actions/${{ matrix.backend.device }}@main
 
-      - if: ${{ matrix.backend.device == 'cuda' }}
-        name: Install CUDA
-        uses: ukri-bench/spack-configs/actions/cuda@main
+      # - if: ${{ matrix.backend.device == 'cuda' }}
+      #   name: Install CUDA
+      #   uses: ukri-bench/spack-configs/actions/cuda@main
 
       - name: Set up Spack
         uses: spack/setup-spack@v2
