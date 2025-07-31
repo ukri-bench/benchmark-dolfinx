@@ -91,7 +91,7 @@ jobs:
         run: |
           spack -e . build-env bench-dolfinx -- sh
           which python
-          spack load py-fenics-ffcx
+          env
           spack find
           spack find --loaded
           which python
