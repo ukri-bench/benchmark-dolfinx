@@ -118,7 +118,8 @@ jobs:
         name: Post-process
         shell: spack-bash {0}
         run: |
-          spack install py-numpy
+          spack env activate .
+          spack install --add py-numpy
           python src/test_output.py a.json
           python src/test_output.py b.json
 
