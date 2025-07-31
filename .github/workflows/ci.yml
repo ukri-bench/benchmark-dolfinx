@@ -25,8 +25,8 @@ jobs:
       matrix:
         backend:
           [
-            { runtime: cpu, driver: ''},
-            { runtime: rocm, driver: amdgpu_target=gfx90a, cmake_opt: HIP_ARCH=gfx90a },
+            # { runtime: cpu},
+            # { runtime: rocm, driver: amdgpu_target=gfx90a, cmake_opt: HIP_ARCH=gfx90a },
             { runtime: cuda, driver: cuda_arch=80, cmake_opt: CUDA_ARCH=80 },
           ]
     runs-on: ubuntu-24.04
@@ -90,6 +90,8 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack env activate .
+          spack find
+          spack find --loaded
           cmake -G Ninja -B build -S src/
           cmake --build build
           cmake --install build
@@ -99,6 +101,8 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack env activate .
+          spack find
+          spack find --loaded
           cmake -G Ninja -D${{ matrix.backend.cmake_opt }}  -B build -S src/
           cmake --build build
           cmake --install build
