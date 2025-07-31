@@ -30,7 +30,7 @@ jobs:
           [
             { device: cpu, spack_opt: "@main" },
             { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a", cmake_opt: HIP_ARCH=gfx90a },
-            # { device: cuda, spack_opt: "@main+cuda cuda_arch=80", cmake_opt: CUDA_ARCH=80 },
+            { device: cuda, spack_opt: "@main+cuda cuda_arch=80", cmake_opt: CUDA_ARCH=80 },
           ]
     runs-on: ubuntu-24.04
     permissions:
