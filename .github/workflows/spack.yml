@@ -76,11 +76,12 @@ jobs:
         run: |
           spack -e . install -j 4 --fresh-roots --use-buildcache=package:never,dependencies:auto --add bench-dolfinx
 
-      - if: ${{ matrix.backend.runtime == 'cuda' || matrix.backend.runtime == 'rocm' }}
+      - if: ${{ matrix.backend.runtime != 'cpu' }}
         name: Install (GPU)
         shell: spack-bash {0}
         run: |
-          spack -e . install -j 4 --fresh --use-buildcache=package:never,dependencies:auto --add bench-dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
+          spack -e . install -j 4 --fresh --fresh-roots --add bench-dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
+        # spack -e . install -j 4 --fresh --use-buildcache=package:never,dependencies:auto --add bench-dolfinx+${{ matrix.backend.runtime }} ${{ matrix.backend.driver }}
 
       - name: Run (CPU)
         shell: spack-bash {0}
