@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - if: ${{ matrix.backend.device != 'cpu' }}
+      - if: ${{ matrix.backend.runtime != 'cpu' }}
         name: Install GPU compiler/driver
         uses: ukri-bench/spack-configs/actions/install-gpu-driver@main
         with:
