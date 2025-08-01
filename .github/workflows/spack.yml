@@ -61,13 +61,17 @@ jobs:
         run: |
           wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack-${{ matrix.backend.device }}.yml
 
+      - if: ${{ matrix.backend.device == 'rocm' }}
+        name: ROCm compilers
+        shell: spack-bash {0}
+        run: spack compiler find
+
       - name: Add ukri-bench Spack repository and create environment
         shell: spack-bash {0}
         run: |
           spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git ./bench_pkgs
           spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/${{ matrix.backend.mirror }}
           spack env create . spack.yml
-
 
       - name: Install (CPU)
         shell: spack-bash {0}
