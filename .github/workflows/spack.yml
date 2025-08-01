@@ -62,7 +62,7 @@ jobs:
           wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack-${{ matrix.backend.device }}.yml
 
       - if: ${{ matrix.backend.device == 'rocm' }}
-        name: ROCm compilers
+        name: Find compilers (ROCm)
         shell: spack-bash {0}
         run: spack compiler find
 
