@@ -39,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - if: ${{ matrix.backend.runtime != 'cpu' }}
+      - if: ${{ matrix.backend.device != 'cpu' }}
         name: Install GPU compiler/driver
         uses: ukri-bench/spack-configs/actions/install-gpu-driver@main
         with:
@@ -52,7 +52,7 @@ jobs:
           color: true     # Force color output (SPACK_COLOR=always)
           path: spack-src # Where to clone Spack      # - name: Get Spack
 
-      - if: ${{ matrix.backend.runtime == 'cpu' }}
+      - if: ${{ matrix.backend.device == 'cpu' }}
         name: Get Spack config (CPU)
         run: |
           wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack.yml
@@ -74,7 +74,7 @@ jobs:
         run: |
           spack -e . install -j 4 --fresh-roots --use-buildcache=package:never,dependencies:auto --add bench-dolfinx${{ matrix.backend.spack_opt }}
 
-      - if: ${{ matrix.backend.runtime == 'cpu' }}
+      - if: ${{ matrix.backend.device == 'cpu' }}
         name: Run (CPU)
         shell: spack-bash {0}
         run: |
@@ -82,7 +82,7 @@ jobs:
           bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
           mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
 
-      - if: ${{ matrix.backend.runtime == 'cpu' }}
+      - if: ${{ matrix.backend.device == 'cpu' }}
         name: Post-process
         shell: spack-bash {0}
         run: |
