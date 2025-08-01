@@ -15,14 +15,15 @@ jobs:
   Hello-World-Job:
     # runs-on:
     #   - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
-    runs-on:
-      - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
-        instance-size:gpu_small
-      # image:<environment-type>-<image-identifier>
+    runs-on: "cirun-azure-runner--${{ github.run_id }}"
+  # runs-on:
+  #     - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
+  #       instance-size:gpu_small
+  #     # image:<environment-type>-<image-identifier>
 
     steps:
 
     - name: Test
       run: |
         echo "Hello World"
-        nvidia-smi
+        # nvidia-smi
