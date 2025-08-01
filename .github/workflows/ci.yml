@@ -28,9 +28,9 @@ jobs:
       matrix:
         backend:
           [
-            # { device: cpu, spack_opt: "@main" },
-            { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a", cmake_opt: HIP_ARCH=gfx90a },
-            # { device: cuda, spack_opt: "@main+cuda cuda_arch=80", cmake_opt: CUDA_ARCH=80 },
+            { device: cpu, spack_opt: "@main", cmake_opt: "" },
+            { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a", cmake_opt: -DHIP_ARCH=gfx90a },
+            { device: cuda, spack_opt: "@main+cuda cuda_arch=80", cmake_opt: -DCUDA_ARCH=80 },
           ]
     runs-on: ubuntu-24.04
     permissions:
@@ -71,29 +71,19 @@ jobs:
       - name: Install dependencies
         shell: spack-bash {0}
         run: |
-          spack -e . add ninja boost@1.86 bench-dolfinx${{ matrix.backend.spack_opt }}
+          spack -e . add bench-dolfinx${{ matrix.backend.spack_opt }}
           spack -e . install -j 4 --use-buildcache auto --only dependencies
 
       - name: Generate Spack build-env
         shell: spack-bash {0}
         run: spack -e . build-env --dump build_env.sh bench-dolfinx
 
-      - if: ${{ matrix.backend.device == 'cpu' }}
-        name: Build benchmark (CPU)
+      - name: Build benchmark (GPU)
         shell: spack-bash {0}
         run: |
           source ./build_env.sh
-          cmake -G Ninja -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on -B build -S src/
-          cmake --build build
-          cmake --install build
-
-      - if: ${{ matrix.backend.device != 'cpu' }}
-        name: Build benchmark (GPU)
-        shell: spack-bash {0}
-        run: |
-          source ./build_env.sh
-          cmake -G Ninja -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on -D${{ matrix.backend.cmake_opt }} -B build -S src/
-          cmake --build build
+          cmake -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on ${{ matrix.backend.cmake_opt }} -B build -S src/
+          cmake --build build --parallel
           cmake --install build
 
       - if: ${{ matrix.backend.device == 'cpu' }}
@@ -119,6 +109,6 @@ jobs:
           GITHUB_USER: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          spack -e . buildcache push --only dependencies --with-build-dependencies \
+          spack buildcache push --only dependencies --with-build-dependencies \
             --base-image ubuntu:24.04 --update-index local-buildcache
         if: ${{ !cancelled() }}
