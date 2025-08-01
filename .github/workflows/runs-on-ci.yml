@@ -35,6 +35,7 @@ jobs:
     # runs-on: runs-on=${{github.run_id}}/runner=2cpu-linux-x64/image=ubuntu24-gpu-x64
 
     runs-on: runs-on=${{github.run_id}}/family=g4ad.xlarge/image=ubuntu24-gpu-x64 # AMD GPU
+    runs-on: runs-on=${{github.run_id}}/family=g4dn.xlarge/image=ubuntu24-gpu-x64 # NVIDIA GPU
 
     # container: ubuntu:24.04
 
@@ -46,6 +47,7 @@ jobs:
         run: |
           ls /opt
           which nvcc
+          nvidia-smi
         # lsb_release -a
         # gcc -v
         # nvcc --version
@@ -53,19 +55,19 @@ jobs:
 
       # - uses: actions/checkout@v4
 
-      - if: ${{ matrix.backend.runtime == 'rocm' }}
-        name: Install GPU compiler/driver
-        uses: ukri-bench/spack-configs/actions/install-gpu-driver@main
-        with:
-          runtime: rocm
+      # - if: ${{ matrix.backend.runtime == 'rocm' }}
+      #   name: Install GPU compiler/driver
+      #   uses: ukri-bench/spack-configs/actions/install-gpu-driver@main
+      #   with:
+      #     runtime: rocm
 
-      - name: Paths
-        run: |
-          ls /opt
-          which hipcc
-          which rocminfo
+      # - name: Paths
+      #   run: |
+      #     ls /opt
+      #     which hipcc
+      #     which rocminfo
 
-          # # - if: ${{ matrix.backend.runtime == 'cuda' }}
+      # # - if: ${{ matrix.backend.runtime == 'cuda' }}
       # #   name: Install CUDA
       # #   uses: ukri-bench/spack-configs/actions/cuda@main
 
