@@ -22,7 +22,7 @@ jobs:
       matrix:
         backend:
           [
-            { runtime: cpu, driver: ''},
+            # { runtime: cpu, driver: ''},
             # { runtime: rocm, driver: amdgpu_target=gfx90a },
             { runtime: cuda, driver: cuda_arch=80 },
           ]
@@ -42,7 +42,8 @@ jobs:
     steps:
       - name: Info
         run: |
-          uname -a
+          which nvcc
+          which hipcc
         # lsb_release -a
         # gcc -v
         # nvcc --version
