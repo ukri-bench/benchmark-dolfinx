@@ -290,4 +290,3 @@ private:
   MPI_Comm _comm;
 };
 } // namespace benchdolfinx
-
