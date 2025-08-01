@@ -29,7 +29,7 @@ jobs:
         backend:
           [
             { device: cpu, spack_opt: "@main~cuda~rocm", mirror: spack-buildcache },
-            { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a", mirror: spack-buildcache-rocm },
+            { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a", mirror: spack-buildcache },
             { device: cuda, spack_opt: "@main+cuda cuda_arch=80", mirror: spack-buildcache },
           ]
     runs-on: ubuntu-24.04
