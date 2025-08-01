@@ -43,7 +43,7 @@ jobs:
     steps:
       - name: Info
         run: |
-          ls /
+          ls /opt
           which nvcc
         # lsb_release -a
         # gcc -v
