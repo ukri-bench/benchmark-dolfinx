@@ -48,9 +48,9 @@ jobs:
       - name: Set up Spack
         uses: spack/setup-spack@v2
         with:
-          ref: develop    # Spack version (examples: develop, releases/v0.23)
-          color: true     # Force color output (SPACK_COLOR=always)
-          path: spack-src # Where to clone Spack      # - name: Get Spack
+          ref: develop     # Spack version (examples: develop, releases/v0.23)
+          color: true      # Force color output (SPACK_COLOR=always)
+          path: spack-src  # Where to clone Spack
 
       - if: ${{ matrix.backend.device == 'cpu' }}
         name: Get Spack config (CPU)
@@ -62,7 +62,7 @@ jobs:
           wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack-${{ matrix.backend.device }}.yml
 
       - if: ${{ matrix.backend.device == 'rocm' }}
-        name: Find compilers (ROCm)
+        name: Find compilers (ROCm)  # Need this to find a Fortran compiler
         shell: spack-bash {0}
         run: spack compiler find
 
