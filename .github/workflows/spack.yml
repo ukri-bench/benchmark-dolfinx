@@ -28,8 +28,8 @@ jobs:
       matrix:
         backend:
           [
-            { device: cpu, spack_opt: "@main" },
-            # { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a" },
+            # { device: cpu, spack_opt: "@main" },
+            { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a" },
             # { device: cuda, spack_opt: "@main+cuda cuda_arch=80" },
           ]
     runs-on: ubuntu-24.04
@@ -96,5 +96,5 @@ jobs:
         env:
           GITHUB_USER: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: spack -e . buildcache push --base-image ubuntu:24.04 --update-index local-buildcache
+        run: spack -e . buildcache push --base-image ubuntu:24.04 --only dependencies --with-build-dependencies --update-index local-buildcache
         if: ${{ !cancelled() }}
