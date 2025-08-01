@@ -68,7 +68,7 @@ jobs:
           spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
           spack env create . spack.yml
 
-      - name: Install dependencies (CPU)
+      - name: Install dependencies
         shell: spack-bash {0}
         run: |
           spack -e . add ninja boost@1.86 bench-dolfinx${{ matrix.backend.spack_opt }}
