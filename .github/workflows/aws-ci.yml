@@ -19,5 +19,10 @@ jobs:
       - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
         instance-size:gpu_small
       # image:<environment-type>-<image-identifier>
+
     steps:
-      - run: echo "Hello World"
+
+    - name: Test
+      run: |
+        echo "Hello World"
+        nvidia-smi
