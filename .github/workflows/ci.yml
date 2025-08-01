@@ -92,7 +92,7 @@ jobs:
         shell: spack-bash {0}
         run: |
           source ./build_env.sh
-          cmake -G Ninja -DCMAKE_INSTALL_RPATH=on -D${{ matrix.backend.cmake_opt }} -B build -S src/
+          cmake -G Ninja -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on -D${{ matrix.backend.cmake_opt }} -B build -S src/
           cmake --build build
           cmake --install build
 
