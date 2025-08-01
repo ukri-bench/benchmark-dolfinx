@@ -42,6 +42,7 @@ jobs:
     steps:
       - name: Info
         run: |
+          ls /usr/local
           which nvcc
           which hipcc
         # lsb_release -a
