@@ -10,8 +10,8 @@
 
 namespace benchdolfinx::impl
 {
-/// @brief Computes y += A*x for a local CSR matrix A and local dense vectors
-/// x,y.
+/// @brief Computes y += A*x for a local CSR matrix A and local dense
+/// vectors x,y.
 /// @param N number of rows
 /// @param[in] values Nonzero values of A
 /// @param[in] row_begin First index of each row in the arrays values
@@ -41,8 +41,8 @@ __global__ void spmv_impl(int N, const T* values, const std::int32_t* row_begin,
   }
 }
 
-/// @brief Computes y += A^T*x for a local CSR matrix A and local dense vectors
-/// x,y.
+/// @brief Computes y += A^T*x for a local CSR matrix A and local dense
+/// vectors x,y.
 /// @param N number of rows
 /// @param[in] values Nonzero values of A
 /// @param[in] row_begin First index of each row in the arrays values
@@ -76,8 +76,8 @@ __global__ void spmvT_impl(int N, const T* values,
 
 namespace benchdolfinx
 {
-/// @brief An assembled matrix operator for a finite element Form, internally
-/// using a CSR matrix
+/// @brief An assembled matrix operator for a finite element Form,
+/// internally using a CSR matrix.
 /// @tparam T
 template <typename T>
 class MatrixOperator
@@ -168,9 +168,10 @@ public:
   /// Destructor
   ~MatrixOperator() = default;
 
-  /// @brief Get the inverse of the diagonal values of the matrix
-  /// @param diag_inv [in/out] A Vector to copy the inverse diagonal values into
-  /// @note Vector must be the correct size
+  /// @brief Get the inverse of the diagonal values of the matrix.
+  /// @param diag_inv [in/out] A Vector to copy the inverse diagonal
+  /// values into.
+  /// @note Vector must be the correct size.
   template <typename Vector>
   void get_diag_inverse(Vector& diag_inv)
   {
@@ -178,9 +179,9 @@ public:
                  diag_inv.mutable_array().begin());
   }
 
-  /// @brief The matrix-vector multiplication operator, y=Ax, multiplying
-  /// the matrix with the input vector and stores the result in the
-  /// output vector.
+  /// @brief The matrix-vector multiplication operator, y=Ax,
+  /// multiplying the matrix with the input vector and stores the result
+  /// in the output vector.
   ///
   /// @tparam Vector The type of the input and output vector.
   ///
@@ -275,6 +276,7 @@ private:
   // Copy of the inverse of the diagonal entries of the matrix - may be
   // used for Jacobi preconditioning
   thrust::device_vector<T> _diag_inv;
+
   // Start point, on each row, of the off-diagonal block (ghost region)
   thrust::device_vector<std::int32_t> _off_diag_offset;
 
