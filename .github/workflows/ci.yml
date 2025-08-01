@@ -78,10 +78,11 @@ jobs:
         shell: spack-bash {0}
         run: spack -e . build-env --dump build_env.sh bench-dolfinx
 
-      - name: Build benchmark (GPU)
+      - name: Build benchmark
         shell: spack-bash {0}
         run: |
           source ./build_env.sh
+          ldd /opt/view/lib/libdolfinx.so
           cmake -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on ${{ matrix.backend.cmake_opt }} -B build -S src/
           cmake --build build --parallel
           cmake --install build
