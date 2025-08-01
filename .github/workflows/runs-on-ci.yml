@@ -42,6 +42,7 @@ jobs:
       - family=g4dn.xlarge+g4dn.2xlarge           # NVIDIA GPU
       - image=ubuntu24-gpu-x64
       - spot=false
+      - tag=nv
 
     # container: ubuntu:24.04
 
