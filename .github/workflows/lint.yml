@@ -10,12 +10,33 @@ on:
       - main
   workflow_dispatch:
 
-
 jobs:
-  doc-lint:
+  lint-doc:
+    name: Check Doxygen documentation
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
     - uses: mattnotmitt/doxygen-action@v1.12.0
       with:
         working-directory: 'src/'
+
+  lint-cpp:
+    runs-on: ubuntu-latest
+    name: clang-format check
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install linting tools
+        run: pip install clang-format ruff
+      - name: ruff Python checks
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: clang-format C++ checks
+        run: |
+          cd src
+          clang-format --version
+          find . -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp \) | xargs clang-format --dry-run --Werror
