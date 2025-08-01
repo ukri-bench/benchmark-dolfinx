@@ -43,6 +43,9 @@ jobs:
       - name: Info
         run: |
           ls /usr/local
+          ls /usr/local/bin
+          ls /
+          ls /opt
           which nvcc
           which hipcc
         # lsb_release -a
