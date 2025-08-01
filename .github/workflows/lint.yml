@@ -39,5 +39,4 @@ jobs:
         run: |
           cd src
           clang-format --version
-          find . -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp \)
-        # find . -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp \) | xargs clang-format --dry-run --Werror
+          find . -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) | xargs clang-format --dry-run --Werror
