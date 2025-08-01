@@ -39,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - if: ${{ matrix.backend.device == 'rocm' }}
+      - if: ${{ matrix.backend.device != 'cpu' }}
         name: Install GPU compiler/driver
         uses: ukri-bench/spack-configs/actions/install-gpu-driver@main
         with:
@@ -65,11 +65,6 @@ jobs:
         name: Find compilers (ROCm)  # Need this to find a Fortran compiler
         shell: spack-bash {0}
         run: spack compiler find
-
-      - if: ${{ matrix.backend.device == 'cuda' }}
-        name: Install CUDA
-        shell: spack-bash {0}
-        run: spack install cuda
 
       - name: Add ukri-bench Spack repository and create environment
         shell: spack-bash {0}
