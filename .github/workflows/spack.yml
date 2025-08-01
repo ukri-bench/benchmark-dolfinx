@@ -28,9 +28,9 @@ jobs:
       matrix:
         backend:
           [
-            { device: cpu, spack_opt: "@main~cuda~rocm" },
-            { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a" },
-            { device: cuda, spack_opt: "@main+cuda cuda_arch=80" },
+            { device: cpu, spack_opt: "@main~cuda~rocm", mirror: spack-buildcache },
+            { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a", mirror: spack-buildcache-rocm },
+            { device: cuda, spack_opt: "@main+cuda cuda_arch=80", mirror: spack-buildcache },
           ]
     runs-on: ubuntu-24.04
     permissions:
@@ -65,7 +65,7 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git ./bench_pkgs
-          spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
+          spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/${{ matrix.backend.mirror }}
           spack env create . spack.yml
 
 
