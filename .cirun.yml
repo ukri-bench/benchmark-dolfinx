@@ -4,7 +4,7 @@ runners:
   - name: "azure-runner"
     # Cloud Provider: Azure
     cloud: "azure"
-    instance_type: "Standard_DS1_v2"
+    instance_type: "Standard_A2_v2"
     # Takes 4 parameters (publisher:offer:sku:version)
     machine_image: "canonical:0001-com-ubuntu-server-focal:20_04-lts-gen2:latest"
     preemptible: false
