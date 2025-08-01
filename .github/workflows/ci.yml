@@ -28,7 +28,7 @@ jobs:
       matrix:
         backend:
           [
-            { device: cpu, spack_opt: "@main", cmake_opt: "" },
+            { device: cpu, spack_opt: "@main~cuda~rocm", cmake_opt: "" },
             { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a", cmake_opt: -DHIP_ARCH=gfx90a },
             { device: cuda, spack_opt: "@main+cuda cuda_arch=80", cmake_opt: -DCUDA_ARCH=80 },
           ]
