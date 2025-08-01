@@ -109,7 +109,7 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack env activate .
-          spack install --add py-numpy
+          spack load py-numpy
           python src/test_output.py a.json
           python src/test_output.py b.json
 
