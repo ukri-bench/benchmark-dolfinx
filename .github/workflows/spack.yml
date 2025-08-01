@@ -96,5 +96,5 @@ jobs:
         env:
           GITHUB_USER: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: spack buildcache push --base-image ubuntu:24.04 --update-index local-buildcache
+        run: spack -e . buildcache push --base-image ubuntu:24.04 --update-index local-buildcache
         if: ${{ !cancelled() }}
