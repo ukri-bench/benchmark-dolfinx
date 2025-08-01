@@ -484,4 +484,3 @@ void pointwise_mult(Vector& w, const Vector& x, const Vector& y)
 }
 
 } // namespace benchdolfinx
-

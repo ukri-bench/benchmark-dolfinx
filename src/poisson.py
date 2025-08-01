@@ -2,8 +2,17 @@
 # Garth N. Wells
 # SPDX-License-Identifier:    MIT
 
-from ufl import (Coefficient, Constant, FunctionSpace, Mesh, Measure,
-                 TestFunction, TrialFunction, dx, grad, inner)
+from ufl import (
+    Coefficient,
+    Constant,
+    FunctionSpace,
+    Mesh,
+    Measure,
+    TestFunction,
+    TrialFunction,
+    grad,
+    inner,
+)
 import basix
 from basix.ufl import blocked_element, wrap_element
 
@@ -30,18 +39,26 @@ for degree in range(1, 8):
     w0 = Coefficient(V)
     c0 = Constant(mesh)
 
-    quad_rules = [["GL", degree],
-                  ["GLL", degree],
-                  ["GL", degree + 1],
-                  ["GLL", degree + 1]]
-    for (quad_type, quad_degree) in quad_rules:
+    quad_rules = [
+        ["GL", degree],
+        ["GLL", degree],
+        ["GL", degree + 1],
+        ["GLL", degree + 1],
+    ]
+    for quad_type, quad_degree in quad_rules:
         if quad_type == "GL":
             q_map = q_map_gl
         else:
-            assert(quad_type == "GLL")
+            assert quad_type == "GLL"
             q_map = q_map_gll
 
-        dx = Measure("dx", metadata={"quadrature_rule": quad_type, "quadrature_degree": q_map[quad_degree]})
+        dx = Measure(
+            "dx",
+            metadata={
+                "quadrature_rule": quad_type,
+                "quadrature_degree": q_map[quad_degree],
+            },
+        )
 
         a_name = f"a_{degree}_{quad_degree + 1}_{quad_type}"
         L_name = f"L_{degree}_{quad_degree + 1}_{quad_type}"
