@@ -17,7 +17,5 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: mattnotmitt/doxygen-action@v1.12.0
-    - name: Doxygen check
-      run: |
-        cd src
-        doxygen
+      with:
+        working-directory: 'src/'
