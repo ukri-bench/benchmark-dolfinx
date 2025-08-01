@@ -134,4 +134,3 @@ __global__ void geometry_computation(const T* xgeom, T* G_entity,
 }
 
 } // namespace benchdolfinx
-

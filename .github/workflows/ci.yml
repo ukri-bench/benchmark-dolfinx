@@ -1,0 +1,120 @@
+name: Test benchmark
+
+# Builds the branch benchmark code against Spack-installed dependencies
+# for CPU and GPU versions. Runs the CPU benchmark version.
+
+on:
+  # Uncomment the below 'push' to trigger on push
+  # push:
+  #   branches:
+  #     - "**"
+  pull_request:
+    branches: [ "main" ]
+  merge_group:
+    branches:
+      - main
+  # schedule:
+  #   # '*' is a special character in YAML, so string must be quoted
+  #   - cron: "0 2 * * THU"
+  workflow_dispatch:
+
+env:
+  GITHUB_USER: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        backend:
+          [
+            { device: cpu, spack_opt: "@main~cuda~rocm", cmake_opt: "" },
+            { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a", cmake_opt: -DHIP_ARCH=gfx90a },
+            { device: cuda, spack_opt: "@main+cuda cuda_arch=80", cmake_opt: -DCUDA_ARCH=80 },
+          ]
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - if: ${{ matrix.backend.device != 'cpu' }}
+        name: Install GPU compiler/driver
+        uses: ukri-bench/spack-configs/actions/install-gpu-driver@main
+        with:
+          runtime: ${{ matrix.backend.device }}
+
+      - name: Set up Spack
+        uses: spack/setup-spack@v2
+        with:
+          ref: develop     # Spack version (examples: develop, releases/v0.23)
+          color: true      # Force color output (SPACK_COLOR=always)
+          path: spack-src  # Where to clone Spack
+
+      - if: ${{ matrix.backend.device == 'cpu' }}
+        name: Get Spack config (CPU)
+        run: |
+          wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack.yml
+      - if: ${{ matrix.backend.device != 'cpu' }}
+        name: Get Spack config (GPU)
+        run: |
+          wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack-${{ matrix.backend.device }}.yml
+
+      - if: ${{ matrix.backend.device == 'rocm' }}
+        name: Find compilers (ROCm)  # Need this to find a Fortran compiler
+        shell: spack-bash {0}
+        run: spack compiler find
+
+      - name: Add ukri-bench Spack repository and create environment
+        shell: spack-bash {0}
+        run: |
+          spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git ./bench_pkgs
+          spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
+          spack env create . spack.yml
+
+      - name: Install dependencies
+        shell: spack-bash {0}
+        run: |
+          spack -e . add bench-dolfinx${{ matrix.backend.spack_opt }}
+          spack -e . install -U -j 4 --use-buildcache auto --only dependencies
+
+      - name: Generate Spack build-env
+        shell: spack-bash {0}
+        run: spack -e . build-env --dump build_env.sh bench-dolfinx
+
+      - name: Build benchmark
+        shell: spack-bash {0}
+        run: |
+          source ./build_env.sh
+          ldd /opt/view/lib/libdolfinx.so
+          cmake -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on ${{ matrix.backend.cmake_opt }} -B build -S src/
+          cmake --build build --parallel
+          cmake --install build
+
+      - if: ${{ matrix.backend.device == 'cpu' }}
+        name: Run benchmark (CPU)
+        shell: spack-bash {0}
+        run: |
+          source ./build_env.sh
+          bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+          mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+
+      - if: ${{ matrix.backend.device == 'cpu' }}
+        name: Post-process
+        shell: spack-bash {0}
+        run: |
+          spack env activate .
+          spack load py-numpy
+          python src/test_output.py a.json
+          python src/test_output.py b.json
+
+      - name: Push packages and update index
+        shell: spack-bash {0}
+        env:
+          GITHUB_USER: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          spack -e . buildcache push --only dependencies --with-build-dependencies \
+            --base-image ubuntu:24.04 --update-index local-buildcache
+        if: ${{ !cancelled() }}

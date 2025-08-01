@@ -11,7 +11,6 @@
 
 namespace benchdolfinx
 {
-
 /// @brief Compute shape of a cube mesh which will support a functionspace with
 /// approximately the desired number of dofs.
 /// @param ndofs The desired number of dofs

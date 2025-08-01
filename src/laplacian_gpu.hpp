@@ -428,4 +428,3 @@ __launch_bounds__(Q* Q* Q) __global__
 }
 
 } // namespace benchdolfinx
-

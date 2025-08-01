@@ -2,10 +2,10 @@
 // Garth N. Wells
 // SPDX-License-Identifier:    MIT
 
+#pragma once
+
 #include <cstddef>
 #include <cstdint>
-
-#pragma once
 
 namespace benchdolfinx
 {
@@ -19,7 +19,8 @@ void geometry_computation(const T* xgeom, T* G_entity,
     // Cell index
     int cell = entities[c];
 
-    // Number of quadrature points (must match arrays in weights and dphi)
+    // Number of quadrature points (must match arrays in weights and
+    // dphi)
     constexpr int nq = Q * Q * Q;
 
     // Number of coordinate dofs

@@ -10,6 +10,7 @@
 #include <basix/finite-element.h>
 #include <boost/program_options.hpp>
 #include <dolfinx/fem/utils.h>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -239,18 +240,26 @@ int main(int argc, char* argv[])
           std::format("Invalid float size {}. Must be 32 or 64.", float_size));
     }
 
-    if (rank == 0 and json_filename.size() > 0)
+    if (rank == 0 and !json_filename.empty())
     {
       Json::StreamWriterBuilder builder;
       builder["indentation"] = "  ";
-      const std::unique_ptr<Json::StreamWriter> writer(
-          builder.newStreamWriter());
-      std::ofstream strm(json_filename, std::ofstream::out);
+      std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+
+      std::filesystem::path filename(json_filename);
+      std::cout << "*** Writing output to:       " << filename << std::endl;
+      std::cout << "*** Writing output to (abs): "
+                << std::filesystem::absolute(filename) << std::endl;
+      std::ofstream strm(filename, std::ofstream::out);
       writer->write(root, &strm);
+    }
+    else if (rank == 0)
+    {
+      std::cout << "*** Empty file: " << json_filename << std::endl;
     }
 
     // Display timings
-    dolfinx::list_timings(MPI_COMM_WORLD);
+    // dolfinx::list_timings(MPI_COMM_WORLD);
   }
 
   MPI_Finalize();
