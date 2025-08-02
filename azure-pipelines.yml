@@ -7,7 +7,8 @@ trigger:
 - main
 
 pool:
-  vmImage: ubuntu-latest
+  name: ukri-ci-runners
+  # vmImage: ukri-ci-runners
 
 steps:
 - script: echo Hello, world!
