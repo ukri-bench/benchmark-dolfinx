@@ -7,7 +7,8 @@ trigger:
 - main
 
 pool:
-  name: ukri-ci-runners
+  name: ci-pool
+  # name: ukri-ci-runners
   # vmImage: ukri-ci-runners
 
 steps:
