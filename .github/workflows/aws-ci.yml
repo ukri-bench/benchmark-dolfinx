@@ -1,4 +1,4 @@
-name: Test Azure
+name: Test  Azure
 on:
   # Uncomment the below 'push' to trigger on push
   push:
