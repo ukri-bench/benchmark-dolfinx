@@ -19,6 +19,26 @@ steps:
   displayName: 'Get Spack'
 
 - script: |
+    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
+    sudo dpkg -i cuda-keyring_1.1-1_all.deb
+    sudo apt-get update
+    sudo apt-get -y install cuda-compiler-12-9
+  displayName: 'Install CUDA'
+
+- script: |
+    . ./spack/share/spec/setup-env.sh
+    spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git ./bench_pkgs
+    spack env create .
+    spack -e. external find cuda
+  displayName: 'Add Spack mirror'
+
+- script: |
+    . ./spack/share/spack/setup-env.sh
+    spack -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add gmake
+  displayName: 'Build Add Spack mirror'
+  # spack -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx@main+cuda cuda_arch=80
+
+- script: |
     echo Add other tasks to build, test, and deploy your project.
     echo See https://aka.ms/yaml
     ls -alh
