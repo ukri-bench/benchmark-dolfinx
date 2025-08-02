@@ -15,6 +15,11 @@ steps:
   displayName: 'Run a one-line script'
 
 - script: |
+    git clone --depth 1 https://github.com/spack/spack.git
+  displayName: 'Get Spack'
+
+- script: |
     echo Add other tasks to build, test, and deploy your project.
     echo See https://aka.ms/yaml
+    ls -alh
   displayName: 'Run a multi-line script'
