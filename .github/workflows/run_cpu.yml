@@ -14,11 +14,11 @@ jobs:
   run-code:
     name: Run code
     runs-on: ubuntu-latest
-    container: ghcr.io/ukri-bench/spack-buildcache-img${{ github.sha }}
+    # container: ghcr.io/ukri-bench/spack-buildcache-img${{ github.sha }}
+    container: ubuntu:24.04
 
     steps:
       - name: Install (CPU)
         run: |
           ls -alh
-          echo "view"
-          ls /opt/view
+          echo "Running triggered"
