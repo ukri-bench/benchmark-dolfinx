@@ -134,7 +134,5 @@ jobs:
 
       - name: Post-process
         run: |
-          spack env activate .
-          spack load py-numpy
           python src/test_output.py a.json
           python src/test_output.py b.json

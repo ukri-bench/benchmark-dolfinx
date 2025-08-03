@@ -44,4 +44,4 @@ jobs:
         if: ${{ github.event.workflow_run.conclusion == 'success' }}
         run: |
           ls -alh
-          echo "Running triggered (1): ${{ github.sha }}"
+          echo "Running triggered (2): ${{ github.sha }}"
