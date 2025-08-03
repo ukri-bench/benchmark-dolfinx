@@ -110,13 +110,13 @@ jobs:
       PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
 
     steps:
+      - uses: actions/checkout@v4  # To get post-processing script
+
       - name: Run (CPU)
         run: |
           pwd
           bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
           mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
-
-      - uses: actions/checkout@v4  # To get post-processing script
 
       - name: Post-process
         run: |
