@@ -95,10 +95,11 @@ jobs:
         if: ${{ !cancelled() }}
 
   run-code:
-    needs: build
+    # needs: build
     runs-on: ubuntu-24.04
+    # image: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
     container:
-      image: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
+      image: ghcr.io/ukri-bench/spack-buildcache-img:8ef74b07cf529771366bfb2fc6f1099914ed6e8a
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
@@ -118,5 +119,6 @@ jobs:
 
       - name: Post-process
         run: |
+          la -alh
           python src/test_output.py a.json
           python src/test_output.py b.json
