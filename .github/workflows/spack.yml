@@ -113,7 +113,6 @@ jobs:
             --with-build-dependencies --update-index local-buildcache
         if: ${{ !cancelled() }}
 
-
   run-code:
     runs-on: ubuntu-24.04
     container:
@@ -124,7 +123,6 @@ jobs:
 
     steps:
       - name: Run (CPU)
-        shell: spack-bash {0}
         run: |
           spack env activate .
           bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
