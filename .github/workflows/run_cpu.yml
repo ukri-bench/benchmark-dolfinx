@@ -3,7 +3,7 @@ name: CPU run
 on:
   workflow_run:
     workflows: ["Spack build and run"]
-    types: [requested]
+    # types: [requested]
 
 env:
   GITHUB_USER: ${{ github.actor }}
