@@ -26,15 +26,15 @@ jobs:
     name: Run code
     runs-on: ubuntu-latest
     # container: ghcr.io/ukri-bench/spack-buildcache-img${{ github.sha }}
-    container: ubuntu:24.04
-    # container:
-    #   image: ghcr.io/ukri-bench/spack-buildcache-img
-    #   credentials:
-    #     username: ${{ github.actor }}
-    #     password: ${{ secrets.github_token }}
+    # container: ubuntu:24.04
+    container:
+      image: ghcr.io/ukri-bench/spack-buildcache-img:a3c92f44aff2b04590dfd12c8dc6ab80d1225925
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
 
     steps:
       - name: Install (CPU)
         run: |
           ls -alh
-          echo "Running triggered: ${{ github.sha }}"
+          echo "Running triggered (1): ${{ github.sha }}"
