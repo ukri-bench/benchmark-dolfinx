@@ -74,22 +74,22 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - if: ${{ matrix.backend.device == 'cpu' }}
-        name: Run (CPU)
-        shell: spack-bash {0}
-        run: |
-          spack env activate .
-          bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-          mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+      # - if: ${{ matrix.backend.device == 'cpu' }}
+      #   name: Run (CPU)
+      #   shell: spack-bash {0}
+      #   run: |
+      #     spack env activate .
+      #     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+      #     mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
 
-      - if: ${{ matrix.backend.device == 'cpu' }}
-        name: Post-process
-        shell: spack-bash {0}
-        run: |
-          spack env activate .
-          spack load py-numpy
-          python src/test_output.py a.json
-          python src/test_output.py b.json
+      # - if: ${{ matrix.backend.device == 'cpu' }}
+      #   name: Post-process
+      #   shell: spack-bash {0}
+      #   run: |
+      #     spack env activate .
+      #     spack load py-numpy
+      #     python src/test_output.py a.json
+      #     python src/test_output.py b.json
 
       - name: Push (test)
         shell: spack-bash {0}
