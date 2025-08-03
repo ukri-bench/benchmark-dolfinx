@@ -38,7 +38,7 @@ jobs:
 
     steps:
       - name: Add ukri-bench Spack repository and create environment
-        run: echo "Trigering workflow"
+        run: echo "Triggering workflow"
 
       # - uses: actions/checkout@v4
 
