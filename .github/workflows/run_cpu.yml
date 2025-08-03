@@ -2,14 +2,21 @@ name: CPU run
 
 on:
   workflow_run:
-    workflows: ["Spack build and run"]
+    workflows:
+      - Spack build and run
     types:
       - completed
-    # types: [requested]
 
-env:
-  GITHUB_USER: ${{ github.actor }}
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+# on:
+#   workflow_run:
+#     workflows: ["Spack build and run"]
+#     types:
+#       - completed
+#     # types: [requested]
+
+# env:
+#   GITHUB_USER: ${{ github.actor }}
+#   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
 
@@ -23,4 +30,4 @@ jobs:
       - name: Install (CPU)
         run: |
           ls -alh
-          echo "Running triggered"
+          echo "Running triggered: ${{ github.sha }}""

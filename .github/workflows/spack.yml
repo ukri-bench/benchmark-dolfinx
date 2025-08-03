@@ -40,41 +40,41 @@ jobs:
       - name: Add ukri-bench Spack repository and create environment
         run: echo "Triggering workflow"
 
-      # - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # - if: ${{ matrix.backend.device != 'cpu' }}
-      #   name: Install GPU compiler/driver
-      #   uses: ukri-bench/spack-configs/actions/install-gpu-driver@main
-      #   with:
-      #     runtime: ${{ matrix.backend.device }}
+      - if: ${{ matrix.backend.device != 'cpu' }}
+        name: Install GPU compiler/driver
+        uses: ukri-bench/spack-configs/actions/install-gpu-driver@main
+        with:
+          runtime: ${{ matrix.backend.device }}
 
-      # - name: Set up Spack
-      #   uses: spack/setup-spack@v2
-      #   with:
-      #     ref: develop    # Spack version (examples: develop, releases/v0.23)
-      #     color: true     # Force color output (SPACK_COLOR=always)
-      #     path: spack-src # Where to clone Spack      # - name: Get Spack
+      - name: Set up Spack
+        uses: spack/setup-spack@v2
+        with:
+          ref: develop    # Spack version (examples: develop, releases/v0.23)
+          color: true     # Force color output (SPACK_COLOR=always)
+          path: spack-src # Where to clone Spack      # - name: Get Spack
 
-      # - if: ${{ matrix.backend.device == 'cpu' }}
-      #   name: Get Spack config (CPU)
-      #   run: |
-      #     wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack.yml
-      # - if: ${{ matrix.backend.device != 'cpu' }}
-      #   name: Get Spack config (GPU)
-      #   run: |
-      #     wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack-${{ matrix.backend.device }}.yml
+      - if: ${{ matrix.backend.device == 'cpu' }}
+        name: Get Spack config (CPU)
+        run: |
+          wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack.yml
+      - if: ${{ matrix.backend.device != 'cpu' }}
+        name: Get Spack config (GPU)
+        run: |
+          wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack-${{ matrix.backend.device }}.yml
 
-      # - if: ${{ matrix.backend.device == 'rocm' }}
-      #   name: Find compilers (ROCm)
-      #   shell: spack-bash {0}
-      #   run: spack compiler find
+      - if: ${{ matrix.backend.device == 'rocm' }}
+        name: Find compilers (ROCm)
+        shell: spack-bash {0}
+        run: spack compiler find
 
-      # - name: Add ukri-bench Spack repository and create environment
-      #   shell: spack-bash {0}
-      #   run: |
-      #     spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git ./bench_pkgs
-      #     spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
-      #     spack env create . spack.yml
+      - name: Add ukri-bench Spack repository and create environment
+        shell: spack-bash {0}
+        run: |
+          spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git ./bench_pkgs
+          spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
+          spack env create . spack.yml
 
       # - name: Install (CPU)
       #   shell: spack-bash {0}
@@ -98,25 +98,25 @@ jobs:
       #     python src/test_output.py a.json
       #     python src/test_output.py b.json
 
-      # - name: Push (test)
-      #   shell: spack-bash {0}
-      #   # env:
-      #   #   GITHUB_USER: ${{ github.actor }}
-      #   #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   run: |
-      #     spack -e . mirror add --oci-username-variable GITHUB_USER \
-      #       --oci-password-variable GITHUB_TOKEN local-buildcache-img \
-      #       oci://ghcr.io/ukri-bench/spack-buildcache-img
-      #     spack -e . buildcache push --base-image ubuntu:24.04 --update-index \
-      #       --tag ${{ github.sha }} local-buildcache-img
+      - name: Push (test)
+        shell: spack-bash {0}
+        # env:
+        #   GITHUB_USER: ${{ github.actor }}
+        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          spack -e . mirror add --oci-username-variable GITHUB_USER \
+            --oci-password-variable GITHUB_TOKEN local-buildcache-img \
+            oci://ghcr.io/ukri-bench/spack-buildcache-img
+          spack -e . buildcache push --base-image ubuntu:24.04 --update-index \
+            --tag ${{ github.sha }} local-buildcache-img
 
-      # - name: Push packages and update index
-      #   shell: spack-bash {0}
-      #   # env:
-      #   #   GITHUB_USER: ${{ github.actor }}
-      #   #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   run: |
-      #     spack -e . buildcache push --base-image ubuntu:24.04 --only dependencies \
-      #       --with-build-dependencies --update-index local-buildcache
-      #   if: ${{ !cancelled() }}
+      - name: Push packages and update index
+        shell: spack-bash {0}
+        # env:
+        #   GITHUB_USER: ${{ github.actor }}
+        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          spack -e . buildcache push --base-image ubuntu:24.04 --only dependencies \
+            --with-build-dependencies --update-index local-buildcache
+        if: ${{ !cancelled() }}
 
