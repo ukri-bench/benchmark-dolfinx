@@ -5,9 +5,9 @@ name: Spack build and run
 
 on:
   # Uncomment the below 'push' to trigger on push
-  # push:
-  #   branches:
-  #     - "**"
+  push:
+    branches:
+      - "**"
   pull_request:
     branches: [ "main" ]
   merge_group:
@@ -29,8 +29,8 @@ jobs:
         backend:
           [
             { device: cpu, spack_opt: "@main~cuda~rocm" },
-            { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a" },
-            { device: cuda, spack_opt: "@main+cuda cuda_arch=80" },
+            # { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a" },
+            # { device: cuda, spack_opt: "@main+cuda cuda_arch=80" },
           ]
     runs-on: ubuntu-24.04
     permissions:
@@ -95,12 +95,25 @@ jobs:
           python src/test_output.py a.json
           python src/test_output.py b.json
 
+      - name: Push (test)
+        shell: spack-bash {0}
+        # env:
+        #   GITHUB_USER: ${{ github.actor }}
+        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          spack -e . mirror add --oci-username-variable GITHUB_USER \
+            --oci-password-variable GITHUB_TOKEN local-buildcache-img \
+            oci://ghcr.io/ukri-bench/spack-buildcache-img
+          spack -e . buildcache push --base-image ubuntu:24.04 --update-index \
+            --tag ${{ github.sha }} local-buildcache-img
+
       - name: Push packages and update index
         shell: spack-bash {0}
-        env:
-          GITHUB_USER: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # env:
+        #   GITHUB_USER: ${{ github.actor }}
+        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           spack -e . buildcache push --base-image ubuntu:24.04 --only dependencies \
             --with-build-dependencies --update-index local-buildcache
         if: ${{ !cancelled() }}
+
