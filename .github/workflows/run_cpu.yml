@@ -1,0 +1,26 @@
+name: CPU run
+
+on:
+  workflow_run:
+    workflows: ["Spack build and run"]
+    types:
+      - completed
+    # types: [requested]
+
+env:
+  GITHUB_USER: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+
+  run-code:
+    name: Run code
+    runs-on: ubuntu-latest
+    # container: ghcr.io/ukri-bench/spack-buildcache-img${{ github.sha }}
+    container: ubuntu:24.04
+
+    steps:
+      - name: Install (CPU)
+        run: |
+          ls -alh
+          echo "Running triggered"
