@@ -119,6 +119,6 @@ jobs:
 
       - name: Post-process
         run: |
-          la -alh
+          ls -alh
           python src/test_output.py a.json
           python src/test_output.py b.json
