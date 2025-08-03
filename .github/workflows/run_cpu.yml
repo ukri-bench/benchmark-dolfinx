@@ -37,4 +37,4 @@ jobs:
       - name: Install (CPU)
         run: |
           ls -alh
-          echo "Running triggered: ${{ github.sha }}""
+          echo "Running triggered: ${{ github.sha }}"
