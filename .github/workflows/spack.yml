@@ -70,16 +70,9 @@ jobs:
         run: spack compiler find
 
       - name: Add ukri-bench Spack repository and create environment
-        shell: spack-bash {0}
-        run: |
-          spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git ./bench_pkgs
-          spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
-          spack env create . spack.yml
+        run: echo "Triggering workflow"
 
-      - name: Install (CPU)
-        shell: spack-bash {0}
-        run: |
-          spack -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx${{ matrix.backend.spack_opt }}
+      # - uses: actions/checkout@v4
 
       # - if: ${{ matrix.backend.device == 'cpu' }}
       #   name: Run (CPU)
