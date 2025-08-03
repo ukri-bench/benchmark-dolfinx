@@ -95,9 +95,10 @@ jobs:
         if: ${{ !cancelled() }}
 
   run-code:
+    needs: build
     runs-on: ubuntu-24.04
     container:
-      image: ghcr.io/ukri-bench/spack-buildcache-img:a3c92f44aff2b04590dfd12c8dc6ab80d1225925
+      image: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
