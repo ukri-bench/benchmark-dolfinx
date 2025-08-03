@@ -37,9 +37,6 @@ jobs:
       packages: write
 
     steps:
-      - name: Add ukri-bench Spack repository and create environment
-        run: echo "Triggering workflow"
-
       - uses: actions/checkout@v4
 
       - if: ${{ matrix.backend.device != 'cpu' }}
@@ -70,32 +67,19 @@ jobs:
         run: spack compiler find
 
       - name: Add ukri-bench Spack repository and create environment
-        run: echo "Triggering workflow"
-
-      - uses: actions/checkout@v4
-
-      # - if: ${{ matrix.backend.device == 'cpu' }}
-      #   name: Run (CPU)
-      #   shell: spack-bash {0}
-      #   run: |
-      #     spack env activate .
-      #     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-      #     mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
-
-      # - if: ${{ matrix.backend.device == 'cpu' }}
-      #   name: Post-process
-      #   shell: spack-bash {0}
-      #   run: |
-      #     spack env activate .
-      #     spack load py-numpy
-      #     python src/test_output.py a.json
-      #     python src/test_output.py b.json
-
-      - name: Push (test)
         shell: spack-bash {0}
-        # env:
-        #   GITHUB_USER: ${{ github.actor }}
-        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git ./bench_pkgs
+          spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
+          spack env create . spack.yml
+
+      - name: Install benchmark
+        shell: spack-bash {0}
+        run: |
+          spack -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add py-numpy bench-dolfinx${{ matrix.backend.spack_opt }}
+
+      - name: Push test image
+        shell: spack-bash {0}
         run: |
           spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER \
             --oci-password-variable GITHUB_TOKEN local-buildcache-img \
@@ -105,9 +89,6 @@ jobs:
 
       - name: Push packages and update index
         shell: spack-bash {0}
-        # env:
-        #   GITHUB_USER: ${{ github.actor }}
-        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           spack -e . buildcache push --base-image ubuntu:24.04 --only dependencies \
             --with-build-dependencies --update-index local-buildcache
