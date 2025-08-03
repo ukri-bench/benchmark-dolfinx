@@ -6,6 +6,8 @@ on:
       - Spack build and run
     types:
       - completed
+  workflow_dispatch:
+
 
 # on:
 #   workflow_run:
@@ -24,12 +26,12 @@ jobs:
     name: Run code
     runs-on: ubuntu-latest
     # container: ghcr.io/ukri-bench/spack-buildcache-img${{ github.sha }}
-    container: ubuntu:24.04
-    # container:
-    #   image: ghcr.io/owner/image
-    #   credentials:
-    #     username: ${{ github.actor }}
-    #     password: ${{ secrets.github_token }}
+    # container: ubuntu:24.04
+    container:
+      image: ghcr.io/ukri-bench/spack-buildcache-img
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
 
     steps:
       - name: Install (CPU)
