@@ -76,10 +76,10 @@ jobs:
           spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
           spack env create . spack.yml
 
-      # - name: Install (CPU)
-      #   shell: spack-bash {0}
-      #   run: |
-      #     spack -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx${{ matrix.backend.spack_opt }}
+      - name: Install (CPU)
+        shell: spack-bash {0}
+        run: |
+          spack -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx${{ matrix.backend.spack_opt }}
 
       # - if: ${{ matrix.backend.device == 'cpu' }}
       #   name: Run (CPU)
@@ -104,7 +104,7 @@ jobs:
         #   GITHUB_USER: ${{ github.actor }}
         #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          spack -e . mirror add --oci-username-variable GITHUB_USER \
+          spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER \
             --oci-password-variable GITHUB_TOKEN local-buildcache-img \
             oci://ghcr.io/ukri-bench/spack-buildcache-img
           spack -e . buildcache push --base-image ubuntu:24.04 --update-index \
