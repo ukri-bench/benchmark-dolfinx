@@ -24,13 +24,14 @@ env:
 
 jobs:
   build:
+    name: Build benchmark code
     strategy:
       matrix:
         backend:
           [
             { device: cpu, spack_opt: "@main~cuda~rocm" },
-            # { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a" },
-            # { device: cuda, spack_opt: "@main+cuda cuda_arch=80" },
+            { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a" },
+            { device: cuda, spack_opt: "@main+cuda cuda_arch=80" },
           ]
     runs-on: ubuntu-24.04
     permissions:
@@ -95,11 +96,11 @@ jobs:
         if: ${{ !cancelled() }}
 
   run-code:
-    # needs: build
+    name: Run benchmark code
+    needs: build
     runs-on: ubuntu-24.04
-    # image: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
     container:
-      image: ghcr.io/ukri-bench/spack-buildcache-img:8ef74b07cf529771366bfb2fc6f1099914ed6e8a
+      image: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
@@ -114,13 +115,10 @@ jobs:
 
       - name: Run (CPU)
         run: |
-          pwd
           bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
           mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
 
       - name: Post-process
         run: |
-          ls -alh
-          pwd
           python src/test_output.py a.json
           python src/test_output.py b.json
