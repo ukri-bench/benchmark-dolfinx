@@ -38,28 +38,35 @@ container:
 #   # - 'second allowed value'
 
 steps:
-
 - script: echo "Region Code: $(regionCode), Build ID: $(buildId)"
   displayName: 'Print Variables'
 
-# - script: echo $(sha)
-# - script: echo ${{ variables['sha'] }}
-# - script: echo ${{ variables.sha }}
-# - script: echo ${{ parameters.azure-template-parameters }}
-# - script: echo ${{ parameters['sha'] }}
+# steps:
 
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+# - script: echo "Region Code: $(regionCode), Build ID: $(buildId)"
+#   displayName: 'Print Variables'
 
-# - script: |
-#     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-#   displayName: 'Run benchmark (serial)'
+# # - script: echo "Region Code: $(regionCode), Build ID: $(buildId)"
+# #   displayName: 'Print Variables'
 
-# - script: |
-#     mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
-#   displayName: 'Run benchmark (MPI parallel)'
+# # - script: echo $(sha)
+# # - script: echo ${{ variables['sha'] }}
+# # - script: echo ${{ variables.sha }}
+# # - script: echo ${{ parameters.azure-template-parameters }}
+# # - script: echo ${{ parameters['sha'] }}
 
-# - script: |
-#     python src/test_output.py a.json
-#     python src/test_output.py b.json
-#   displayName: 'Post-process'
+# - script: echo Hello, world!
+#   displayName: 'Run a one-line script'
+
+# # - script: |
+# #     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+# #   displayName: 'Run benchmark (serial)'
+
+# # - script: |
+# #     mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+# #   displayName: 'Run benchmark (MPI parallel)'
+
+# # - script: |
+# #     python src/test_output.py a.json
+# #     python src/test_output.py b.json
+# #   displayName: 'Post-process'
