@@ -168,6 +168,7 @@ jobs:
               "BUILD_IDX": "12345"
             }
 
+
     # azure-pipeline-variables: '{ "var1": "DL", "var2": "${{ github.run_id }}" }'
     # azure-template-parameters: '{ "var1": "DL", "var2": "${{ github.run_id }}" }'
 
