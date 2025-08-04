@@ -16,7 +16,6 @@ container:
   image: ghcr.io/ukri-bench/spack-buildcache-img:17f76d16f9e4d633293b837c71fcc54ef93d6e1b
   # options: --hostname container-test --ip 192.168.0.1
 
-
 steps:
 - script: echo Hello, world!
   displayName: 'Run a one-line script'
