@@ -24,22 +24,20 @@ env:
 
 jobs:
   build:
+    name: Build benchmark code
     strategy:
       matrix:
         backend:
           [
             { device: cpu, spack_opt: "@main~cuda~rocm" },
-            # { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a" },
-            # { device: cuda, spack_opt: "@main+cuda cuda_arch=80" },
+            { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a" },
+            { device: cuda, spack_opt: "@main+cuda cuda_arch=80" },
           ]
     runs-on: ubuntu-24.04
     permissions:
       packages: write
 
     steps:
-      - name: Add ukri-bench Spack repository and create environment
-        run: echo "Triggering workflow"
-
       - uses: actions/checkout@v4
 
       - if: ${{ matrix.backend.device != 'cpu' }}
@@ -70,32 +68,20 @@ jobs:
         run: spack compiler find
 
       - name: Add ukri-bench Spack repository and create environment
-        run: echo "Triggering workflow"
-
-      # - uses: actions/checkout@v4
-
-      # - if: ${{ matrix.backend.device == 'cpu' }}
-      #   name: Run (CPU)
-      #   shell: spack-bash {0}
-      #   run: |
-      #     spack env activate .
-      #     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-      #     mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
-
-      # - if: ${{ matrix.backend.device == 'cpu' }}
-      #   name: Post-process
-      #   shell: spack-bash {0}
-      #   run: |
-      #     spack env activate .
-      #     spack load py-numpy
-      #     python src/test_output.py a.json
-      #     python src/test_output.py b.json
-
-      - name: Push (test)
         shell: spack-bash {0}
-        # env:
-        #   GITHUB_USER: ${{ github.actor }}
-        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git ./bench_pkgs
+          spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
+          spack env create . spack.yml
+
+      - name: Install benchmark
+        shell: spack-bash {0}
+        run: |
+          spack -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add py-numpy bench-dolfinx${{ matrix.backend.spack_opt }}
+
+      - name: Push test image
+        if: ${{ matrix.backend.device == 'cpu' }}
+        shell: spack-bash {0}
         run: |
           spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER \
             --oci-password-variable GITHUB_TOKEN local-buildcache-img \
@@ -105,11 +91,76 @@ jobs:
 
       - name: Push packages and update index
         shell: spack-bash {0}
-        # env:
-        #   GITHUB_USER: ${{ github.actor }}
-        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           spack -e . buildcache push --base-image ubuntu:24.04 --only dependencies \
             --with-build-dependencies --update-index local-buildcache
         if: ${{ !cancelled() }}
 
+  run-code:
+    name: Run benchmark code (CPU)
+    needs: build
+    runs-on: ubuntu-latest
+    container: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
+    env:
+      OMPI_ALLOW_RUN_AS_ROOT: 1
+      OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+      PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
+    steps:
+      - uses: actions/checkout@v4  # To get post-processing script
+      - name: Run (CPU)
+        run: |
+          bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+          mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+      - name: Post-process
+        run: |
+          python src/test_output.py a.json
+          python src/test_output.py b.json
+
+  # run-code-aws:
+  #   name: Run benchmark code on AWS CodeBuild
+  #   needs: build
+  #   runs-on:
+  #     - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
+  #       # instance-size:small
+  #   container:
+  #     image: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
+  #     credentials:
+  #       username: ${{ github.actor }}
+  #       password: ${{ secrets.github_token }}
+
+  #   env:
+  #     OMPI_ALLOW_RUN_AS_ROOT: 1
+  #     OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+  #     PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
+
+  #   steps:
+  #     - uses: actions/checkout@v4  # To get post-processing script
+
+  #     - name: Run (CPU)
+  #       run: |
+  #         bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+  #         mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+
+  #     - name: Post-process
+  #       run: |
+  #         python src/test_output.py a.json
+  #         python src/test_output.py b.json
+
+  # run-code-azure:
+  #   name: Run benchmark code on Azure Pipelines
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - uses: Azure/pipelines@v1
+  #     with:
+  #       azure-devops-project-url: 'https://dev.azure.com/ukribench/benchmark-dolfinx'
+  #       azure-pipeline-name: 'ukri-bench.benchmark-dolfinx' # name of the Azure pipeline to be triggered
+  #       azure-devops-token: '${{ secrets.AZURE_DEVOPS_TOKEN }}'
+  #       # azure-pipeline-variables:  '{"variable1": "value1", "variable2": "value2"}' # optional stringified json
+
+  call-workflow-passing-data:
+    name: Run benchmark code (CPU, reusable)
+    needs: build
+    uses: ./.github/workflows/run_cpu.yml
+    with:
+      tag: ${{ github.sha }}
