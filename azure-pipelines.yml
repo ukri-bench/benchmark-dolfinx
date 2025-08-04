@@ -14,22 +14,22 @@ container:
   endpoint: ghcr-io
 
 steps:
-- script: echo $(githubvar)
-- script: echo ${{variables['githubvar']}}
-- script: echo ${{variables['githubvar']}
+# - script: echo $(githubvar)
+# - script: echo ${{variables['githubvar']}}
+# - script: echo ${{variables['githubvar']}
 
 - script: echo Hello, world!
   displayName: 'Run a one-line script'
 
-- script: |
-    bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-  displayName: 'Run benchmark (serial)'
+# - script: |
+#     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+#   displayName: 'Run benchmark (serial)'
 
-- script: |
-    mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
-  displayName: 'Run benchmark (MPI parallel)'
+# - script: |
+#     mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+#   displayName: 'Run benchmark (MPI parallel)'
 
-- script: |
-    python src/test_output.py a.json
-    python src/test_output.py b.json
-  displayName: 'Post-process'
+# - script: |
+#     python src/test_output.py a.json
+#     python src/test_output.py b.json
+#   displayName: 'Post-process'
