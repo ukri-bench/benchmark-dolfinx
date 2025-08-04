@@ -30,6 +30,7 @@ steps:
 - script: echo $(sha)
 - script: echo ${{ variables['sha'] }}
 - script: echo ${{ variables.sha }}
+- script: echo ${{ parameters.sha }}
 # - script: echo ${{ parameters['sha'] }}
 
 - script: echo Hello, world!
