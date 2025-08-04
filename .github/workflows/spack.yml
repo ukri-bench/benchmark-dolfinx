@@ -151,7 +151,8 @@ jobs:
     # needs: build
     runs-on: ubuntu-latest
     steps:
-    - uses: Azure/pipelines@v1.2
+    # - uses: Azure/pipelines@v1.2
+    - uses: tjcorr/pipelines@v1.4
       with:
         azure-devops-project-url: 'https://dev.azure.com/ukribench/benchmark-dolfinx'
         azure-pipeline-name: 'ukri-bench.benchmark-dolfinx' # name of the Azure pipeline to be triggered
