@@ -21,6 +21,7 @@ parameters:
 - name: sha
   # displayName: Pool Image
   type: string
+  default: 'default_param'
 
 # parameters:
 # - name: "sha"
