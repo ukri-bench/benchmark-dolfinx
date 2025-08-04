@@ -144,6 +144,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4  # To get run_cpu.yml
+      - name: Checks
+        run: |
+          pwd
+          ls -alh
+          ls -alh ./.github/workflows/
+
       - name: Run (CPU)
         uses: ./.github/workflows/run_cpu.yml
         with:
