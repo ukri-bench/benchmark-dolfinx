@@ -146,17 +146,17 @@ jobs:
   #         python src/test_output.py a.json
   #         python src/test_output.py b.json
 
-  # run-code-azure:
-  #   name: Run benchmark code on Azure Pipelines
-  #   needs: build
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #   - uses: Azure/pipelines@v1
-  #     with:
-  #       azure-devops-project-url: 'https://dev.azure.com/ukribench/benchmark-dolfinx'
-  #       azure-pipeline-name: 'ukri-bench.benchmark-dolfinx' # name of the Azure pipeline to be triggered
-  #       azure-devops-token: '${{ secrets.AZURE_DEVOPS_TOKEN }}'
-  #       # azure-pipeline-variables:  '{"variable1": "value1", "variable2": "value2"}' # optional stringified json
+  run-code-azure:
+    name: Run benchmark code on Azure Pipelines
+    # needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: Azure/pipelines@v1.2
+      with:
+        azure-devops-project-url: 'https://dev.azure.com/ukribench/benchmark-dolfinx'
+        azure-pipeline-name: 'ukri-bench.benchmark-dolfinx' # name of the Azure pipeline to be triggered
+        azure-devops-token: '${{ secrets.AZURE_DEVOPS_TOKEN }}'
+        # azure-pipeline-variables:  '{"variable1": "value1", "variable2": "value2"}' # optional stringified json
 
   call-workflow-passing-data:
     name: Run benchmark code (CPU, reusable)
