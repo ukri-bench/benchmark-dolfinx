@@ -14,6 +14,15 @@ container:
   # image: ghcr.io/ukri-bench/spack-buildcache-img:17f76d16f9e4d633293b837c71fcc54ef93d6e1b
   # endpoint: ghcr-io
 
+parameters:
+- name: "sha"
+  displayName: "Git sha"# the human-readable name shown in the Azure DevOps UI. optional, default is same as name
+  type: string # see more below. required
+  # default: 'someValue'
+  # values: # including this creates a dropdown box allowing you to select 1 of the options
+  # - 'first allowed value'
+  # - 'second allowed value'
+
 steps:
 - script: echo $(sha)
 - script: echo ${{ variables['sha'] }}
