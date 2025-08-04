@@ -8,45 +8,28 @@ trigger:
 
 pool:
   name: ci-pool
-  # name: ukri-ci-runners
-  # vmImage: ukri-ci-runners
-
 
 container:
   image: ghcr.io/ukri-bench/spack-buildcache-img:17f76d16f9e4d633293b837c71fcc54ef93d6e1b
   endpoint: ghcr-io
-  # options: --hostname container-test --ip 192.168.0.1
 
 steps:
+- script: echo $(githubvar)
+- script: echo ${{variables['githubvar']}}
+- script: echo ${{variables['githubvar']}
+
 - script: echo Hello, world!
   displayName: 'Run a one-line script'
 
-# - script: |
-#     git clone --depth 1 https://github.com/spack/spack.git
-#   displayName: 'Get Spack'
+- script: |
+    bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+  displayName: 'Run benchmark (serial)'
 
-# - script: |
-#     wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
-#     sudo dpkg -i cuda-keyring_1.1-1_all.deb
-#     sudo apt-get update
-#     sudo apt-get -y install cuda-compiler-12-9
-#   displayName: 'Install CUDA'
+- script: |
+    mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+  displayName: 'Run benchmark (MPI parallel)'
 
-# - script: |
-#     . ./spack/share/spec/setup-env.sh
-#     spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git ./bench_pkgs
-#     spack env create .
-#     spack -e. external find cuda
-#   displayName: 'Add Spack mirror'
-
-# - script: |
-#     . ./spack/share/spack/setup-env.sh
-#     spack -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add gmake
-#   displayName: 'Build Add Spack mirror'
-#   # spack -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add bench-dolfinx@main+cuda cuda_arch=80
-
-# - script: |
-#     echo Add other tasks to build, test, and deploy your project.
-#     echo See https://aka.ms/yaml
-#     ls -alh
-#   displayName: 'Run a multi-line script'
+- script: |
+    python src/test_output.py a.json
+    python src/test_output.py b.json
+  displayName: 'Post-process'
