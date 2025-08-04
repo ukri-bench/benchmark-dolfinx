@@ -1,6 +1,7 @@
 # DOLFINx benchmark
 
 [![Spack build and run](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/spack.yml/badge.svg)](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/spack.yml)
+[![Test benchmark](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/ci.yml/badge.svg)](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/ci.yml)
 
 This benchmark tests the performance of an unstructured grid finite
 element solver. It solves the Poisson equation on a mesh of hexahedral
