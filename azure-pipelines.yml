@@ -17,6 +17,11 @@ container:
 variables:
 - name: sha
 
+parameters:
+- name: sha
+  # displayName: Pool Image
+  type: string
+
 # parameters:
 # - name: "sha"
 #   # displayName: "Git sha"  # the human-readable name shown in the Azure DevOps UI. optional, default is same as name
