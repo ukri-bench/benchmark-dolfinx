@@ -50,10 +50,8 @@ variables:
 #     type: string
 #     default: default2
 
-jobs:
-- job: Build
-  steps:
-  - script: echo "var1 $(BRANCH_NAME), $(BUILD_ID)"
+steps:
+- script: echo "var1 $(BRANCH_NAME), $(BUILD_ID)"
 
 # steps:
 # - script: echo "Region Code: $(regionCode), Build ID: $(buildId)"
