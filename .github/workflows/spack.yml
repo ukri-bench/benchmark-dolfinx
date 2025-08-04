@@ -140,17 +140,12 @@ jobs:
 
   call-workflow-passing-data:
     name: Run benchmark code (CPU, reusable)
-    # needs: build
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4  # To get run_cpu.yml
-      - name: Checks
-        run: |
-          pwd
-          ls -alh
-          ls -alh ./.github/workflows/
+    needs: build
+    uses: ./.github/workflows/run_cpu.yml
+    with:
+      tag: ${{ github.sha }}
 
-      - name: Run (CPU)
-        uses: ./.github/workflows/run_cpu.yml
-        with:
-          tag: ${{ github.sha }}
+    #  name: Run (CPU)
+    #   uses: ./.github/workflows/run_cpu.yml
+    #   with:
+    #     tag: ${{ github.sha }}
