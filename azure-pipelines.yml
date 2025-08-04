@@ -6,13 +6,20 @@
 # trigger:
 # - none
 
-parameters:
-- name: BRANCH_NAMEX
-  type: string
-  default: unset0
-- name: BUILD_IDX
-  type: string
-  default: unset1
+# parameters:
+# - name: BRANCH_NAMEX
+#   type: string
+#   default: none
+# - name: BUILD_IDX
+#   type: string
+#   default: none
+
+# variables:
+#   - name: BRANCH_NAME
+#     value: ''
+#   - name: BUILD_ID
+#     value: ''
+
 
 pool:
   name: ci-pool
@@ -45,11 +52,6 @@ container:
 #   # - 'first allowed value'
 #   # - 'second allowed value'
 
-variables:
-  - name: BRANCH_NAME
-    value: ''
-  - name: BUILD_ID
-    value: ''
 # parameters:
 #   - name: var1
 #     type: string
@@ -60,7 +62,7 @@ variables:
 
 
 steps:
-- script: echo "var1 ${{ parameters.BRANCH_NAMEX }}, $(BUILD_ID)"
+- script: echo "var1 $(sha)"
   displayName: 'Print Variables'
 
 # steps:

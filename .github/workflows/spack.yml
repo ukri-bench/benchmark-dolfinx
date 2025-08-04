@@ -159,7 +159,7 @@ jobs:
         azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
         azure-pipeline-variables: |
             {
-              "BRANCH_NAME": "main",
+              "sha": "test-sha",
               "BUILD_ID": "12345"
             }
         azure-template-parameters: |
