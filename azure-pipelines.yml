@@ -16,7 +16,6 @@ container:
 steps:
 - script: echo $(githubvar)
 - script: echo ${{variables['githubvar']}}
-- script: echo ${{variables['githubvar']}
 
 - script: echo Hello, world!
   displayName: 'Run a one-line script'
