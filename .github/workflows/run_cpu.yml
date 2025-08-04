@@ -1,41 +1,38 @@
 name: CPU run
 
 on:
-  # workflow_run:
-  #   workflows:
-  #     - Spack build and run
-  #   types:
-  #     - completed
-  workflow_dispatch:
+  workflow_call:
+    # inputs:
+    #   tag:
+    #     required: true
+    #     type: string
+    # secrets:
+    #   token:
+    #     required: true
 
-
-# on:
-#   workflow_run:
-#     workflows: ["Spack build and run"]
-#     types:
-#       - completed
-#     # types: [requested]
-
-# env:
-#   GITHUB_USER: ${{ github.actor }}
-#   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+env:
+  GITHUB_USER: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
 
   run-code:
     name: Run code
     runs-on: ubuntu-latest
-    # container: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
-    # container: ubuntu:24.04
-    container:
-      image: ghcr.io/ukri-bench/spack-buildcache-img:a3c92f44aff2b04590dfd12c8dc6ab80d1225925
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
+    container: ghcr.io/ukri-bench/spack-buildcache-img:${{ inputs.tag }}
+    # container:
+    #   image: ghcr.io/ukri-bench/spack-buildcache-img:${{ inputs.tag }}
+    #   credentials:
+    #     username: ${{ github.actor }}
+    #     password: ${{ secrets.github_token }}
+
+    env:
+      OMPI_ALLOW_RUN_AS_ROOT: 1
+      OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+      PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
 
     steps:
       - name: Install (CPU)
-        if: ${{ github.event.workflow_run.conclusion == 'success' }}
         run: |
           ls -alh
           echo "Running triggered (1): ${{ github.sha }}"
