@@ -14,11 +14,11 @@ container:
   # image: ghcr.io/ukri-bench/spack-buildcache-img:17f76d16f9e4d633293b837c71fcc54ef93d6e1b
   # endpoint: ghcr-io
 
-variables:
-  string: string # Name/value pairs
+# variables:
+#   string: string # Name/value pairs
 
-parameters:
-  - name: azure-template-parameters
+# parameters:
+#   - name: azure-template-parameters
 
 # variables:
 # - name: sha
@@ -38,10 +38,14 @@ parameters:
 #   # - 'second allowed value'
 
 steps:
-- script: echo $(sha)
-- script: echo ${{ variables['sha'] }}
-- script: echo ${{ variables.sha }}
-- script: echo ${{ parameters.azure-template-parameters }}
+
+- script: echo "Region Code: $(regionCode), Build ID: $(buildId)"
+  displayName: 'Print Variables'
+
+# - script: echo $(sha)
+# - script: echo ${{ variables['sha'] }}
+# - script: echo ${{ variables.sha }}
+# - script: echo ${{ parameters.azure-template-parameters }}
 # - script: echo ${{ parameters['sha'] }}
 
 - script: echo Hello, world!
