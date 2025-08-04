@@ -96,44 +96,43 @@ jobs:
             --with-build-dependencies --update-index local-buildcache
         if: ${{ !cancelled() }}
 
-  # run-code:
-  #   name: Run benchmark code
-  #   needs: build
-  #   runs-on:
-  #     - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
-  #       # instance-size:small
-  #   container:
-  #     image: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
-  #     credentials:
-  #       username: ${{ github.actor }}
-  #       password: ${{ secrets.github_token }}
+  run-code:
+    name: Run benchmark code
+    needs: build
+    runs-on:
+      - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
+        # instance-size:small
+    container:
+      image: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
 
-  #   env:
-  #     OMPI_ALLOW_RUN_AS_ROOT: 1
-  #     OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
-  #     PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
+    env:
+      OMPI_ALLOW_RUN_AS_ROOT: 1
+      OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+      PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
 
-  #   steps:
-  #     - uses: actions/checkout@v4  # To get post-processing script
+    steps:
+      - uses: actions/checkout@v4  # To get post-processing script
 
-  #     - name: Run (CPU)
-  #       run: |
-  #         bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-  #         mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+      - name: Run (CPU)
+        run: |
+          bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+          mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
 
-  #     - name: Post-process
-  #       run: |
-  #         python src/test_output.py a.json
-  #         python src/test_output.py b.json
+      - name: Post-process
+        run: |
+          python src/test_output.py a.json
+          python src/test_output.py b.json
 
   call-workflow-passing-data:
     name: Run benchmark code (CPU, reusable)
     needs: build
-    # permissions:
-    #   contents: read
-    #   pull-requests: write
-    uses: ./.github/workflows/run_cpu.yml
-    with:
-      tag: ${{ github.sha }}
-    # secrets:
-    #   token: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4  # To get run_cpu.yml
+      - name: Run (CPU)
+        uses: ./.github/workflows/run_cpu.yml
+        with:
+          tag: ${{ github.sha }}
