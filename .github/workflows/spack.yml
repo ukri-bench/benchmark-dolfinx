@@ -97,18 +97,16 @@ jobs:
         if: ${{ !cancelled() }}
 
   run-code:
-    name: Run benchmark code on AWS CodeBuild
+    name: Run benchmark code (CPU)
     needs: build
     runs-on: ubuntu-latest
     container: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
-
     env:
       OMPI_ALLOW_RUN_AS_ROOT: 1
       OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
       PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
-
     steps:
-      # - uses: actions/checkout@v4  # To get post-processing script
+      - uses: actions/checkout@v4  # To get post-processing script
       - name: Run (CPU)
         run: |
           bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
