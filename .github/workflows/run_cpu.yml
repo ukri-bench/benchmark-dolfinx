@@ -1,11 +1,11 @@
 name: CPU run
 
 on:
-  workflow_run:
-    workflows:
-      - Spack build and run
-    types:
-      - completed
+  # workflow_run:
+  #   workflows:
+  #     - Spack build and run
+  #   types:
+  #     - completed
   workflow_dispatch:
 
 
