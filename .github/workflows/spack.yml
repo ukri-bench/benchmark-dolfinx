@@ -140,12 +140,7 @@ jobs:
 
   call-workflow-passing-data:
     name: Run benchmark code (CPU, reusable)
-    needs: build
+    # needs: build
     uses: ./.github/workflows/run_cpu.yml
     with:
       tag: ${{ github.sha }}
-
-    #  name: Run (CPU)
-    #   uses: ./.github/workflows/run_cpu.yml
-    #   with:
-    #     tag: ${{ github.sha }}
