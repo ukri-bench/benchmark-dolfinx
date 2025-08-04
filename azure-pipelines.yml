@@ -73,7 +73,7 @@ steps:
 - script: echo ${{ variables['sha'] }}
 - script: echo ${{ variables.sha }}
 # - script: echo ${{ parameters }}
-- script: echo ${{ parameters.sha }}
+# - script: echo ${{ parameters.sha }}
 
 # steps:
 # - script: echo "Region Code: $(regionCode), Build ID: $(buildId)"
