@@ -10,9 +10,9 @@ on:
     #   token:
     #     required: true
 
-env:
-  GITHUB_USER: ${{ github.actor }}
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+# env:
+#   GITHUB_USER: ${{ github.actor }}
+#   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
 
