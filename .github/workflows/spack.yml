@@ -132,8 +132,8 @@ jobs:
     # permissions:
     #   contents: read
     #   pull-requests: write
-    uses: ukri-bench/benchmark-dolfinx/.github/workflows/run_cpu.yml@${GITHUB_REF_NAME}
+    uses: ./.github/workflows/run_cpu.yml
     with:
-      tag: .github/labeler.yml
+      tag: ${{ github.sha }}
     # secrets:
     #   token: ${{ secrets.GITHUB_TOKEN }}
