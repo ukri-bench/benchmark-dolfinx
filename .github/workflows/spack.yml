@@ -157,8 +157,13 @@ jobs:
         azure-devops-project-url: 'https://dev.azure.com/ukribench/benchmark-dolfinx'
         azure-pipeline-name: 'ukri-bench.benchmark-dolfinx' # name of the Azure pipeline to be triggered
         azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
-        azure-pipeline-variables: '{ "var1": "DL", "var2": "${{ github.run_id }}" }'
-        azure-template-parameters: '{ "var1": "DL", "var2": "${{ github.run_id }}" }'
+        azure-pipeline-variables: |
+            {
+              "BRANCH_NAME": "main",
+              "BUILD_ID": "12345"
+            }
+    # azure-pipeline-variables: '{ "var1": "DL", "var2": "${{ github.run_id }}" }'
+    # azure-template-parameters: '{ "var1": "DL", "var2": "${{ github.run_id }}" }'
 
     # azure-pipeline-variables:  '{"sha": "shadata"}' # optional stringified json
     # azure-template-parameters: '{"sha": "shadata"}'

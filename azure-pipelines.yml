@@ -37,18 +37,23 @@ container:
 #   # - 'first allowed value'
 #   # - 'second allowed value'
 
-parameters:
-  - name: var1
-    type: string
-    default: default1
-  - name: var2
-    type: string
-    default: default2
+variables:
+  - name: BRANCH_NAME
+    value: ''
+  - name: BUILD_ID
+    value: ''
+# parameters:
+#   - name: var1
+#     type: string
+#     default: default1
+#   - name: var2
+#     type: string
+#     default: default2
 
 jobs:
 - job: Build
   steps:
-  - script: echo "var1: ${{ parameters.var1 }}, var2: ${{ parameters.var2 }}"
+  - script: echo "var1 $(BRANCH_NAME), $(BUILD_ID)"
 
 # steps:
 # - script: echo "Region Code: $(regionCode), Build ID: $(buildId)"
