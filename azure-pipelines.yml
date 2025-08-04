@@ -21,17 +21,17 @@
 #     value: ''
 
 
-parameters:
-- name: sha
-  displayName: 'Use experimental build process?'
-  type: string
-  default: 'abc'
+# parameters:
+# - name: sha
+#   displayName: 'Use experimental build process?'
+#   type: string
+#   default: 'abc'
 
 pool:
   name: ci-pool
 
-container:
-  image: ubuntu:24.04
+# container:
+#   image: ubuntu:24.04
   # image: ghcr.io/ukri-bench/spack-buildcache-img:17f76d16f9e4d633293b837c71fcc54ef93d6e1b
   # endpoint: ghcr-io
 
