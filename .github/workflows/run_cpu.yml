@@ -1,0 +1,27 @@
+name: CPU run
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+jobs:
+  run-code:
+    name: Run code
+    runs-on: ubuntu-latest
+    container: ghcr.io/ukri-bench/spack-buildcache-img:${{ inputs.tag }}
+    env:
+      OMPI_ALLOW_RUN_AS_ROOT: 1
+      OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+      PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
+    steps:
+      - uses: actions/checkout@v4  # To get post-processing script
+      - name: Run (CPU)
+        run: |
+          bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+          mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+      - name: Post-process
+        run: |
+          python src/test_output.py a.json
+          python src/test_output.py b.json
