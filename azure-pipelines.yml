@@ -6,6 +6,14 @@
 # trigger:
 # - none
 
+parameters:
+- name: BRANCH_NAMEX
+  type: string
+  default: unset0
+- name: BUILD_IDX
+  type: string
+  default: unset1
+
 pool:
   name: ci-pool
 
@@ -50,8 +58,10 @@ variables:
 #     type: string
 #     default: default2
 
+
 steps:
-- script: echo "var1 $(BRANCH_NAME), $(BUILD_ID)"
+- script: echo "var1 ${{ parameters.BRANCH_NAMEX }}, $(BUILD_ID)"
+  displayName: 'Print Variables'
 
 # steps:
 # - script: echo "Region Code: $(regionCode), Build ID: $(buildId)"

@@ -162,6 +162,12 @@ jobs:
               "BRANCH_NAME": "main",
               "BUILD_ID": "12345"
             }
+        azure-template-parameters: |
+            {
+              "BRANCH_NAMEX": "main",
+              "BUILD_IDX": "12345"
+            }
+
     # azure-pipeline-variables: '{ "var1": "DL", "var2": "${{ github.run_id }}" }'
     # azure-template-parameters: '{ "var1": "DL", "var2": "${{ github.run_id }}" }'
 
