@@ -17,6 +17,9 @@ container:
 variables:
   string: string # Name/value pairs
 
+parameters:
+  - name: azure-template-parameters
+
 # variables:
 # - name: sha
 
@@ -38,7 +41,7 @@ steps:
 - script: echo $(sha)
 - script: echo ${{ variables['sha'] }}
 - script: echo ${{ variables.sha }}
-# - script: echo ${{ parameters.sha }}
+- script: echo ${{ parameters.azure-template-parameters }}
 # - script: echo ${{ parameters['sha'] }}
 
 - script: echo Hello, world!
