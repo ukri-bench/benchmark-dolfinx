@@ -21,6 +21,12 @@
 #     value: ''
 
 
+parameters:
+- name: sha
+  displayName: 'Use experimental build process?'
+  type: string
+  default: 'abc'
+
 pool:
   name: ci-pool
 
@@ -66,6 +72,8 @@ steps:
   displayName: 'Print Variables'
 - script: echo ${{ variables['sha'] }}
 - script: echo ${{ variables.sha }}
+- script: echo ${{ parameters }}
+- script: echo ${{ parameters.sha }}
 
 # steps:
 # - script: echo "Region Code: $(regionCode), Build ID: $(buildId)"
