@@ -97,13 +97,14 @@ jobs:
 
   run-code:
     name: Run benchmark code
-    needs: build
+    # needs: build
     # runs-on: ubuntu-24.04
     runs-on:
       - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
         # instance-size:small
     container:
-      image: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
+      # image: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
+      image: ghcr.io/ukri-bench/spack-buildcache-img:6f75070ef2ce799eb9098b0132ca7d8bd3c0bf11
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
