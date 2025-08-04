@@ -72,7 +72,7 @@ steps:
   displayName: 'Print Variables'
 - script: echo ${{ variables['sha'] }}
 - script: echo ${{ variables.sha }}
-- script: echo ${{ parameters }}
+# - script: echo ${{ parameters }}
 - script: echo ${{ parameters.sha }}
 
 # steps:
