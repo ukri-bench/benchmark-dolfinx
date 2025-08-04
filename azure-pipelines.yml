@@ -37,9 +37,22 @@ container:
 #   # - 'first allowed value'
 #   # - 'second allowed value'
 
-steps:
-- script: echo "Region Code: $(regionCode), Build ID: $(buildId)"
-  displayName: 'Print Variables'
+parameters:
+  - name: var1
+    type: string
+    default: default1
+  - name: var2
+    type: string
+    default: default2
+
+jobs:
+- job: Build
+  steps:
+  - script: echo "var1: ${{ parameters.var1 }}, var2: ${{ parameters.var2 }}"
+
+# steps:
+# - script: echo "Region Code: $(regionCode), Build ID: $(buildId)"
+#   displayName: 'Print Variables'
 
 # steps:
 
