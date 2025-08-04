@@ -164,7 +164,7 @@ jobs:
             }
         azure-template-parameters: |
             {
-              "BRANCH_NAMEX": "main",
+              "sha": "main",
               "BUILD_IDX": "12345"
             }
 

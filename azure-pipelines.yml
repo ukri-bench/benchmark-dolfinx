@@ -64,6 +64,8 @@ container:
 steps:
 - script: echo "var1 $(sha)"
   displayName: 'Print Variables'
+- script: echo ${{ variables['sha'] }}
+- script: echo ${{ variables.sha }}
 
 # steps:
 # - script: echo "Region Code: $(regionCode), Build ID: $(buildId)"
