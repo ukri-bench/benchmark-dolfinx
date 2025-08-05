@@ -163,7 +163,7 @@ jobs:
       - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
         # instance-size:gpu1.small
     container:
-      image: ghcr.io/ukri-bench/spack-buildcache-gpu:536ab5d38f04de69e6b5721b67a0d310e380c1ad
+      image: ghcr.io/ukri-bench/spack-buildcache-cuda:67f8a8948b4af27da0af41150a59fe056337519c
       # image: ghcr.io/ukri-bench/spack-buildcache-gpu:${{ github.sha }}
       credentials:
         username: ${{ github.actor }}
