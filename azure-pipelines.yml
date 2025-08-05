@@ -21,11 +21,11 @@
 #     value: ''
 
 
-# parameters:
-# - name: sha
-#   displayName: 'Use experimental build process?'
-#   type: string
-#   default: 'abc'
+parameters:
+- name: SHA
+  displayName: 'Use experimental build process?'
+  type: string
+  default: 'abc'
 
 pool:
   name: ci-pool
