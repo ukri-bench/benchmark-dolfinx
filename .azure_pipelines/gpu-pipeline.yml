@@ -27,11 +27,6 @@ steps:
   displayName: 'Run a multi-line script'
 
 - script: |
-    # sudo apt -y update
-    # sudo apt -y install python3-setuptools python3-wheel
-    # sudo usermod -a -G render,video $LOGNAME
-    # sudo apt -y install "linux-headers-$(uname -r)" "linux-modules-extra-$(uname -r)"
-    # sudo lspci -d 1002:7461
     sudo apt update
     sudo apt install "linux-headers-$(uname -r)" "linux-modules-extra-$(uname -r)"
     sudo apt install python3-setuptools python3-wheel
@@ -40,5 +35,17 @@ steps:
     sudo apt install ./amdgpu-install_6.3.60303-1_all.deb
     sudo apt update
     sudo apt install amdgpu-dkms rocm
-
   displayName: 'Install ROCm drivers'
+
+- script: |
+    lsmod | grep amdgpu
+     amd-smi monitor
+  displayName: 'Check for GPU'
+
+
+
+    # sudo apt -y update
+    # sudo apt -y install python3-setuptools python3-wheel
+    # sudo usermod -a -G render,video $LOGNAME
+    # sudo apt -y install "linux-headers-$(uname -r)" "linux-modules-extra-$(uname -r)"
+    # sudo lspci -d 1002:7461
