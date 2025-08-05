@@ -79,7 +79,7 @@ jobs:
         run: |
           spack -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add py-numpy bench-dolfinx${{ matrix.backend.spack_opt }}
 
-      - name: Push test image
+      - name: Push test image (CPU)
         if: ${{ matrix.backend.device == 'cpu' }}
         shell: spack-bash {0}
         run: |
@@ -88,6 +88,16 @@ jobs:
             oci://ghcr.io/ukri-bench/spack-buildcache-img
           spack -e . buildcache push --base-image ubuntu:24.04 --update-index \
             --tag ${{ github.sha }} local-buildcache-img
+
+      - name: Push test image (CUDA)
+        if: ${{ matrix.backend.device == 'cuda' }}
+        shell: spack-bash {0}
+        run: |
+          spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER \
+            --oci-password-variable GITHUB_TOKEN local-buildcache-cuda \
+            oci://ghcr.io/ukri-bench/spack-buildcache-cuda
+          spack -e . buildcache push --base-image ubuntu:24.04 --update-index \
+            --tag ${{ github.sha }} local-buildcache-cuda
 
       - name: Push packages and update index
         shell: spack-bash {0}
@@ -146,22 +156,53 @@ jobs:
   #         python src/test_output.py a.json
   #         python src/test_output.py b.json
 
-  run-code-azure:
-    name: Run benchmark code on Azure Pipelines
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    # - uses: Azure/pipelines@v1.2
-    - uses: tjcorr/pipelines@v1.4
-      with:
-        azure-devops-project-url: 'https://dev.azure.com/ukribench/benchmark-dolfinx'
-        azure-pipeline-name: 'ukri-bench.benchmark-dolfinx'  # name of the Azure pipeline to be triggered
-        azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
-        azure-pipeline-variables: '{"SHA": "${{ github.sha }}"}'
+  run-code-aws:
+    name: Run benchmark code on AWS GPU
+    # needs: build
+    runs-on:
+      - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
+        instance-size:gpu1.small
+    # container:
+    #   image: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
+    #   credentials:
+    #     username: ${{ github.actor }}
+    #     password: ${{ secrets.github_token }}
 
-  run-cpu-reuable:
-    name: Run benchmark code (CPU, reusable)
-    needs: build
-    uses: ./.github/workflows/run_cpu.yml
-    with:
-      tag: ${{ github.sha }}
+    # env:
+    #   OMPI_ALLOW_RUN_AS_ROOT: 1
+    #   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+    #   PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
+
+    steps:
+      - uses: actions/checkout@v4  # To get post-processing script
+
+      - name: Run (CPU)
+        run:  nvidia-smi
+      #     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+      #     mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+
+      # - name: Post-process
+      #   run: |
+      #     python src/test_output.py a.json
+      #     python src/test_output.py b.json
+
+
+  # run-code-azure:
+  #   name: Run benchmark code on Azure Pipelines
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   # - uses: Azure/pipelines@v1.2
+  #   - uses: tjcorr/pipelines@v1.4
+  #     with:
+  #       azure-devops-project-url: 'https://dev.azure.com/ukribench/benchmark-dolfinx'
+  #       azure-pipeline-name: 'ukri-bench.benchmark-dolfinx'  # name of the Azure pipeline to be triggered
+  #       azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
+  #       azure-pipeline-variables: '{"SHA": "${{ github.sha }}"}'
+
+  # run-cpu-reuable:
+  #   name: Run benchmark code (CPU, reusable)
+  #   needs: build
+  #   uses: ./.github/workflows/run_cpu.yml
+  #   with:
+  #     tag: ${{ github.sha }}
