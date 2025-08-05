@@ -66,9 +66,8 @@ pool:
 #     type: string
 #     default: default2
 
-
 steps:
-- script: echo "var1 $(sha), $(SHA),"
+- bash: echo "var1 $(SHAVAL)"
   displayName: 'Print Variables'
 - script: echo ${{ variables['sha'] }}
 - script: echo ${{ variables.sha }}
