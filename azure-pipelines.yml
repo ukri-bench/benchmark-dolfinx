@@ -11,7 +11,11 @@ pool:
 
 parameters:
 - name: SHAX
-  displayName: 'Use experimental build process?'
+  displayName: 'Test Param'
+  type: string
+  default: 'noset'
+- name: SHAX2
+  displayName: 'Test Param2'
   type: string
   default: 'noset'
 
@@ -27,6 +31,9 @@ steps:
 - script: |
     echo parameters.SHAX - ${{parameters.SHAX}}
   displayName: 'Params'
+- script: |
+    echo parameters.SHAX2 - ${{parameters.SHAX2}}
+  displayName: 'Params2'
 
 
 # - script: echo "Region Code: $(regionCode), Build ID: $(buildId)"
