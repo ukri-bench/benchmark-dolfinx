@@ -157,8 +157,8 @@ jobs:
         azure-devops-project-url: 'https://dev.azure.com/ukribench/benchmark-dolfinx'
         azure-pipeline-name: 'ukri-bench.benchmark-dolfinx' # name of the Azure pipeline to be triggered
         azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
-        azure-pipeline-variables: '{"SHAVAL": "test-sha"}'
-        azure-template-parameters: '{"SHAX": "DL"}'
+        azure-pipeline-variables: '{"SHAVAL": "test-sha", "SHAVAL2": "test-sha2"}'
+        azure-template-parameters: '{"SHAX": "DL", "SHAX2": "DL2"}'
 
     # azure-template-parameters: |
     #     {
