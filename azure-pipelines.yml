@@ -22,10 +22,10 @@
 
 
 parameters:
-- name: SHA
+- name: SHAX
   displayName: 'Use experimental build process?'
   type: string
-  default: 'abc'
+  default: 'noset'
 
 pool:
   name: ci-pool
@@ -69,10 +69,13 @@ pool:
 steps:
 - bash: echo "var1 $(SHAVAL)"
   displayName: 'Print Variables'
-- script: echo ${{ variables['sha'] }}
-- script: echo ${{ variables.sha }}
 - script: echo ${{ variables['SHA'] }}
 - script: echo ${{ variables.SHA }}
+
+- script: |
+    echo parameters.SHAX - ${{parameters.SHAX}}
+  displayName: 'Params'
+
 # - script: echo ${{ parameters }}
 # - script: echo ${{ parameters.sha }}
 
