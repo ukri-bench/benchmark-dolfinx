@@ -68,10 +68,12 @@ pool:
 
 
 steps:
-- script: echo "var1 $(sha)"
+- script: echo "var1 $(sha), $(SHA),"
   displayName: 'Print Variables'
 - script: echo ${{ variables['sha'] }}
 - script: echo ${{ variables.sha }}
+- script: echo ${{ variables['SHA'] }}
+- script: echo ${{ variables.SHA }}
 # - script: echo ${{ parameters }}
 # - script: echo ${{ parameters.sha }}
 
