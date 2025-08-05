@@ -12,7 +12,7 @@ pool:
 parameters:
 - name: SHAX
   displayName: 'Use experimental build process?'
-  type: string
+  type: object
   default: 'noset'
 
 # container:
