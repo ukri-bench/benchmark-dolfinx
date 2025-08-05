@@ -159,13 +159,13 @@ jobs:
 
   run-code-aws:
     name: Run benchmark code on AWS GPU
-    # needs: build
+    needs: build
     runs-on:
       - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
         # instance-size:gpu1.small
     container:
-      image: ghcr.io/ukri-bench/spack-buildcache-cuda:67f8a8948b4af27da0af41150a59fe056337519c
-    #   image: ghcr.io/ukri-bench/spack-buildcache-gpu:${{ github.sha }}
+      # image: ghcr.io/ukri-bench/spack-buildcache-cuda:67f8a8948b4af27da0af41150a59fe056337519c
+      image: ghcr.io/ukri-bench/spack-buildcache-gpu:${{ github.sha }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
