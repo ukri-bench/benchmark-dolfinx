@@ -13,7 +13,9 @@ trigger:
 
 
 pool:
-  vmImage: ubuntu-latest
+  name: ci-runner-gpu
+# pool:
+#   vmImage: ubuntu-latest
 
 steps:
 - script: echo Hello, world!
