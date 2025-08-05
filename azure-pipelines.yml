@@ -10,17 +10,17 @@ pool:
   name: ci-pool
 
 parameters:
-- name: SHAX
-  displayName: 'Test Param'
+- name: SHA
+  displayName: 'Image tag'
   type: string
-  default: 'noset'
+  default: ''
 - name: SHAX2
   displayName: 'Test Param2'
   type: string
   default: 'noset'
 
-# container:
-#   image: ubuntu:24.04
+container:
+  image: ubuntu:24.04
   # image: ghcr.io/ukri-bench/spack-buildcache-img:17f76d16f9e4d633293b837c71fcc54ef93d6e1b
   # endpoint: ghcr-io
 
@@ -29,7 +29,7 @@ steps:
 - bash: echo "var1 $(SHAVAL)"
   displayName: 'Print Variables'
 - script: |
-    echo parameters.SHAX - ${{parameters.SHAX}}
+    echo parameters.SHA - ${{parameters.SHA}}
   displayName: 'Params'
 - script: |
     echo parameters.SHAX2 - ${{parameters.SHAX2}}
