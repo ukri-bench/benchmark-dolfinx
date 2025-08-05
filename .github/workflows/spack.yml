@@ -178,9 +178,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4  # To get post-processing script
 
-      - name: Check CUDA
-        run: |
-          nvcc --version
+      # - name: Check CUDA
+      #   run: |
+      #     nvcc --version
 
       # - uses: actions/checkout@v4  # To get post-processing script
 
