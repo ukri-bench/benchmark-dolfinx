@@ -1,13 +1,5 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 # trigger:
 # - none
-
-pool:
-  name: ci-pool
 
 parameters:
 - name: SHA
@@ -19,10 +11,11 @@ parameters:
   type: string
   default: 'noset'
 
+pool:
+  name: ci-pool
+
 container:
-  # image: ubuntu:24.04
-  # image: ghcr.io/ukri-bench/spack-buildcache-img:${{parameters.SHA}}
-  image: ghcr.io/ukri-bench/spack-buildcache-img:$(SHAVAL)
+  image: ghcr.io/ukri-bench/spack-buildcache-img:$(SHA)
   endpoint: ghcr-io
 
 steps:
@@ -36,31 +29,13 @@ steps:
     echo parameters.SHAX2 - ${{parameters.SHAX2}}
   displayName: 'Params2'
 
-
-# - script: echo "Region Code: $(regionCode), Build ID: $(buildId)"
-#   displayName: 'Print Variables'
-
-# # - script: echo "Region Code: $(regionCode), Build ID: $(buildId)"
-# #   displayName: 'Print Variables'
-
-# # - script: echo $(sha)
-# # - script: echo ${{ variables['sha'] }}
-# # - script: echo ${{ variables.sha }}
-# # - script: echo ${{ parameters.azure-template-parameters }}
-# # - script: echo ${{ parameters['sha'] }}
-
-# - script: echo Hello, world!
-#   displayName: 'Run a one-line script'
-
-# # - script: |
-# #     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-# #   displayName: 'Run benchmark (serial)'
-
-# # - script: |
-# #     mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
-# #   displayName: 'Run benchmark (MPI parallel)'
-
-# # - script: |
-# #     python src/test_output.py a.json
-# #     python src/test_output.py b.json
-# #   displayName: 'Post-process'
+- script: |
+    bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+  displayName: Run (serial)
+- script: |
+    mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+  displayName: Run (parallel)
+- script: |
+    python src/test_output.py a.json
+    python src/test_output.py b.json
+  displayName: Post-process
