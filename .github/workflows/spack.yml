@@ -33,7 +33,7 @@ jobs:
             { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a" },
             { device: cuda, spack_opt: "@main+cuda cuda_arch=80" },
           ]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     permissions:
       packages: write
 
@@ -97,7 +97,7 @@ jobs:
           spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER \
             --oci-password-variable GITHUB_TOKEN local-buildcache-cuda \
             oci://ghcr.io/ukri-bench/spack-buildcache-cuda
-          spack -e . buildcache push --base-image ubuntu:24.04 --update-index \
+          spack -e . buildcache push --base-image ubuntu:24.02 --update-index \
             --tag ${{ github.sha }} local-buildcache-cuda
 
       - name: Push packages and update index
