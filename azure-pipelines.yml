@@ -1,40 +1,18 @@
 trigger:
 - none
 
-parameters:
-- name: SHA
-  displayName: 'Image tag'
-  type: string
-  default: ''
-- name: SHAX2
-  displayName: 'Test Param2'
-  type: string
-  default: 'noset'
-
-
 pool:
   name: ci-pool
 
 container:
-  image: ghcr.io/ukri-bench/spack-buildcache-img:$(SHA)
+  image: ghcr.io/ukri-bench/spack-buildcache-img:$(SHA)  # Note: SHA variable must be set in GUI
   endpoint: ghcr-io
   env:
     OMPI_ALLOW_RUN_AS_ROOT: 1
     OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
     PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
 
-
 steps:
-
-- bash: echo "var1 $(SHAVAL)"
-  displayName: 'Print Variables'
-- script: |
-    echo parameters.SHA - ${{parameters.SHA}}
-  displayName: 'Params'
-- script: |
-    echo parameters.SHAX2 - ${{parameters.SHAX2}}
-  displayName: 'Params2'
-
 - script: |
     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
   displayName: Run (serial)
