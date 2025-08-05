@@ -148,17 +148,18 @@ jobs:
 
   run-code-azure:
     name: Run benchmark code on Azure Pipelines
-    # needs: build
+    needs: build
     runs-on: ubuntu-latest
     steps:
-    - uses: Azure/pipelines@v1.2
+    # - uses: Azure/pipelines@v1.2
+    - uses: tjcorr/pipelines@v1.4
       with:
         azure-devops-project-url: 'https://dev.azure.com/ukribench/benchmark-dolfinx'
-        azure-pipeline-name: 'ukri-bench.benchmark-dolfinx' # name of the Azure pipeline to be triggered
-        azure-devops-token: '${{ secrets.AZURE_DEVOPS_TOKEN }}'
-        # azure-pipeline-variables:  '{"variable1": "value1", "variable2": "value2"}' # optional stringified json
+        azure-pipeline-name: 'ukri-bench.benchmark-dolfinx'  # name of the Azure pipeline to be triggered
+        azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
+        azure-pipeline-variables: '{"SHA": "${{ github.sha }}"}'
 
-  call-workflow-passing-data:
+  run-cpu-reuable:
     name: Run benchmark code (CPU, reusable)
     needs: build
     uses: ./.github/workflows/run_cpu.yml
