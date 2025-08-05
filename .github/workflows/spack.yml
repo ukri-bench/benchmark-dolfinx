@@ -148,7 +148,7 @@ jobs:
 
   run-code-azure:
     name: Run benchmark code on Azure Pipelines
-    needs: build
+    # needs: build
     runs-on: ubuntu-latest
     steps:
     # - uses: Azure/pipelines@v1.2
@@ -157,8 +157,9 @@ jobs:
         azure-devops-project-url: 'https://dev.azure.com/ukribench/benchmark-dolfinx'
         azure-pipeline-name: 'ukri-bench.benchmark-dolfinx' # name of the Azure pipeline to be triggered
         azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
-        azure-pipeline-variables: '{"SHA": "${{ github.sha }}"}'
+        azure-pipeline-variables: '{"SHA": "17f76d16f9e4d633293b837c71fcc54ef93d6e1b"}'
         azure-template-parameters: '{"SHA": "${{ github.sha }}", "SHAX2": "DL2"}'
+    # azure-pipeline-variables: '{"SHA": "${{ github.sha }}"}'
     # azure-template-parameters: '{"SHA": "${{ github.sha }}", "SHAX2": "DL2"}'
 
   call-workflow-passing-data:
