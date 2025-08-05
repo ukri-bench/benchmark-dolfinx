@@ -148,7 +148,7 @@ jobs:
 
   run-code-azure:
     name: Run benchmark code on Azure Pipelines
-    needs: build
+    # needs: build
     runs-on: ubuntu-latest
     steps:
     # - uses: Azure/pipelines@v1.2
