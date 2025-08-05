@@ -161,7 +161,7 @@ jobs:
     # needs: build
     runs-on:
       - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
-        instance-size:gpu1.small
+        # instance-size:gpu1.small
     # container:
     #   image: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
     #   credentials:
