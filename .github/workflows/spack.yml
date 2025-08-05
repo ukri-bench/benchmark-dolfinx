@@ -158,7 +158,8 @@ jobs:
         azure-pipeline-name: 'ukri-bench.benchmark-dolfinx' # name of the Azure pipeline to be triggered
         azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
         azure-pipeline-variables: '{"SHAVAL": "test-sha"}'
-        azure-template-parameters: '{"SHA": "${{ github.sha }}", "SHAX2": "DL2"}'
+        azure-template-parameters: '{"SHA": "17f76d16f9e4d633293b837c71fcc54ef93d6e1b", "SHAX2": "DL2"}'
+    # azure-template-parameters: '{"SHA": "${{ github.sha }}", "SHAX2": "DL2"}'
 
   call-workflow-passing-data:
     name: Run benchmark code (CPU, reusable)
