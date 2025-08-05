@@ -162,11 +162,12 @@ jobs:
     runs-on:
       - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
         # instance-size:gpu1.small
-    # container:
-    #   image: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
-    #   credentials:
-    #     username: ${{ github.actor }}
-    #     password: ${{ secrets.github_token }}
+    container:
+      image: ghcr.io/ukri-bench/spack-buildcache-gpu:536ab5d38f04de69e6b5721b67a0d310e380c1ad
+      # image: ghcr.io/ukri-bench/spack-buildcache-gpu:${{ github.sha }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.github_token }}
 
     # env:
     #   OMPI_ALLOW_RUN_AS_ROOT: 1
@@ -177,8 +178,9 @@ jobs:
       - uses: actions/checkout@v4  # To get post-processing script
 
       - name: Run (CPU)
-        run:  nvidia-smi
-      #     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+        run: |
+          nvidia-smi
+          bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
       #     mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
 
       # - name: Post-process
