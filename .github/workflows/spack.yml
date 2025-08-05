@@ -180,7 +180,6 @@ jobs:
 
       - name: Check CUDA
         run: |
-          nvidia-smi
           nvcc --version
 
       # - uses: actions/checkout@v4  # To get post-processing script
