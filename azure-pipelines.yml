@@ -20,9 +20,9 @@ parameters:
   default: 'noset'
 
 container:
-  image: ubuntu:24.04
-  # image: ghcr.io/ukri-bench/spack-buildcache-img:17f76d16f9e4d633293b837c71fcc54ef93d6e1b
-  # endpoint: ghcr-io
+  # image: ubuntu:24.04
+  image: ghcr.io/ukri-bench/spack-buildcache-img:${{parameters.SHA}}
+  endpoint: ghcr-io
 
 steps:
 
