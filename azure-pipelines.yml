@@ -27,7 +27,6 @@ steps:
 - script: |
     echo parameters.SHAX - ${{parameters.SHAX}}
   displayName: 'Params'
-- script: echo ${{ parameters }}
 
 
 # - script: echo "Region Code: $(regionCode), Build ID: $(buildId)"
