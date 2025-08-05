@@ -13,7 +13,7 @@ parameters:
 - name: SHAX
   displayName: 'Use experimental build process?'
   type: object
-  default: 'noset'
+  # default: 'noset'
 
 # container:
 #   image: ubuntu:24.04
