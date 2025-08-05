@@ -21,7 +21,8 @@ parameters:
 
 container:
   # image: ubuntu:24.04
-  image: ghcr.io/ukri-bench/spack-buildcache-img:${{parameters.SHA}}
+  # image: ghcr.io/ukri-bench/spack-buildcache-img:${{parameters.SHA}}
+  image: ghcr.io/ukri-bench/spack-buildcache-img:$(SHAVAL)
   endpoint: ghcr-io
 
 steps:
