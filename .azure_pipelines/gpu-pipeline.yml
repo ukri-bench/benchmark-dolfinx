@@ -30,6 +30,20 @@ steps:
     nvidia-smi
   displayName: 'Run a multi-line script'
 
+- script: |
+    nvidia-smi
+    printf "#include <stdio.h>\n#include <cuda.h>\n__global__ void dkernel(){\nprintf(\"Hello-world\\\n\");}\n int main (){\ndkernel <<<1,1>>>();\ncudaDeviceSynchronize();\nreturn 0;}\n" > test.cu
+    /usr/local/cuda/bin/nvcc test.cu
+    echo "Run test"
+    ./a.out
+    echo "End run test"
+  displayName: 'Compile and run'
+
+- script: |
+    which nvcc
+    nvcc --version
+  displayName: 'Which nvcc'
+
 # - script: |
 #     sudo apt update
 #     sudo apt install "linux-headers-$(uname -r)" "linux-modules-extra-$(uname -r)"
