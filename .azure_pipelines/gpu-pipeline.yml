@@ -10,7 +10,7 @@ trigger:
 - none
 
 pool:
-  name: ci-pool-cpu
+  name: ci-pool
 
 container:
   image: ghcr.io/ukri-bench/spack-buildcache-cuda:$(SHA)  # Note: SHA variable must be set in GUI
