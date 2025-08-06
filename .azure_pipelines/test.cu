@@ -5,7 +5,7 @@ int main()
   int devCount;
   cudaError_t status = cudaGetDeviceCount(&devCount);
   if (status != cudaSuccess)
-    throw std::runtime_error("Error getting device properties");
+    throw std::runtime_error("Error getting device count");
   std::cout << "Num devices: " << devCount << std::endl;
 
   cudaDeviceProp props;
