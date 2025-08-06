@@ -29,8 +29,8 @@ steps:
   displayName: 'Run a multi-line script'
 
 - script: |
-    su -c apt-get -y update
-    su -c apt-get -y install wget
+    su -c "apt-get update"
+    su -c "apt-get install wget"
   # wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
   # dpkg -i cuda-keyring_1.1-1_all.deb
   # apt-get update
