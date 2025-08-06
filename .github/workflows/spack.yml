@@ -164,12 +164,15 @@ jobs:
       - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
         # instance-size:gpu1.small
     container:
-      image: ghcr.io/ukri-bench/spack-buildcache-cuda:f1b3bd595b09e341dd2bbe497ca1c08419b6f7cb
-      # image: ghcr.io/ukri-bench/spack-buildcache-gpu:${{ github.sha }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.github_token }}
-      options: --rm --runtime=nvidia --gpus all
+      image: ubuntu:24.04
+      options: --runtime=nvidia --gpus all
+      # image: ghcr.io/ukri-bench/spack-buildcache-cuda:f1b3bd595b09e341dd2bbe497ca1c08419b6f7cb
+      # # image: ghcr.io/ukri-bench/spack-buildcache-gpu:${{ github.sha }}
+      # credentials:
+      #   username: ${{ github.actor }}
+      #   password: ${{ secrets.github_token }}
+      # options: --runtime=nvidia --gpus all
+      # # options: --rm --runtime=nvidia --gpus all
 
 
     # env:
@@ -186,9 +189,23 @@ jobs:
 
       # - uses: actions/checkout@v4  # To get post-processing script
 
+      - name: Install CUDA
+        run: |
+          apt-get -y update
+          apt-get -y install wget
+          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
+          dpkg -i cuda-keyring_1.1-1_all.deb
+          apt-get -y update
+          apt-get -y install cuda-compiler-12-9
+
       - name: Run (CPU)
         run: |
-          bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+          printf "#include <stdio.h>\n#include <cuda.h>\n__global__ void dkernel(){\nprintf(\"Hello-world\\\n\");}\n int main (){\ndkernel <<<1,1>>>();\ncudaDeviceSynchronize();\nreturn 0;}\n" > test.cu
+          /usr/local/cuda/bin/nvcc test.cu
+          ./a.out
+      # - name: Run (CPU)
+      #   run: |
+      #     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
       #     mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
 
       # - name: Post-process
