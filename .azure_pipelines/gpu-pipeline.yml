@@ -10,7 +10,7 @@ trigger:
 - none
 
 pool:
-  name: ci-pool
+  name: ci-pool-cpu
 
 container:
   image: ghcr.io/ukri-bench/spack-buildcache-cuda:$(SHA)  # Note: SHA variable must be set in GUI
@@ -30,21 +30,21 @@ steps:
 
 - script: |
     apt-get -y update
-    apt-get -y install wget
-    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
-    dpkg -i cuda-keyring_1.1-1_all.deb
-    apt-get update
-    apt-get -y install cuda-compiler-12-9
+  # apt-get -y install wget
+  # wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
+  # dpkg -i cuda-keyring_1.1-1_all.deb
+  # apt-get update
+  # apt-get -y install cuda-compiler-12-9
   displayName: 'Install nvcc'
 
-- script: |
-    nvidia-smi
-    printf "#include <stdio.h>\n#include <cuda.h>\n__global__ void dkernel(){\nprintf(\"Hello-world\\\n\");}\n int main (){\ndkernel <<<1,1>>>();\ncudaDeviceSynchronize();\nreturn 0;}\n" > test.cu
-    /usr/local/cuda/bin/nvcc test.cu
-    echo "Run test"
-    ./a.out
-    echo "End run test"
-  displayName: 'Compile and run'
+# - script: |
+#     nvidia-smi
+#     printf "#include <stdio.h>\n#include <cuda.h>\n__global__ void dkernel(){\nprintf(\"Hello-world\\\n\");}\n int main (){\ndkernel <<<1,1>>>();\ncudaDeviceSynchronize();\nreturn 0;}\n" > test.cu
+#     /usr/local/cuda/bin/nvcc test.cu
+#     echo "Run test"
+#     ./a.out
+#     echo "End run test"
+#   displayName: 'Compile and run'
 
 # - script: |
 #     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
