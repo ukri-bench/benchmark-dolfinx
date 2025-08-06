@@ -49,8 +49,8 @@ elseif(nvidia)
   enable_language(CUDA)
 endif()
 
-set(CMAKE_CXX_FLAGS "-O3 -ffast-math -march=native ${CMAKE_CXX_FLAGS} -DNDEBUG -Wall")
-set(CMAKE_C_FLAGS "-O3 -ffast-math -march=native ${CMAKE_C_FLAGS} -DNDEBUG -Wall")
+set(CMAKE_CXX_FLAGS "-O3 -ffast-math ${CMAKE_CXX_FLAGS} -DNDEBUG -Wall")
+set(CMAKE_C_FLAGS "-O3 -ffast-math ${CMAKE_C_FLAGS} -DNDEBUG -Wall")
 
 if(CMAKE_HIP_COMPILER_VERSION GREATER_EQUAL 18)
   # See
@@ -61,7 +61,7 @@ set(CMAKE_HIP_FLAGS "${CMAKE_HIP_FLAGS} -std=c++20 -Wall -O3 -ffast-math -DNDEBU
 
 if(DEFINED ENV{CRAYPE_VERSION})
   message("Detected CrayPE - adding MPI flags")
-  set(CMAKE_HIP_FLAGS "${CMAKE_HIP_FLAGS} -O3 -ffast-math -march=native -I/opt/cray/pe/mpich/8.1.27/ofi/gnu/9.1/include")
+  set(CMAKE_HIP_FLAGS "${CMAKE_HIP_FLAGS} -O3 -ffast-math -I/opt/cray/pe/mpich/8.1.27/ofi/gnu/9.1/include")
 endif()
 
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++20 -O3 -Wall -DNDEBUG --extended-lambda --expt-relaxed-constexpr")
