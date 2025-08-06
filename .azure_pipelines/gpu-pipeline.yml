@@ -25,8 +25,8 @@ container:
 
 steps:
 
-- task: Docker
-  displayName: Install sudo package
+- task: CmdLine@2
+  displayName: Install toolkit
   target: host
   inputs:
     script: |
