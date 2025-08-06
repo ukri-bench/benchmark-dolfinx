@@ -12,14 +12,14 @@ trigger:
 pool:
   name: ci-pool
 
-container:
-  # image: ghcr.io/ukri-bench/spack-buildcache-cuda:$(SHA)  # Note: SHA variable must be set in GUI
-  image: ghcr.io/ukri-bench/spack-buildcache-cuda:cfaa8587676f548bea64d4ac6d4ce0cf8f2488c5
-  endpoint: ghcr-io
-  env:
-    OMPI_ALLOW_RUN_AS_ROOT: 1
-    OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
-    PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
+# container:
+#   # image: ghcr.io/ukri-bench/spack-buildcache-cuda:$(SHA)  # Note: SHA variable must be set in GUI
+#   image: ghcr.io/ukri-bench/spack-buildcache-cuda:cfaa8587676f548bea64d4ac6d4ce0cf8f2488c5
+#   endpoint: ghcr-io
+#   env:
+#     OMPI_ALLOW_RUN_AS_ROOT: 1
+#     OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+#     PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
 
 steps:
 
@@ -58,16 +58,17 @@ steps:
     ls -alh /usr/local/bin
   displayName: 'Run a multi-line script'
 
-- script: |
-    sudo apt-get -y update
-    sudo apt-get -y install wget
-    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
-    sudo dpkg -i cuda-keyring_1.1-1_all.deb
-    sudo apt-get -y update
-    sudo apt-get -y install cuda-runtime-12-9 cuda-compiler-12-9
-  displayName: 'Install nvcc'
+# - script: |
+#     sudo apt-get -y update
+#     sudo apt-get -y install wget
+#     wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
+#     sudo dpkg -i cuda-keyring_1.1-1_all.deb
+#     sudo apt-get -y update
+#     sudo apt-get -y install cuda-runtime-12-9 cuda-compiler-12-9
+#   displayName: 'Install nvcc'
 
 - script: |
+    nvidia-smi
     wget https://raw.githubusercontent.com/ukri-bench/benchmark-dolfinx/refs/heads/azure-pipelines/.azure_pipelines/test.cu
     nvcc test.cu
     ./a.out
