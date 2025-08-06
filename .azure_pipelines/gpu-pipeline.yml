@@ -22,15 +22,41 @@ container:
 
 steps:
 - script: |
-    bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-  displayName: Run (serial)
+    echo Add other tasks to build, test, and deploy your project.
+    echo See https://aka.ms/yaml
+    ls -alh /usr/local/
+    ls -alh /usr/local/bin
+    nvidia-smi
+  displayName: 'Run a multi-line script'
+
 - script: |
-    mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
-  displayName: Run (parallel)
+    apt-get -y update
+    apt-get -y install wget
+    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
+    dpkg -i cuda-keyring_1.1-1_all.deb
+    apt-get update
+    apt-get -y install cuda-compiler-12-9
+  displayName: 'Install nvcc'
+
 - script: |
-    python src/test_output.py a.json
-    python src/test_output.py b.json
-  displayName: Post-process
+    nvidia-smi
+    printf "#include <stdio.h>\n#include <cuda.h>\n__global__ void dkernel(){\nprintf(\"Hello-world\\\n\");}\n int main (){\ndkernel <<<1,1>>>();\ncudaDeviceSynchronize();\nreturn 0;}\n" > test.cu
+    /usr/local/cuda/bin/nvcc test.cu
+    echo "Run test"
+    ./a.out
+    echo "End run test"
+  displayName: 'Compile and run'
+
+# - script: |
+#     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+#   displayName: Run (serial)
+# - script: |
+#     mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+#   displayName: Run (parallel)
+# - script: |
+#     python src/test_output.py a.json
+#     python src/test_output.py b.json
+#   displayName: Post-process
 
 # trigger:
 #   branches:
