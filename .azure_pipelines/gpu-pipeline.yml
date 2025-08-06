@@ -18,7 +18,7 @@ container:
   image: ubuntu:24.04
   # endpoint: ghcr-io
   # options: --rm --runtime=nvidia --gpus all
-  options: --rm --gpus all
+  # options: --rm --gpus all
   env:
     OMPI_ALLOW_RUN_AS_ROOT: 1
     OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
