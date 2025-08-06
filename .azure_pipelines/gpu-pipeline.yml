@@ -40,16 +40,16 @@ steps:
 #       apt-get -y update
 #       apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-# Azure container jobs run as non-root user which has sudo permissions,
-# but sudo is missing.  Install sudo package...
-- task: CmdLine@2
-  displayName: Install sudo package
-  target: host
-  inputs:
-    script: |
-      cid=`docker container ls -q`
-      echo "ID = $cid"
-      /usr/bin/docker exec  $cid su -c "apt-get -y update && apt-get -o DPkg::Options::="--force-confold" -y install sudo"
+# # Azure container jobs run as non-root user which has sudo permissions,
+# # but sudo is missing.  Install sudo package...
+# - task: CmdLine@2
+#   displayName: Install sudo package
+#   target: host
+#   inputs:
+#     script: |
+#       cid=`docker container ls -q`
+#       echo "ID = $cid"
+#       /usr/bin/docker exec  $cid su -c "apt-get -y update && apt-get -o DPkg::Options::="--force-confold" -y install sudo"
 
 - script: |
     echo Add other tasks to build, test, and deploy your project.
