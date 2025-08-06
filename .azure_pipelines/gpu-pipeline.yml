@@ -21,6 +21,18 @@ container:
     PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
 
 steps:
+
+# Azure container jobs run as non-root user which has sudo permissions,
+# but sudo is missing.  Install sudo package...
+- task: CmdLine@2
+  displayName: Install sudo package
+  target: host
+  inputs:
+    script: |
+      cid=`docker container ls -q`
+      echo "ID = $cid"
+      /usr/bin/docker exec  $cid su -c "apt-get -y update && apt-get -o DPkg::Options::="--force-confold" -y install sudo"
+
 - script: |
     echo Add other tasks to build, test, and deploy your project.
     echo See https://aka.ms/yaml
