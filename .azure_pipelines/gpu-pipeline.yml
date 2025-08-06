@@ -70,7 +70,7 @@ steps:
 - script: |
     nvidia-smi
     wget https://raw.githubusercontent.com/ukri-bench/benchmark-dolfinx/refs/heads/azure-pipelines/.azure_pipelines/test.cu
-    nvcc test.cu
+    /usr/local/cuda/bin/nvcc test.cu
     ./a.out
   displayName: 'Compile and run'
 
