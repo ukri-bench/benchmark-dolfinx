@@ -77,7 +77,7 @@ jobs:
       - name: Install benchmark
         shell: spack-bash {0}
         run: |
-          spack -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add py-numpy bench-dolfinx${{ matrix.backend.spack_opt }}
+          spack -v -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add py-numpy bench-dolfinx${{ matrix.backend.spack_opt }}
 
       - name: Push test image
         if: ${{ matrix.backend.device == 'cpu' }}
@@ -146,19 +146,19 @@ jobs:
   #         python src/test_output.py a.json
   #         python src/test_output.py b.json
 
-  run-code-azure:
-    name: Run benchmark code on Azure Pipelines
-    # needs: build
-    runs-on: ubuntu-latest
-    steps:
-    # - uses: Azure/pipelines@v1.2
-    - uses: tjcorr/pipelines@v1.4
-      with:
-        azure-devops-project-url: 'https://dev.azure.com/ukribench/benchmark-dolfinx'
-        azure-pipeline-name: 'ukri-bench.benchmark-dolfinx (3)'  # name of the Azure pipeline to be triggered
-        azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
-        azure-pipeline-variables: '{"SHA": "cfaa8587676f548bea64d4ac6d4ce0cf8f2488c5"}'
-        # azure-pipeline-variables: '{"SHA": "${{ github.sha }}"}'
+  # run-code-azure:
+  #   name: Run benchmark code on Azure Pipelines
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   # - uses: Azure/pipelines@v1.2
+  #   - uses: tjcorr/pipelines@v1.4
+  #     with:
+  #       azure-devops-project-url: 'https://dev.azure.com/ukribench/benchmark-dolfinx'
+  #       azure-pipeline-name: 'ukri-bench.benchmark-dolfinx (3)'  # name of the Azure pipeline to be triggered
+  #       azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
+  #       azure-pipeline-variables: '{"SHA": "cfaa8587676f548bea64d4ac6d4ce0cf8f2488c5"}'
+  #       # azure-pipeline-variables: '{"SHA": "${{ github.sha }}"}'
 
   run-cpu-reuable:
     name: Run benchmark code (CPU, reusable)
