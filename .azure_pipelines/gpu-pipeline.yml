@@ -69,6 +69,7 @@ steps:
 
 - script: |
     nvidia-smi
+    /usr/local/cuda/bin/nvcc --version
     wget https://raw.githubusercontent.com/ukri-bench/benchmark-dolfinx/refs/heads/azure-pipelines/.azure_pipelines/test.cu
     /usr/local/cuda/bin/nvcc test.cu
     ./a.out
