@@ -33,7 +33,7 @@ jobs:
             # { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a" },
             { device: cuda, spack_opt: "@main+cuda cuda_arch=80" },
           ]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       packages: write
 
@@ -97,7 +97,7 @@ jobs:
           spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER \
             --oci-password-variable GITHUB_TOKEN local-buildcache-cuda \
             oci://ghcr.io/ukri-bench/spack-buildcache-cuda
-          spack -e . buildcache push --base-image ubuntu:24.02 --update-index \
+          spack -e . buildcache push --base-image ubuntu:24.04 --update-index \
             --tag ${{ github.sha }} local-buildcache-cuda
 
       - name: Push packages and update index
@@ -159,16 +159,18 @@ jobs:
 
   run-code-aws:
     name: Run benchmark code on AWS GPU
-    needs: build
+    # needs: build
     runs-on:
       - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
         # instance-size:gpu1.small
     container:
-      # image: ghcr.io/ukri-bench/spack-buildcache-cuda:67f8a8948b4af27da0af41150a59fe056337519c
-      image: ghcr.io/ukri-bench/spack-buildcache-gpu:${{ github.sha }}
+      image: ghcr.io/ukri-bench/spack-buildcache-cuda:f1b3bd595b09e341dd2bbe497ca1c08419b6f7cb
+      # image: ghcr.io/ukri-bench/spack-buildcache-gpu:${{ github.sha }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.github_token }}
+      options: --rm --runtime=nvidia --gpus all
+
 
     # env:
     #   OMPI_ALLOW_RUN_AS_ROOT: 1
