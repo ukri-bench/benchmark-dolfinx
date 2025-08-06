@@ -7,80 +7,55 @@
 # - main
 
 trigger:
-  branches:
-    include:
-    - '*'  # must quote since "*" is a YAML reserved character; we want a string
-
+- none
 
 pool:
   name: ci-pool
-  # name: ci-runner-gpu
-# pool:
-#   vmImage: ubuntu-latest
+
+container:
+  image: ghcr.io/ukri-bench/spack-buildcache-cuda:$(SHA)  # Note: SHA variable must be set in GUI
+  endpoint: ghcr-io
+  env:
+    OMPI_ALLOW_RUN_AS_ROOT: 1
+    OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+    PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
 
 steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
-
 - script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-    ls -alh /usr/local/
-    ls -alh /usr/local/bin
-    nvidia-smi
-  displayName: 'Run a multi-line script'
-
+    bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+  displayName: Run (serial)
 - script: |
-    nvidia-smi
-    printf "#include <stdio.h>\n#include <cuda.h>\n__global__ void dkernel(){\nprintf(\"Hello-world\\\n\");}\n int main (){\ndkernel <<<1,1>>>();\ncudaDeviceSynchronize();\nreturn 0;}\n" > test.cu
-    /usr/local/cuda/bin/nvcc test.cu
-    echo "Run test"
-    ./a.out
-    echo "End run test"
-  displayName: 'Compile and run'
-
+    mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+  displayName: Run (parallel)
 - script: |
-    which nvcc
-    nvcc --version
-  displayName: 'Which nvcc'
+    python src/test_output.py a.json
+    python src/test_output.py b.json
+  displayName: Post-process
+
+# trigger:
+#   branches:
+#     include:
+#     - '*'  # must quote since "*" is a YAML reserved character; we want a string
+# pool:
+#   name: ci-pool
+
+# steps:
+# - script: echo Hello, world!
+#   displayName: 'Run a one-line script'
 
 # - script: |
-#     sudo apt update
-#     sudo apt install "linux-headers-$(uname -r)" "linux-modules-extra-$(uname -r)"
-#     sudo apt install python3-setuptools python3-wheel
-#     sudo usermod -a -G render,video $LOGNAME # Add the current user to the render and video groups
-#     wget https://repo.radeon.com/amdgpu-install/6.3.3/ubuntu/noble/amdgpu-install_6.3.60303-1_all.deb
-#     sudo apt install ./amdgpu-install_6.3.60303-1_all.deb
-#     sudo apt update
-#     sudo apt install amdgpu-dkms rocm
-#   displayName: 'Install Nvidia drivers'
+#     echo Add other tasks to build, test, and deploy your project.
+#     echo See https://aka.ms/yaml
+#     ls -alh /usr/local/
+#     ls -alh /usr/local/bin
+#     nvidia-smi
+#   displayName: 'Run a multi-line script'
 
 # - script: |
-#     lsmod | grep amdgpu
-#      amd-smi monitor
-#   displayName: 'Check for GPU'
-
-
-# - script: |
-#     sudo apt update
-#     sudo apt install "linux-headers-$(uname -r)" "linux-modules-extra-$(uname -r)"
-#     sudo apt install python3-setuptools python3-wheel
-#     sudo usermod -a -G render,video $LOGNAME # Add the current user to the render and video groups
-#     wget https://repo.radeon.com/amdgpu-install/6.3.3/ubuntu/noble/amdgpu-install_6.3.60303-1_all.deb
-#     sudo apt install ./amdgpu-install_6.3.60303-1_all.deb
-#     sudo apt update
-#     sudo apt install amdgpu-dkms rocm
-#   displayName: 'Install ROCm drivers'
-
-# - script: |
-#     lsmod | grep amdgpu
-#      amd-smi monitor
-#   displayName: 'Check for GPU'
-
-
-
-    # sudo apt -y update
-    # sudo apt -y install python3-setuptools python3-wheel
-    # sudo usermod -a -G render,video $LOGNAME
-    # sudo apt -y install "linux-headers-$(uname -r)" "linux-modules-extra-$(uname -r)"
-    # sudo lspci -d 1002:7461
+#     nvidia-smi
+#     printf "#include <stdio.h>\n#include <cuda.h>\n__global__ void dkernel(){\nprintf(\"Hello-world\\\n\");}\n int main (){\ndkernel <<<1,1>>>();\ncudaDeviceSynchronize();\nreturn 0;}\n" > test.cu
+#     /usr/local/cuda/bin/nvcc test.cu
+#     echo "Run test"
+#     ./a.out
+#     echo "End run test"
+#   displayName: 'Compile and run'
