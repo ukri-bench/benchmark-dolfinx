@@ -15,8 +15,8 @@ pool:
 container:
   # image: ghcr.io/ukri-bench/spack-buildcache-cuda:$(SHA)  # Note: SHA variable must be set in GUI
   # image: ghcr.io/ukri-bench/spack-buildcache-cuda:cfaa8587676f548bea64d4ac6d4ce0cf8f2488c5
-  image: ubuntu::24.04
-  endpoint: ghcr-io
+  image: ubuntu:24.04
+  # endpoint: ghcr-io
   options: --rm --runtime=nvidia --gpus all
   env:
     OMPI_ALLOW_RUN_AS_ROOT: 1
