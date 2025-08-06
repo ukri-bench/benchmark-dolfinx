@@ -27,6 +27,7 @@ steps:
     echo See https://aka.ms/yaml
     ls -alh /usr/local/
     ls -alh /usr/local/bin
+    nvidia-smi
   displayName: 'Run a multi-line script'
 
 # - script: |
