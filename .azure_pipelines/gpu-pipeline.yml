@@ -10,7 +10,7 @@ trigger:
 # - none
 
 pool:
-  name: ci-pool-cpu
+  name: ci-pool
 
 # container:
 #   # image: ghcr.io/ukri-bench/spack-buildcache-cuda:$(SHA)  # Note: SHA variable must be set in GUI
@@ -26,15 +26,18 @@ pool:
 
 steps:
 - task: Docker@2
-  displayName: Build an image
+  displayName: Login into ghcr.io
   inputs:
     command: login
     containerRegistry: ghcr-io
 
 - script: |
-    docker run ghcr.io/ukri-bench/spack-buildcache-cpu:e156f080fda032cb1d60ea0fdfd0aa82ac226e8c \
-      bench_dolfinx  --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+    docker run ghcr.io/ukri-bench/spack-buildcache-cpu:dd695cf0dd923f565db4a6eec75f70d3d5f9a8c9 \
+      bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
   displayName: 'Docker pull'
+
+    # docker run ghcr.io/ukri-bench/spack-buildcache-cpu:e156f080fda032cb1d60ea0fdfd0aa82ac226e8c \
+    #   bench_dolfinx  --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
 
 
 # - task: CmdLine@2
