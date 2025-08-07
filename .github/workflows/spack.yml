@@ -186,6 +186,9 @@ jobs:
       - name: Check dir
         run: |
           ls /usr/local
+          ls /opt/
+          ls /usr/local/bin
+          ls /usr/bin
 
       - name: Install CUDA
         run: |
