@@ -80,6 +80,10 @@ jobs:
         run: |
           spack -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add py-numpy bench-dolfinx${{ matrix.backend.spack_opt }}
 
+      - name: View Spack packages
+        shell: spack-bash {0}
+        run: spack -e . config get packages
+
       - name: Push test image
         if: ${{ matrix.backend.device == 'cpu' }}
         shell: spack-bash {0}

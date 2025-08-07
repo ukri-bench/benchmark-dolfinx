@@ -80,9 +80,9 @@ jobs:
           spack -e . add bench-dolfinx${{ matrix.backend.spack_opt }}
           spack -e . install -U -j 4 --use-buildcache auto --only dependencies
 
-      - name: View packages
+      - name: View Spack packages
         shell: spack-bash {0}
-        run: spack config get packages
+        run: spack -e . config get packages
 
       - name: Generate Spack build-env
         shell: spack-bash {0}
