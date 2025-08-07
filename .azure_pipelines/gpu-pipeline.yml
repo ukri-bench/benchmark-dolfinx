@@ -27,8 +27,9 @@ pool:
 steps:
 - task: Docker@2
   displayName: Build an image
-  command: login
-  containerRegistry: ghcr-io
+  inputs:
+    command: login
+    containerRegistry: ghcr-io
 
 - script: |
     docker pull ghcr.io/ukri-bench/spack-buildcache-cpu:e156f080fda032cb1d60ea0fdfd0aa82ac226e8c
