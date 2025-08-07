@@ -143,7 +143,7 @@ jobs:
         run: |
           docker run ghcr.io/ukri-bench/spack-buildcache-cpu:e156f080fda032cb1d60ea0fdfd0aa82ac226e8c \
             bench_dolfinx  --ndofs=1000 --degree=6 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-          docker run --runtime=nvidia --gpus all ghcr.io/ukri-bench/spack-buildcache-cpu:e156f080fda032cb1d60ea0fdfd0aa82ac226e8c \
+          docker run ghcr.io/ukri-bench/spack-buildcache-cpu:e156f080fda032cb1d60ea0fdfd0aa82ac226e8c \
           mpirun -np 2  bench_dolfinx  --ndofs=1000 --degree=6 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
 
   # run-code-aws:
