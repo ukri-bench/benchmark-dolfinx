@@ -127,17 +127,12 @@ jobs:
   run-code-docker:
     name: Run benchmark code in Docker (CPU)
     # needs: build
-    runs-on: ubuntu-latest
-    # container: ghcr.io/ukri-bench/spack-buildcache-cpu:${{ github.sha }}
-    # env:
-    #   GITHUB_USER: ${{ github.actor }}
-    #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    # env:
-    #   OMPI_ALLOW_RUN_AS_ROOT: 1
-    #   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
-    #   PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
+    runs-on: ubuntu-24.04
+    env:
+      OMPI_ALLOW_RUN_AS_ROOT: 1
+      OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+      PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
     steps:
-      # - uses: actions/checkout@v4  # To get post-processing script
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -148,8 +143,8 @@ jobs:
         run: |
           docker run ghcr.io/ukri-bench/spack-buildcache-cpu:e156f080fda032cb1d60ea0fdfd0aa82ac226e8c \
             bench_dolfinx  --ndofs=1000 --degree=6 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-        # docker run --runtime=nvidia --gpus all ghcr.io/ukri-bench/spack-buildcache-cpu:e156f080fda032cb1d60ea0fdfd0aa82ac226e8c \
-        #   bench_dolfinx  --ndofs=1000 --degree=6 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+          mpirun -np 2 docker run --runtime=nvidia --gpus all ghcr.io/ukri-bench/spack-buildcache-cpu:e156f080fda032cb1d60ea0fdfd0aa82ac226e8c \
+          bench_dolfinx  --ndofs=1000 --degree=6 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
 
   # run-code-aws:
   #   name: Run benchmark code on AWS CodeBuild
