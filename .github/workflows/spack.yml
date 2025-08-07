@@ -5,9 +5,9 @@ name: Spack build and run
 
 on:
   # Uncomment the below 'push' to trigger on push
-  push:
-    branches:
-      - "**"
+  # push:
+  #   branches:
+  #     - "**"
   # pull_request:
   #   branches: [ "main" ]
   # merge_group:
@@ -81,7 +81,7 @@ jobs:
       - name: Install benchmark
         shell: spack-bash {0}
         run: |
-          spack -v -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add py-numpy bench-dolfinx${{ matrix.backend.spack_opt }}
+          spack -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add py-numpy bench-dolfinx${{ matrix.backend.spack_opt }}
 
       - name: View Spack packages
         shell: spack-bash {0}
