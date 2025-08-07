@@ -90,7 +90,7 @@ jobs:
 
       - name: Generate Spack build-env
         shell: spack-bash {0}
-        run: spack -v -e . build-env --dump build_env.sh bench-dolfinx
+        run: spack -d -e . build-env --dump build_env.sh bench-dolfinx
 
       - name: Build benchmark
         shell: spack-bash {0}
