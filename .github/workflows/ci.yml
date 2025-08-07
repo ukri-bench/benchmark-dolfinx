@@ -5,9 +5,9 @@ name: Test benchmark
 
 on:
   # Uncomment the below 'push' to trigger on push
-  # push:
-  #   branches:
-  #     - "**"
+  push:
+    branches:
+      - "**"
   pull_request:
     branches: [ "main" ]
   merge_group:
@@ -24,17 +24,17 @@ env:
 
 jobs:
   build:
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
     strategy:
       matrix:
         backend:
           [
             { device: cpu, spack_opt: "@main~cuda~rocm", cmake_opt: "" },
             { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a", cmake_opt: -DHIP_ARCH=gfx90a },
-            { device: cuda, spack_opt: "@main+cuda cuda_arch=80", cmake_opt: -DCUDA_ARCH=80 },
+            { device: cuda, spack_opt: "@main+cuda cuda_arch=80", cmake_opt: -DCUDA_ARCH=75 },
           ]
-    runs-on: ubuntu-24.04
-    permissions:
-      packages: write
 
     steps:
       - uses: actions/checkout@v4
@@ -52,19 +52,9 @@ jobs:
           color: true      # Force color output (SPACK_COLOR=always)
           path: spack-src  # Where to clone Spack
 
-      - if: ${{ matrix.backend.device == 'cpu' }}
-        name: Get Spack config (CPU)
+      - name: Get Spack config
         run: |
           wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack.yml
-      - if: ${{ matrix.backend.device != 'cpu' }}
-        name: Get Spack config (GPU)
-        run: |
-          wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack-${{ matrix.backend.device }}.yml
-
-      - if: ${{ matrix.backend.device == 'rocm' }}
-        name: Find compilers (ROCm)  # Need this to find a Fortran compiler
-        shell: spack-bash {0}
-        run: spack compiler find
 
       - name: Add ukri-bench Spack repository and create environment
         shell: spack-bash {0}
@@ -72,6 +62,18 @@ jobs:
           spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git ./bench_pkgs
           spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
           spack env create . spack.yml
+
+      - if: ${{ matrix.backend.device == 'rocm' }}
+        name: Find compilers (ROCm)
+        shell: spack-bash {0}
+        run: |
+          spack -e . compiler find
+          spack -e . external find  -p /opt/rocm/ --all
+      - if: ${{ matrix.backend.device == 'cuda' }}
+        name: Find compilers (CUDA)
+        shell: spack-bash {0}
+        run: |
+          spack -e . external find cuda
 
       - name: Install dependencies
         shell: spack-bash {0}
@@ -87,7 +89,6 @@ jobs:
         shell: spack-bash {0}
         run: |
           source ./build_env.sh
-          ldd /opt/view/lib/libdolfinx.so
           cmake -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on ${{ matrix.backend.cmake_opt }} -B build -S src/
           cmake --build build --parallel
           cmake --install build
