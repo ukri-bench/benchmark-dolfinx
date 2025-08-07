@@ -197,10 +197,12 @@ jobs:
           sudo dpkg -i cuda-keyring_1.1-1_all.deb
           sudo apt-get update
           sudo apt-get -y install cuda-compat-13-0 cuda-compiler-13-0
+          ls /usr/local/cuda-13.0
+          ls /usr/local/cuda-13.0/compat
 
       - name: Run (CPU)
         run: |
-          export LD_LIBRARY_PATH=/usr/local/cuda-13.0/compat:$LD_LIBRARY_PATH
+          export LD_LIBRARY_PATH=/usr/local/cuda-13.0/compat
           nvidia-smi
           /usr/local/cuda/bin/nvcc --version
           wget https://raw.githubusercontent.com/ukri-bench/benchmark-dolfinx/refs/heads/azure-pipelines/.azure_pipelines/test.cu
