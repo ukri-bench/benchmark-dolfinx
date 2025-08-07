@@ -4,10 +4,10 @@
 # https://aka.ms/yaml
 
 trigger:
-- main
+- azure-pipelines-2
 
 pool:
-  vmImage: ubuntu-latest
+  name: ci-runner-gpu
 
 steps:
 - script: echo Hello, world!
@@ -16,4 +16,5 @@ steps:
 - script: |
     echo Add other tasks to build, test, and deploy your project.
     echo See https://aka.ms/yaml
+    rocm-smi
   displayName: 'Run a multi-line script'
