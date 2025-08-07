@@ -32,6 +32,17 @@ steps:
     containerRegistry: ghcr-io
 
 - script: |
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+      && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+        sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+        sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    sudo apt-get update
+    sudo apt-get install -y nvidia-container-toolkit
+    sudo nvidia-ctk runtime configure --runtime=docker
+    sudo systemctl restart docker
+  displayName: 'Install container kit'
+
+- script: |
     docker run --runtime=nvidia --gpus all ghcr.io/ukri-bench/spack-buildcache-cuda:cfaa8587676f548bea64d4ac6d4ce0cf8f2488c5 \
       bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
   displayName: 'Docker pull'
