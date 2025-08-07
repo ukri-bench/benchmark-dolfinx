@@ -197,6 +197,7 @@ jobs:
 
       - name: Run (CPU)
         run: |
+          export LD_LIBRARY_PATH=/usr/local/cuda-13.0/compat:$LD_LIBRARY_PATH
           nvidia-smi
           /usr/local/cuda/bin/nvcc --version
           wget https://raw.githubusercontent.com/ukri-bench/benchmark-dolfinx/refs/heads/azure-pipelines/.azure_pipelines/test.cu
