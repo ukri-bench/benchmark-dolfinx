@@ -53,9 +53,14 @@ jobs:
           color: true      # Force color output (SPACK_COLOR=always)
           path: spack-src  # Where to clone Spack      # - name: Get Spack
 
-      - name: Get Spack config
+      - if: ${{ matrix.backend.device != 'rocm' }}
+        name: Get Spack config
         run: |
           wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack.yml
+      - if: ${{ matrix.backend.device == 'rocm' }}
+        name: Get Spack config
+        run: |
+          wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack-rocm.yml
 
       - name: Add ukri-bench Spack repository and create environment
         shell: spack-bash {0}
@@ -67,8 +72,8 @@ jobs:
       - name: Install some dependencies (to speed up builds)
         run: |
           sudo apt-get -y update
-          sudo apt-get install -y cmake ninja-build make libboost-dev libopenblas-dev libjsoncpp-dev libpugixml-dev libspdlog-dev flex meson
-          sudo apt-get install -y openmpi-bin libopenmpi-dev
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y cmake ninja-build make libboost-dev ibboost-program-options-dev libopenblas-dev \
+            libjsoncpp-dev libpugixml-dev libspdlog-dev flex meson openmpi-bin libopenmpi-dev libhdf5-mpi-dev bison libmetis-dev libparmetis-dev
 
       - name: Find installed compilers and libraries
         shell: spack-bash {0}
@@ -120,6 +125,11 @@ jobs:
       OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
       PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
     steps:
+      - name: Install some dependencies (to speed up builds)
+        run: |
+          sudo apt-get -y update
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y cmake ninja-build make libboost-dev ibboost-program-options-dev libopenblas-dev \
+            libjsoncpp-dev libpugixml-dev libspdlog-dev flex meson openmpi-bin libopenmpi-dev libhdf5-mpi-dev bison libmetis-dev libparmetis-dev
       - uses: actions/checkout@v4  # To get post-processing script
       - name: Run (CPU)
         run: |
