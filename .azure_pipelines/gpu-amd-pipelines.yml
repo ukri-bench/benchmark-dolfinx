@@ -7,7 +7,7 @@ trigger:
 - azure-pipelines-2
 
 pool:
-  name: ci-runner-gpu
+  name: ci-runner-gpu-amd
 
 steps:
 - script: echo Hello, world!
