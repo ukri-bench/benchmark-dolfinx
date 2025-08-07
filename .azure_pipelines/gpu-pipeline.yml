@@ -10,21 +10,30 @@ trigger:
 # - none
 
 pool:
-  name: ci-pool
+  name: ci-pool-cpu
 
-container:
-  # image: ghcr.io/ukri-bench/spack-buildcache-cuda:$(SHA)  # Note: SHA variable must be set in GUI
-  # image: ghcr.io/ukri-bench/spack-buildcache-cuda:cfaa8587676f548bea64d4ac6d4ce0cf8f2488c5
-  image: nvidia/cuda:12.9.1-devel-ubuntu24.04
-#   # endpoint: ghcr-io
-  options: --rm --gpus all
-#   # options: --rm --gpus all
-#   env:
-#     OMPI_ALLOW_RUN_AS_ROOT: 1
-#     OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
-#     PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
+# container:
+#   # image: ghcr.io/ukri-bench/spack-buildcache-cuda:$(SHA)  # Note: SHA variable must be set in GUI
+#   # image: ghcr.io/ukri-bench/spack-buildcache-cuda:cfaa8587676f548bea64d4ac6d4ce0cf8f2488c5
+#   image: nvidia/cuda:12.9.1-devel-ubuntu24.04
+# #   # endpoint: ghcr-io
+#   options: --rm --gpus all
+# #   # options: --rm --gpus all
+# #   env:
+# #     OMPI_ALLOW_RUN_AS_ROOT: 1
+# #     OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+# #     PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
 
 steps:
+- task: Docker@2
+  displayName: Build an image
+  command: login
+  containerRegistry: ghcr-io
+
+- script: |
+    docker pull ghcr.io/ukri-bench/spack-buildcache-cpu:e156f080fda032cb1d60ea0fdfd0aa82ac226e8c
+  displayName: 'Docker pull'
+
 
 # - task: CmdLine@2
 #   displayName: Install toolkit
@@ -53,12 +62,12 @@ steps:
 #       echo "ID = $cid"
 #       /usr/bin/docker exec  $cid su -c "apt-get -y update && apt-get -o DPkg::Options::="--force-confold" -y install sudo"
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-    ls -alh /usr/local/
-    ls -alh /usr/local/bin
-  displayName: 'Run a multi-line script'
+# - script: |
+#     echo Add other tasks to build, test, and deploy your project.
+#     echo See https://aka.ms/yaml
+#     ls -alh /usr/local/
+#     ls -alh /usr/local/bin
+#   displayName: 'Run a multi-line script'
 
 # - script: |
 #     sudo apt-get -y update
@@ -70,13 +79,13 @@ steps:
 #     sudo apt-get install -y --no-install-recommends cuda-13.0
 #   displayName: 'Install nvcc'
 
-- script: |
-    nvidia-smi
-    /usr/local/cuda/bin/nvcc --version
-    wget https://raw.githubusercontent.com/ukri-bench/benchmark-dolfinx/refs/heads/azure-pipelines/.azure_pipelines/test.cu
-    /usr/local/cuda/bin/nvcc test.cu
-    ./a.out
-  displayName: 'Compile and run'
+# - script: |
+#     nvidia-smi
+#     /usr/local/cuda/bin/nvcc --version
+#     wget https://raw.githubusercontent.com/ukri-bench/benchmark-dolfinx/refs/heads/azure-pipelines/.azure_pipelines/test.cu
+#     /usr/local/cuda/bin/nvcc test.cu
+#     ./a.out
+#   displayName: 'Compile and run'
 
 # - script: |
 #     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
