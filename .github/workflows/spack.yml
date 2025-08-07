@@ -142,10 +142,10 @@ jobs:
       - name: Run (CPU)
         run: |
           docker run ghcr.io/ukri-bench/spack-buildcache-cpu:e156f080fda032cb1d60ea0fdfd0aa82ac226e8c \
-            bench_dolfinx  --ndofs=1000 --degree=6 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+            bench_dolfinx  --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
           docker run --env OMPI_ALLOW_RUN_AS_ROOT=1 --env OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 \
             ghcr.io/ukri-bench/spack-buildcache-cpu:e156f080fda032cb1d60ea0fdfd0aa82ac226e8c \
-            mpirun -np 2  bench_dolfinx  --ndofs=1000 --degree=6 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+            mpirun -np 2 bench_dolfinx  --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
 
   # run-code-aws:
   #   name: Run benchmark code on AWS CodeBuild
