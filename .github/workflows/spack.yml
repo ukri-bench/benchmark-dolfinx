@@ -1,7 +1,7 @@
 name: Spack build and run
 
 # Build a version of the benchmark code using the Spack spec. Executes
-# the CPU benchmark version.
+# the CPU version of the benchmark.
 
 on:
   # Uncomment the below 'push' to trigger on push
@@ -25,6 +25,9 @@ env:
 jobs:
   build:
     name: Build benchmark code
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
     strategy:
       matrix:
         backend:
@@ -33,9 +36,6 @@ jobs:
             { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a" },
             { device: cuda, spack_opt: "@main+cuda cuda_arch=75" },
           ]
-    runs-on: ubuntu-24.04
-    permissions:
-      packages: write
 
     steps:
       - uses: actions/checkout@v4
@@ -49,23 +49,18 @@ jobs:
       - name: Set up Spack
         uses: spack/setup-spack@v2
         with:
-          ref: develop    # Spack version (examples: develop, releases/v0.23)
-          color: true     # Force color output (SPACK_COLOR=always)
-          path: spack-src # Where to clone Spack      # - name: Get Spack
+          ref: develop     # Spack version (examples: develop, releases/v0.23)
+          color: true      # Force color output (SPACK_COLOR=always)
+          path: spack-src  # Where to clone Spack
 
-      - if: ${{ matrix.backend.device == 'cpu' }}
-        name: Get Spack config (CPU)
+      - if: ${{ matrix.backend.device != 'rocm' }}
+        name: Get Spack config
         run: |
           wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack.yml
-      - if: ${{ matrix.backend.device != 'cpu' }}
-        name: Get Spack config (GPU)
-        run: |
-          wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack-${{ matrix.backend.device }}.yml
-
       - if: ${{ matrix.backend.device == 'rocm' }}
-        name: Find compilers (ROCm)
-        shell: spack-bash {0}
-        run: spack compiler find
+        name: Get Spack config
+        run: |
+          wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack-rocm.yml
 
       - name: Add ukri-bench Spack repository and create environment
         shell: spack-bash {0}
@@ -74,10 +69,23 @@ jobs:
           spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
           spack env create . spack.yml
 
+      - if: ${{ matrix.backend.device == 'rocm' }}
+        name: Find compilers for ROCm
+        shell: spack-bash {0}
+        run: spack -e . compiler find
+      - if: ${{ matrix.backend.device == 'cuda' }}
+        name: Find CUDA
+        shell: spack-bash {0}
+        run: spack -e . external find -p /usr/local/cuda --all --not-buildable
+
       - name: Install benchmark
         shell: spack-bash {0}
         run: |
           spack -v -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add py-numpy bench-dolfinx${{ matrix.backend.spack_opt }}
+
+      - name: View Spack packages
+        shell: spack-bash {0}
+        run: spack -e . config get packages
 
       - name: Push test image
         if: ${{ matrix.backend.device == 'cpu' }}
@@ -110,7 +118,7 @@ jobs:
     name: Run benchmark code (CPU)
     needs: build
     runs-on: ubuntu-latest
-    container: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
+    container: ghcr.io/ukri-bench/spack-buildcache-cpu:${{ github.sha }}
     env:
       OMPI_ALLOW_RUN_AS_ROOT: 1
       OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
@@ -133,7 +141,7 @@ jobs:
   #     - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
   #       # instance-size:small
   #   container:
-  #     image: ghcr.io/ukri-bench/spack-buildcache-img:${{ github.sha }}
+  #     image: ghcr.io/ukri-bench/spack-buildcache-cpu:${{ github.sha }}
   #     credentials:
   #       username: ${{ github.actor }}
   #       password: ${{ secrets.github_token }}

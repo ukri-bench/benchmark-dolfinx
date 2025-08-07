@@ -10,7 +10,7 @@ jobs:
   run-code:
     name: Run code
     runs-on: ubuntu-latest
-    container: ghcr.io/ukri-bench/spack-buildcache-img:${{ inputs.tag }}
+    container: ghcr.io/ukri-bench/spack-buildcache-cpu:${{ inputs.tag }}
     env:
       OMPI_ALLOW_RUN_AS_ROOT: 1
       OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
