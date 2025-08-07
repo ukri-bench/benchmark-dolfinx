@@ -69,10 +69,13 @@ jobs:
         run: |
           spack -e . compiler find
           spack -e . external find  -p /opt/rocm/ --all --not-buildable
+          spack -e . config get packages
       - if: ${{ matrix.backend.device == 'cuda' }}
         name: Find compilers (CUDA)
         shell: spack-bash {0}
-        run: spack -e . external find -p /usr/local/cuda --all --not-buildable
+        run: |
+          spack -e . external find -p /usr/local/cuda --all --not-buildable
+          spack -e . config get packages
 
       - name: Install dependencies
         shell: spack-bash {0}
