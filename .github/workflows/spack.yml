@@ -94,7 +94,7 @@ jobs:
           spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER \
             --oci-password-variable GITHUB_TOKEN local-buildcache-cpu \
             oci://ghcr.io/ukri-bench/spack-buildcache-cpu
-          spack -e . buildcache push --only package --base-image ubuntu:24.04 --update-index \
+          spack -e . buildcache push --base-image ubuntu:24.04 --update-index \
             --tag ${{ github.sha }} local-buildcache-cpu
 
       - name: Push packages and update index
