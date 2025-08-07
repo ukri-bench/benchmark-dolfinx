@@ -67,7 +67,7 @@ steps:
     sudo dpkg -i cuda-keyring_1.1-1_all.deb
     sudo apt-get -y update
     export DEBIAN_FRONTEND=noninteractive
-    sudo apt-get install -y --no-install-recommends cuda-13
+    sudo apt-get install -y --no-install-recommends cuda-13.0
   displayName: 'Install nvcc'
 
 - script: |
