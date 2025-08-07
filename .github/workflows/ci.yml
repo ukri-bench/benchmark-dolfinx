@@ -33,7 +33,7 @@ jobs:
           [
             { device: cpu, spack_opt: "@main~cuda~rocm", cmake_opt: "" },
             { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a", cmake_opt: -DHIP_ARCH=gfx90a },
-            { device: cuda, spack_opt: "@main+cuda cuda_arch=80", cmake_opt: -DCUDA_ARCH=75 },
+            { device: cuda, spack_opt: "@main+cuda cuda_arch=75", cmake_opt: -DCUDA_ARCH=75 },
           ]
 
     steps:
@@ -72,7 +72,7 @@ jobs:
       - if: ${{ matrix.backend.device == 'cuda' }}
         name: Find compilers (CUDA)
         shell: spack-bash {0}
-        run: spack -e . external find cuda
+        run: spack -e . external find -p /usr/local/cuda --all
 
       - name: Install dependencies
         shell: spack-bash {0}

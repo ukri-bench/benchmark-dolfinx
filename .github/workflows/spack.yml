@@ -73,8 +73,7 @@ jobs:
       - if: ${{ matrix.backend.device == 'cuda' }}
         name: Find compilers (CUDA)
         shell: spack-bash {0}
-        run: |
-          spack -e . external find cuda
+        run: spack -e . external find -p /usr/local/cuda --all
 
       - name: Install benchmark
         shell: spack-bash {0}
