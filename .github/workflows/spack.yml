@@ -162,9 +162,9 @@ jobs:
     runs-on:
       - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
         # instance-size:gpu1.small
-    container:
-      image: nvidia/cuda:12.9.1-devel-ubuntu24.04
-      options: --rm --runtime=nvidia --gpus all
+    # container:
+    #   image: nvidia/cuda:12.9.1-devel-ubuntu24.04
+    #   options: --rm --runtime=nvidia --gpus all
       # image: ghcr.io/ukri-bench/spack-buildcache-cuda:f1b3bd595b09e341dd2bbe497ca1c08419b6f7cb
       # # image: ghcr.io/ukri-bench/spack-buildcache-gpu:${{ github.sha }}
       # credentials:
@@ -172,39 +172,45 @@ jobs:
       #   password: ${{ secrets.github_token }}
       # options: --runtime=nvidia --gpus all
       # # options: --rm --runtime=nvidia --gpus all
-
-
     # env:
     #   OMPI_ALLOW_RUN_AS_ROOT: 1
     #   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
     #   PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
-
     steps:
       - uses: actions/checkout@v4  # To get post-processing script
-
       # - name: Check CUDA
       #   run: |
       #     nvcc --version
-
       # - uses: actions/checkout@v4  # To get post-processing script
 
-      # - name: Install CUDA
-      #   run: |
-      #     apt-get -y update
-      #     apt-get -y install wget
-      #     wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
-      #     dpkg -i cuda-keyring_1.1-1_all.deb
-      #     apt-get -y update
-      #     apt-get -y install cuda-compiler-12-9
+      - name: Install CUDA
+        run: |
+          ls /usr/local
+
+      - name: Install CUDA
+        run: |
+          apt-get -y update
+          apt-get -y install wget
+          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
+          dpkg -i cuda-keyring_1.1-1_all.deb
+          apt-get -y update
+          apt-get -y install cuda-compiler-11
 
       - name: Run (CPU)
         run: |
           nvidia-smi
-          printf "#include <stdio.h>\n#include <cuda.h>\n__global__ void dkernel(){\nprintf(\"Hello-world\\\n\");}\n int main (){\ndkernel <<<1,1>>>();\ncudaDeviceSynchronize();\nreturn 0;}\n" > test.cu
+          /usr/local/cuda/bin/nvcc --version
+          wget https://raw.githubusercontent.com/ukri-bench/benchmark-dolfinx/refs/heads/azure-pipelines/.azure_pipelines/test.cu
           /usr/local/cuda/bin/nvcc test.cu
           echo "Run test"
           ./a.out
           echo "End run test"
+
+      # printf "#include <stdio.h>\n#include <cuda.h>\n__global__ void dkernel(){\nprintf(\"Hello-world\\\n\");}\n int main (){\ndkernel <<<1,1>>>();\ncudaDeviceSynchronize();\nreturn 0;}\n" > test.cu
+      # /usr/local/cuda/bin/nvcc test.cu
+      # echo "Run test"
+      # ./a.out
+      # echo "End run test"
       # - name: Run (CPU)
       #   run: |
       #     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
