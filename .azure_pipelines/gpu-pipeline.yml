@@ -32,7 +32,8 @@ steps:
     containerRegistry: ghcr-io
 
 - script: |
-    docker pull ghcr.io/ukri-bench/spack-buildcache-cpu:e156f080fda032cb1d60ea0fdfd0aa82ac226e8c
+    docker run ghcr.io/ukri-bench/spack-buildcache-cpu:e156f080fda032cb1d60ea0fdfd0aa82ac226e8c \
+      bench_dolfinx  --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
   displayName: 'Docker pull'
 
 
