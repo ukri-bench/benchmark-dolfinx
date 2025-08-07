@@ -5,7 +5,7 @@ pool:
   name: ci-pool
 
 container:
-  image: ghcr.io/ukri-bench/spack-buildcache-img:$(SHA)  # Note: SHA variable must be set in GUI
+  image: ghcr.io/ukri-bench/spack-buildcache-cpu:$(SHA)  # Note: SHA variable must be set in GUI
   endpoint: ghcr-io
   env:
     OMPI_ALLOW_RUN_AS_ROOT: 1
