@@ -129,10 +129,15 @@ jobs:
     # needs: build
     runs-on: ubuntu-latest
     # container: ghcr.io/ukri-bench/spack-buildcache-cpu:${{ github.sha }}
+
     env:
-      OMPI_ALLOW_RUN_AS_ROOT: 1
-      OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
-      PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
+      GITHUB_USER: ${{ github.actor }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # env:
+    #   OMPI_ALLOW_RUN_AS_ROOT: 1
+    #   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+    #   PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
     steps:
       - uses: actions/checkout@v4  # To get post-processing script
       - name: Run (CPU)
