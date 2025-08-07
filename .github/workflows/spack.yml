@@ -69,21 +69,10 @@ jobs:
           spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
           spack env create . spack.yml
 
-      - name: Install some dependencies (to speed up builds)
-        run: |
-          sudo apt-get -y update
-          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y cmake ninja-build make libboost-dev libboost-program-options-dev libopenblas-dev \
-            libjsoncpp-dev libpugixml-dev libspdlog-dev flex meson openmpi-bin libopenmpi-dev libhdf5-mpi-dev bison libmetis-dev libparmetis-dev
-
-      - name: Find installed compilers and libraries
-        shell: spack-bash {0}
-        run: |
-          spack -e . compiler find
-          spack -e . external find --all --not-buildable
       - if: ${{ matrix.backend.device == 'rocm' }}
-        name: Find ROCm
+        name: Find compilers for ROCm
         shell: spack-bash {0}
-        run: spack -e . external find  -p /opt/rocm/ --all --not-buildable
+        run: spack -e . compiler find
       - if: ${{ matrix.backend.device == 'cuda' }}
         name: Find CUDA
         shell: spack-bash {0}
@@ -125,11 +114,6 @@ jobs:
       OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
       PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
     steps:
-      - name: Install some dependencies (to speed up builds)
-        run: |
-          sudo apt-get -y update
-          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y cmake ninja-build make libboost-dev libboost-program-options-dev libopenblas-dev \
-            libjsoncpp-dev libpugixml-dev libspdlog-dev flex meson openmpi-bin libopenmpi-dev libhdf5-mpi-dev bison libmetis-dev libparmetis-dev
       - uses: actions/checkout@v4  # To get post-processing script
       - name: Run (CPU)
         run: |

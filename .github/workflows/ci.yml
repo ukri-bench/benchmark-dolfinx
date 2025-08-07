@@ -52,9 +52,14 @@ jobs:
           color: true      # Force color output (SPACK_COLOR=always)
           path: spack-src  # Where to clone Spack
 
-      - name: Get Spack config
+      - if: ${{ matrix.backend.device != 'rocm' }}
+        name: Get Spack config
         run: |
           wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack.yml
+      - if: ${{ matrix.backend.device == 'rocm' }}
+        name: Get Spack config
+        run: |
+          wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack-rocm.yml
 
       - name: Add ukri-bench Spack repository and create environment
         shell: spack-bash {0}
@@ -68,8 +73,6 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack -e . compiler find
-          spack -e . external find  --all --not-buildable
-          spack -e . external find  -p /opt/rocm/ --all --not-buildable
           spack -e . config get packages
       - if: ${{ matrix.backend.device == 'cuda' }}
         name: Find compilers (CUDA)
