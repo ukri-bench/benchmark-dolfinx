@@ -9,6 +9,16 @@
 trigger:
 - none
 
+parameters:
+- name: IMAGE_NAME
+  displayName: 'Image name'
+  type: string
+  default: 'notset'
+- name: TAG
+  displayName: 'Image tag'
+  type: string
+  default: 'notset'
+
 pool:
   name: ci-pool
 
@@ -31,14 +41,15 @@ steps:
   displayName: 'Install Nvidia container kit'
 
 - script: |
-    docker run --runtime=nvidia --gpus all ghcr.io/ukri-bench/spack-buildcache-cuda:5e0c45ac44579a17af70da22a61d43c39f1c7b23 \
+    docker run --runtime=nvidia --gpus all \
+      ghcr.io/ukri-bench/${{parameters.IMAGE_NAME}}:${{parameters.TAG}} \
       bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
   displayName: 'Run (serial)'
 
 - script: |
     docker run --env OMPI_ALLOW_RUN_AS_ROOT=1 --env OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 \
       --runtime=nvidia --gpus all \
-      ghcr.io/ukri-bench/spack-buildcache-cuda:5e0c45ac44579a17af70da22a61d43c39f1c7b23 \
+      ghcr.io/ukri-bench/${{parameters.IMAGE_NAME}}:${{parameters.TAG}} \
       bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 \
       --json a.json
   displayName: 'Run (MPI)'
