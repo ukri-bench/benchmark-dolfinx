@@ -68,6 +68,7 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack -e . compiler find
+          spack -e . external find  --all --not-buildable
           spack -e . external find  -p /opt/rocm/ --all --not-buildable
           spack -e . config get packages
       - if: ${{ matrix.backend.device == 'cuda' }}
@@ -89,7 +90,7 @@ jobs:
 
       - name: Generate Spack build-env
         shell: spack-bash {0}
-        run: spack -e . build-env --dump build_env.sh bench-dolfinx
+        run: spack -v -e . build-env --dump build_env.sh bench-dolfinx
 
       - name: Build benchmark
         shell: spack-bash {0}

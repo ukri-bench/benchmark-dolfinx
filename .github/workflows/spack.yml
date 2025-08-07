@@ -64,14 +64,24 @@ jobs:
           spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
           spack env create . spack.yml
 
-      - if: ${{ matrix.backend.device == 'rocm' }}
-        name: Find compilers (ROCm)
+      - name: Find installed compilers and libraries
+        run: |
+          sudo apt-get -y update
+          sudo apt-get install -y cmake ninja gmake libboost-dev libopenblas-dev libjsoncpp-dev libpugixml-dev libspdlog-dev flex meson
+          sudo apt-get install -y openmpi-bin libopenmpi-dev
+
+
+      - name: Find installed compilers and libraries
         shell: spack-bash {0}
         run: |
           spack -e . compiler find
-          spack -e . external find  -p /opt/rocm/ --all --not-buildable
+          spack -e . external find --all --not-buildable
+      - if: ${{ matrix.backend.device == 'rocm' }}
+        name: Find ROCm
+        shell: spack-bash {0}
+        run: spack -e . external find  -p /opt/rocm/ --all --not-buildable
       - if: ${{ matrix.backend.device == 'cuda' }}
-        name: Find compilers (CUDA)
+        name: Find CUDA
         shell: spack-bash {0}
         run: spack -e . external find -p /usr/local/cuda --all --not-buildable
 
