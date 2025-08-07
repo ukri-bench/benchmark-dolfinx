@@ -1,13 +1,13 @@
 name: Spack build and run
 
 # Build a version of the benchmark code using the Spack spec. Executes
-# the CPU benchmark version.
+# the CPU version of the benchmark.
 
 on:
   # Uncomment the below 'push' to trigger on push
-  push:
-    branches:
-      - "**"
+  # push:
+  #   branches:
+  #     - "**"
   pull_request:
     branches: [ "main" ]
   merge_group:
@@ -51,7 +51,7 @@ jobs:
         with:
           ref: develop     # Spack version (examples: develop, releases/v0.23)
           color: true      # Force color output (SPACK_COLOR=always)
-          path: spack-src  # Where to clone Spack      # - name: Get Spack
+          path: spack-src  # Where to clone Spack
 
       - if: ${{ matrix.backend.device != 'rocm' }}
         name: Get Spack config
@@ -167,9 +167,9 @@ jobs:
   #       azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
   #       azure-pipeline-variables: '{"SHA": "${{ github.sha }}"}'
 
-  # run-cpu-reuable:
-  #   name: Run benchmark code (CPU, reusable)
-  #   needs: build
-  #   uses: ./.github/workflows/run_cpu.yml
-  #   with:
-  #     tag: ${{ github.sha }}
+  run-cpu-reuable:
+    name: Run benchmark code (CPU, reusable)
+    needs: build
+    uses: ./.github/workflows/run_cpu.yml
+    with:
+      tag: ${{ github.sha }}

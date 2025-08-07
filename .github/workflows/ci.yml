@@ -1,7 +1,8 @@
-name: Test benchmark
+name: Benchmark build and run
 
 # Builds the branch benchmark code against Spack-installed dependencies
-# for CPU and GPU versions. Runs the CPU benchmark version.
+# for CPU and GPU versions. Runs the CPU version of the branch
+# benchmark.
 
 on:
   # Uncomment the below 'push' to trigger on push
@@ -93,7 +94,7 @@ jobs:
 
       - name: Generate Spack build-env
         shell: spack-bash {0}
-        run: spack -d -e . build-env --dump build_env.sh bench-dolfinx
+        run: spack -e . build-env --dump build_env.sh bench-dolfinx
 
       - name: Build benchmark
         shell: spack-bash {0}
@@ -122,9 +123,6 @@ jobs:
 
       - name: Push packages and update index
         shell: spack-bash {0}
-        env:
-          GITHUB_USER: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           spack -e . buildcache push --only dependencies --with-build-dependencies \
             --base-image ubuntu:24.04 --update-index local-buildcache
