@@ -166,7 +166,7 @@ jobs:
 
   run-code-azure:
     name: Run benchmark code on Azure Pipelines
-    # needs: build
+    needs: build
     runs-on: ubuntu-latest
     steps:
     # - uses: Azure/pipelines@v1.2
@@ -175,9 +175,7 @@ jobs:
         azure-devops-project-url: 'https://dev.azure.com/ukribench/benchmark-dolfinx'
         azure-pipeline-name: 'ukri-bench.benchmark-dolfinx (3)'  # name of the Azure pipeline to be triggered
         azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
-        azure-template-parameters: '{"IMAGE_NAME": "local-buildcache-cuda", "TAG": "5e0c45ac44579a17af70da22a61d43c39f1c7b23"}'
-        # azure-pipeline-variables: '{"SHA": "cfaa8587676f548bea64d4ac6d4ce0cf8f2488c5"}'
-        # azure-pipeline-variables: '{"SHA": "${{ github.sha }}"}'
+        azure-template-parameters: '{"IMAGE_NAME": "spack-buildcache", "TAG": "${{ github.sha }}"}'
 
   run-cpu-reuable:
     name: Run benchmark code (CPU, reusable)
