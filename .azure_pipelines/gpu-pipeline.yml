@@ -43,7 +43,7 @@ steps:
   displayName: 'Install container kit'
 
 - script: |
-    docker run --runtime=nvidia --gpus all ghcr.io/ukri-bench/spack-buildcache-cuda:cfaa8587676f548bea64d4ac6d4ce0cf8f2488c5 \
+    docker run --runtime=nvidia --gpus all ghcr.io/ukri-bench/spack-buildcache-cuda:5e0c45ac44579a17af70da22a61d43c39f1c7b23 \
       bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
   displayName: 'Docker pull'
 
