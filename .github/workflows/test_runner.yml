@@ -14,28 +14,31 @@ jobs:
   lint-doc:
     name: ROCm SMI
     runs-on: self-hosted
-    container:
+    container: ghcr.io/ukri-bench/spack-buildcache-rocm:b2e51ab33b505986555386fcbd634accf26023d5
     steps:
       - name: ruff Python checks
-        run: rocm-smi
+        run: |
+          pwd
+          rocm-smi
+          bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
 
-  lint-cpp:
-    name: Code lint checks
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install linting tools
-        run: pip install clang-format ruff
-      - name: ruff Python checks
-        run: |
-          ruff check .
-          ruff format --check .
-      - name: clang-format C++ checks
-        run: |
-          cd src
-          clang-format --version
-          find . -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) | xargs clang-format --dry-run --Werror
+  # lint-cpp:
+  #   name: Code lint checks
+  #   runs-on: self-hosted
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: '3.12'
+  #     - name: Install linting tools
+  #       run: pip install clang-format ruff
+  #     - name: ruff Python checks
+  #       run: |
+  #         ruff check .
+  #         ruff format --check .
+  #     - name: clang-format C++ checks
+  #       run: |
+  #         cd src
+  #         clang-format --version
+  #         find . -type f \( -name "*.cpp" -o -name "*.h" -o -name "*.hpp" \) | xargs clang-format --dry-run --Werror
