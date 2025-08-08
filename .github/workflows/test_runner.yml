@@ -15,9 +15,14 @@ jobs:
     name: ROCm SMI
     runs-on: self-hosted
     container:
-      image: ghcr.io/ukri-bench/spack-buildcache-rocm:b2e51ab33b505986555386fcbd634accf26023d5
+      image: ghcr.io/ukri-bench/spack-buildcache-rocm:16081115783f33f8ed1fc75a4d093fd97665c150
       options: --device /dev/kfd --device /dev/dri --security-opt seccomp=unconfined
     steps:
+      - name: Install GPU compiler/driver
+        uses: ukri-bench/spack-configs/actions/install-gpu-driver@main
+        with:
+          runtime: rocm
+
       - name: ruff Python checks
         run: |
           pwd
