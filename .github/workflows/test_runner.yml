@@ -16,11 +16,12 @@ jobs:
     runs-on: self-hosted
     container:
       image: ghcr.io/ukri-bench/spack-buildcache-rocm:b2e51ab33b505986555386fcbd634accf26023d5
-      options: --device /dev/kfd --device /dev/dri
+      options: --device /dev/kfd --device /dev/dri --security-opt seccomp=unconfined
     steps:
       - name: ruff Python checks
         run: |
           pwd
+          echo $USER
           rocm-smi
           bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
 
