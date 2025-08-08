@@ -20,35 +20,36 @@ parameters:
   default: 'notset'
 
 pool:
-  # name: ci-runner-gpu0
+  name: ci-runner-gpu0
   # name: ci-runner-gpu3
-  name: ci-runner-cpu0
+  # name: ci-runner-cpu0
 
 resources:
   containers:
   - container: runner
     # image: ghcr.io/ukri-bench/${{parameters.IMAGE_NAME}}:${{parameters.TAG}}
-    image: ghcr.io/ukri-bench/spack-buildcache-cpu:7f73db300934e0e304f707ba93dd5ff9193dada0
+    image: ghcr.io/ukri-bench/spack-buildcache-cuda:7f73db300934e0e304f707ba93dd5ff9193dada0
     endpoint: ghcr-io
-    # options: --runtime=nvidia --gpus all
+    options: --runtime=nvidia --gpus all
     env:
       OMPI_ALLOW_RUN_AS_ROOT: 1
       OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
       PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
 
 steps:
-# - script: |
-#     curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
-#       && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
-#         sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-#         sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-#     sudo apt-get update
-#     sudo apt-get install -y nvidia-container-toolkit
-#     sudo nvidia-ctk runtime configure --runtime=docker
-#     sudo systemctl restart docker
-#   displayName: 'Install Nvidia container kit'
+- script: |
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+      && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+        sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+        sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    sudo apt-get update
+    sudo apt-get install -y nvidia-container-toolkit
+    sudo nvidia-ctk runtime configure --runtime=docker
+    sudo systemctl restart docker
+  displayName: 'Install Nvidia container kit'
 
-- script: bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+- script: |
+    bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
   target:
     container: runner
   displayName: 'Run benchmark (serial)'
