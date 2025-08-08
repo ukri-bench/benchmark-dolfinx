@@ -14,6 +14,7 @@ jobs:
   lint-doc:
     name: ROCm SMI
     runs-on: self-hosted
+    container:
     steps:
       - name: ruff Python checks
         run: rocm-smi
