@@ -29,7 +29,7 @@ resources:
   - container: runner
     image: ghcr.io/ukri-bench/${{parameters.IMAGE_NAME}}:${{parameters.TAG}}
     endpoint: ghcr-io
-    options: --runtime=nvidia --gpus all
+    # options: --runtime=nvidia --gpus all
     env:
       OMPI_ALLOW_RUN_AS_ROOT: 1
       OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
