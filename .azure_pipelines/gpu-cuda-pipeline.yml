@@ -37,6 +37,10 @@ resources:
       PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
 
 steps:
+- task: Docker@2
+  inputs:
+    command: stop
+    container: runner
 - script: |
     curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
       && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
@@ -47,6 +51,11 @@ steps:
     sudo nvidia-ctk runtime configure --runtime=docker
     sudo systemctl restart docker
   displayName: 'Install Nvidia container kit'
+
+- task: Docker@2
+  inputs:
+    command: start
+    container: runner
 
 - script: |
     bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
