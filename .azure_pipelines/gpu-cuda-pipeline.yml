@@ -1,11 +1,3 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
-# trigger:
-# - azure-pipelines
-
 trigger:
 - none
 
@@ -20,16 +12,11 @@ parameters:
   default: 'notset'
 
 pool:
-  # name: ci-runner-gpu0
-  name: ci-runner-gpu3
+  name: ci-runner-gpu0
+  # name: ci-runner-gpu3
+  # name: ci-runner-cpu0
 
 steps:
-- task: Docker@2
-  displayName: Login into ghcr.io
-  inputs:
-    command: login
-    containerRegistry: ghcr-io
-
 - script: |
     curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
       && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \

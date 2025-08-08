@@ -81,33 +81,23 @@ jobs:
       - name: Install benchmark
         shell: spack-bash {0}
         run: |
-          spack -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto --add py-numpy bench-dolfinx${{ matrix.backend.spack_opt }}
+          spack -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto \
+            --add py-numpy bench-dolfinx${{ matrix.backend.spack_opt }}
 
       - name: View Spack packages
         shell: spack-bash {0}
         run: spack -e . config get packages
 
-      - name: Push test image
-        if: ${{ matrix.backend.device == 'cpu' }}
+      - name: Push runnable test image
         shell: spack-bash {0}
         run: |
           spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER \
-            --oci-password-variable GITHUB_TOKEN local-buildcache-cpu \
-            oci://ghcr.io/ukri-bench/spack-buildcache-cpu
+            --oci-password-variable GITHUB_TOKEN local-buildcache-${{ matrix.backend.device }} \
+            oci://ghcr.io/ukri-bench/spack-buildcache-${{ matrix.backend.device }}
           spack -e . buildcache push --base-image ubuntu:24.04 --update-index \
-            --tag ${{ github.sha }} local-buildcache-cpu
+            --tag ${{ github.sha }} local-buildcache-${{ matrix.backend.device }}
 
-      - name: Push test image (CUDA)
-        if: ${{ matrix.backend.device == 'cuda' }}
-        shell: spack-bash {0}
-        run: |
-          spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER \
-            --oci-password-variable GITHUB_TOKEN local-buildcache-cuda \
-            oci://ghcr.io/ukri-bench/spack-buildcache-cuda
-          spack -e . buildcache push --base-image ubuntu:24.04 --update-index \
-            --tag ${{ github.sha }} local-buildcache-cuda
-
-      - name: Push packages and update index
+      - name: Push cache packages and update index
         shell: spack-bash {0}
         run: |
           spack -e . buildcache push --base-image ubuntu:24.04 --only dependencies \
@@ -134,31 +124,45 @@ jobs:
           python src/test_output.py a.json
           python src/test_output.py b.json
 
+  run-code-docker:
+    name: Run benchmark code in Docker (CPU)
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run (CPU)
+        run: |
+          docker run ghcr.io/ukri-bench/spack-buildcache-cpu:${{ github.sha }} \
+            bench_dolfinx  --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+          docker run --env OMPI_ALLOW_RUN_AS_ROOT=1 --env OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 \
+            ghcr.io/ukri-bench/spack-buildcache-cpu:e156f080fda032cb1d60ea0fdfd0aa82ac226e8c \
+            mpirun -np 2 bench_dolfinx  --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+
   # run-code-aws:
   #   name: Run benchmark code on AWS CodeBuild
   #   needs: build
   #   runs-on:
   #     - codebuild-ukri-bench-${{ github.run_id }}-${{ github.run_attempt }}
-  #       # instance-size:small
   #   container:
   #     image: ghcr.io/ukri-bench/spack-buildcache-cpu:${{ github.sha }}
   #     credentials:
   #       username: ${{ github.actor }}
   #       password: ${{ secrets.github_token }}
-
   #   env:
   #     OMPI_ALLOW_RUN_AS_ROOT: 1
   #     OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
   #     PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
-
   #   steps:
   #     - uses: actions/checkout@v4  # To get post-processing script
-
   #     - name: Run (CPU)
   #       run: |
   #         bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
   #         mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
-
   #     - name: Post-process
   #       run: |
   #         python src/test_output.py a.json
