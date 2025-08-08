@@ -4,7 +4,7 @@
 # https://aka.ms/yaml
 
 trigger:
-- azure-pipelines-2
+- ci-runner-gpu2
 
 pool:
   name: ci-runner-gpu-amd
