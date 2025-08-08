@@ -4,10 +4,10 @@
 # https://aka.ms/yaml
 
 trigger:
-- azure-pipelines-2
+- none
 
 pool:
-  name: ci-runner-gpu-amd
+  name: ci-runner-gpu2
 
 steps:
 - script: echo Hello, world!
