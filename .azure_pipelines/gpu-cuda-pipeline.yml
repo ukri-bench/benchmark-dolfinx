@@ -30,7 +30,7 @@ resources:
     # image: ghcr.io/ukri-bench/${{parameters.IMAGE_NAME}}:${{parameters.TAG}}
     image: ghcr.io/ukri-bench/spack-buildcache-cuda:7f73db300934e0e304f707ba93dd5ff9193dada0
     endpoint: ghcr-io
-    options: --runtime=nvidia --gpus all
+    # options: --runtime=nvidia --gpus all
     env:
       OMPI_ALLOW_RUN_AS_ROOT: 1
       OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
@@ -55,6 +55,7 @@ steps:
 - task: Docker@2
   inputs:
     command: start
+    arguments: --runtime=nvidia --gpus all
     container: runner
 
 - script: |
