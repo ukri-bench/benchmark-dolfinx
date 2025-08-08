@@ -14,7 +14,9 @@ jobs:
   lint-doc:
     name: ROCm SMI
     runs-on: self-hosted
-    container: ghcr.io/ukri-bench/spack-buildcache-rocm:b2e51ab33b505986555386fcbd634accf26023d5
+    container:
+      image: ghcr.io/ukri-bench/spack-buildcache-rocm:b2e51ab33b505986555386fcbd634accf26023d5
+      options: --device /dev/kfd --device /dev/dri
     steps:
       - name: ruff Python checks
         run: |
