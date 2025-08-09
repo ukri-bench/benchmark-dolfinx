@@ -71,7 +71,11 @@ jobs:
       - name: Run (GPU, serial)
         run: |
           bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-      - name: Run (MPI, serial)
+      - name: Check MPI
+        run: |
+          ompi_info --parsable --all | grep mpi_built_with_cuda_support:value
+
+      - name: Run (GPU, MPI))
         run: |
           mpirun -np 2 bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
 
