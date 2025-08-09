@@ -24,7 +24,7 @@ jobs:
           [
             # { runtime: cpu, driver: ''},
             # { runtime: rocm, driver: amdgpu_target=gfx90a },
-            { runtime: cuda, driver: cuda_arch=80 },
+            { runtime: cuda, driver: cuda_arch=75 },
           ]
     # runs-on: ubuntu-24.04
     # runs-on: runs-on=${{ github.run_id }}/runner=2cpu-linux-x64
@@ -39,9 +39,10 @@ jobs:
 
     runs-on:
       - runs-on=${{ github.run_id }}
-      - family=g4dn.xlarge+g4dn.2xlarge           # NVIDIA GPU
+      - family=g4dn.xlarge     # NVIDIA GPU
+      - region=us-east-2
       - image=ubuntu24-gpu-x64
-      - spot=false
+      - spot=true
       - tag=nv
 
     # container: ubuntu:24.04
@@ -53,6 +54,8 @@ jobs:
       - name: Info
         run: |
           ls /opt
+          ls /usr/local
+          ls /usr/local/cuda
           which nvcc
           nvidia-smi
         # lsb_release -a
