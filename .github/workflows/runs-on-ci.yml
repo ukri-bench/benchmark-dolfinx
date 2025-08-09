@@ -47,8 +47,8 @@ jobs:
 
     # container: ubuntu:24.04
 
-    permissions:
-      packages: write
+    # permissions:
+    #   packages: write
 
     steps:
       - name: Info
