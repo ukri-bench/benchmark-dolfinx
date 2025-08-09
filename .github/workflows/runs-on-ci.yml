@@ -50,6 +50,7 @@ jobs:
 
     container:
       image: ghcr.io/ukri-bench/spack-buildcache-cuda:b2e51ab33b505986555386fcbd634accf26023d5
+      options: --gpus all
 
     env:
       OMPI_ALLOW_RUN_AS_ROOT: 1
