@@ -51,11 +51,10 @@ jobs:
     container:
       image: ghcr.io/ukri-bench/spack-buildcache-cuda:b2e51ab33b505986555386fcbd634accf26023d5
       options: --gpus all
-
-    env:
-      OMPI_ALLOW_RUN_AS_ROOT: 1
-      OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
-      PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
+      env:
+        OMPI_ALLOW_RUN_AS_ROOT: 1
+        OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+        PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
     steps:
       - uses: actions/checkout@v4  # To get post-processing script
       # - name: Login to GitHub Container Registry
@@ -69,9 +68,12 @@ jobs:
       #     docker run --runtime=nvidia --gpus all \
       #       ghcr.io/ukri-bench/spack-buildcache-cuda:b2e51ab33b505986555386fcbd634accf26023d5 \
       #       bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-      - name: Run (CPU)
+      - name: Run (GPU, serial)
         run: |
-            bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+          bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+      - name: Run (MPI, serial)
+        run: |
+          mpirun -np 2 bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
 
 
   # steps:
