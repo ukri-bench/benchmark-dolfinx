@@ -45,7 +45,7 @@ jobs:
       - family=g4dn.xlarge     # NVIDIA GPU
       - region=us-east-2
       - image=ubuntu24-gpu-x64
-      # - spot=true
+      - spot=true
       - tag=nv
 
     # container: ubuntu:24.04
