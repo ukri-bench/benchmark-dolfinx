@@ -1,0 +1,25 @@
+trigger:
+- none
+
+pool:
+  name: ci-pool
+
+container:
+  image: ghcr.io/ukri-bench/spack-buildcache-cpu:$(SHA)  # Note: SHA variable must be set in GUI
+  endpoint: ghcr-io
+  env:
+    OMPI_ALLOW_RUN_AS_ROOT: 1
+    OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+    PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
+
+steps:
+- script: |
+    bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+  displayName: Run (serial)
+- script: |
+    mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+  displayName: Run (parallel)
+- script: |
+    python src/test_output.py a.json
+    python src/test_output.py b.json
+  displayName: Post-process
