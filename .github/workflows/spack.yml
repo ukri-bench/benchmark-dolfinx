@@ -32,9 +32,9 @@ jobs:
       matrix:
         backend:
           [
-            { device: cpu, spack_opt: "@main~cuda~rocm" },
-            { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a" },
-            { device: cuda, spack_opt: "@main+cuda cuda_arch=75" },
+            { device: cpu, spack_opt: "bench-dolfinx@main~cuda~rocm" },
+            { device: rocm, spack_opt: "bench-dolfinx@main+rocm amdgpu_target=gfx90a ^openmpi+rocm" },
+            { device: cuda, spack_opt: "bench-dolfinx@main+cuda cuda_arch=75 ^openmpi+cuda" },
           ]
 
     steps:
@@ -82,7 +82,7 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack -e . install -U -j 4 --use-buildcache=package:never,dependencies:auto \
-            --add py-numpy bench-dolfinx${{ matrix.backend.spack_opt }}
+            --add py-numpy ${{ matrix.backend.spack_opt }}
 
       - name: View Spack packages
         shell: spack-bash {0}
