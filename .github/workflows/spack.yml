@@ -168,22 +168,22 @@ jobs:
   #         python src/test_output.py a.json
   #         python src/test_output.py b.json
 
-  run-code-azure:
-    name: Run benchmark code on Azure Pipelines
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    # - uses: Azure/pipelines@v1.2
-    - uses: tjcorr/pipelines@v1.4
-      with:
-        azure-devops-project-url: 'https://dev.azure.com/ukribench/benchmark-dolfinx'
-        azure-pipeline-name: 'benchmark-dolfinx.cuda'  # name of the Azure pipeline to be triggered
-        azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
-        azure-template-parameters: '{"IMAGE_NAME": "spack-buildcache-cuda", "TAG": "${{ github.sha }}"}'
+  # run-code-azure:
+  #   name: Run benchmark code on Azure Pipelines
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   # - uses: Azure/pipelines@v1.2
+  #   - uses: tjcorr/pipelines@v1.4
+  #     with:
+  #       azure-devops-project-url: 'https://dev.azure.com/ukribench/benchmark-dolfinx'
+  #       azure-pipeline-name: 'benchmark-dolfinx.cuda'  # name of the Azure pipeline to be triggered
+  #       azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
+  #       azure-template-parameters: '{"IMAGE_NAME": "spack-buildcache-cuda", "TAG": "${{ github.sha }}"}'
 
-  run-cpu-reuable:
-    name: Run benchmark code (CPU, reusable)
-    needs: build
-    uses: ./.github/workflows/run_cpu.yml
-    with:
-      tag: ${{ github.sha }}
+  # run-cpu-reuable:
+  #   name: Run benchmark code (CPU, reusable)
+  #   needs: build
+  #   uses: ./.github/workflows/run_cpu.yml
+  #   with:
+  #     tag: ${{ github.sha }}
