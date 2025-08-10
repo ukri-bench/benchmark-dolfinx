@@ -49,7 +49,7 @@ jobs:
       - tag=nv
 
     container:
-      image: ghcr.io/ukri-bench/spack-buildcache-cuda:b2e51ab33b505986555386fcbd634accf26023d5
+      image: ghcr.io/ukri-bench/spack-buildcache-cuda:e2c77d9a807741c6a6264119ae2831f3c9fbc5cc
       options: --gpus all
       env:
         OMPI_ALLOW_RUN_AS_ROOT: 1
