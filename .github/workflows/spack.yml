@@ -33,8 +33,10 @@ jobs:
         backend:
           [
             { device: cpu, spack_opt: "bench-dolfinx@main~cuda~rocm" },
-            { device: rocm, spack_opt: "bench-dolfinx@main+rocm amdgpu_target=gfx90a ^openmpi+rocm" },
-            { device: cuda, spack_opt: "bench-dolfinx@main+cuda cuda_arch=75 ^openmpi+cuda" },
+            # Should be able to use "bench-dolfinx@main++rocm amdgpu_target==gfx90a ^openmpi"
+            { device: rocm, spack_opt: "bench-dolfinx@main+rocm amdgpu_target=gfx90a ^openmpi+rocm amdgpu_target=gfx90a" },
+            # Should be able to use "bench-dolfinx@main++cuda cuda_arch==75 ^openmpi"
+            { device: cuda, spack_opt: "bench-dolfinx@main++cuda cuda_arch==75 ^openmpi" },
           ]
 
     steps:
