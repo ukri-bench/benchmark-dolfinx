@@ -5,9 +5,9 @@ name: Spack build and run
 
 on:
   # Uncomment the below 'push' to trigger on push
-  # push:
-  #   branches:
-  #     - "**"
+  push:
+    branches:
+      - "**"
   # pull_request:
   #   branches: [ "main" ]
   # merge_group:
@@ -67,7 +67,7 @@ jobs:
       - name: Add ukri-bench Spack repository and create environment
         shell: spack-bash {0}
         run: |
-          spack repo add --name bench_pkgs https://github.com/garth-wells/ukribench-spack-packages.git ./bench_pkgs
+          spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git ./bench_pkgs
           spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
           spack env create . spack.yml
 
@@ -96,8 +96,20 @@ jobs:
           spack -e . mirror add --unsigned --type binary --oci-username-variable GITHUB_USER \
             --oci-password-variable GITHUB_TOKEN local-buildcache-${{ matrix.backend.device }} \
             oci://ghcr.io/ukri-bench/spack-buildcache-${{ matrix.backend.device }}
-          spack -e . buildcache push --base-image ubuntu:24.04 --update-index \
-            --tag ${{ github.sha }} local-buildcache-${{ matrix.backend.device }}
+
+      - if: ${{ matrix.backend.device == 'cuda' }}
+        name: Push runnable test image
+        shell: spack-bash {0}
+        run: |
+          spack -e . buildcache push --base-image nvidia/cuda:13.0.0-base-ubuntu24.04 \
+            --update-index --tag ${{ github.sha }} local-buildcache-${{ matrix.backend.device }}
+
+      - if: ${{ matrix.backend.device != 'cuda' }}
+        name: Push runnable test image
+        shell: spack-bash {0}
+        run: |
+          spack -e . buildcache push --base-image ubuntu:24.04 \
+            --update-index --tag ${{ github.sha }} local-buildcache-${{ matrix.backend.device }}
 
       - name: Push cache packages and update index
         shell: spack-bash {0}

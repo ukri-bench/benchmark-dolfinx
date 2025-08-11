@@ -2,15 +2,20 @@ name: Spack build (runs-on)
 
 on:
   # Uncomment the below 'push' to trigger on push
-  push:
-    branches:
-      - "**"
+  # push:
+  #   branches:
+  #     - "**"
   # pull_request:
   #   branches: [ "main" ]
   # merge_group:
   #   branches:
   #     - main
   workflow_dispatch:
+    inputs:
+      container_hash:
+        description: 'Container hash'
+        required: true
+        default: ''
 
 env:
   GITHUB_USER: ${{ github.actor }}
@@ -28,7 +33,7 @@ jobs:
       - tag=nv
 
     container:
-      image: ghcr.io/ukri-bench/spack-buildcache-cuda:e2c77d9a807741c6a6264119ae2831f3c9fbc5cc
+      image: ghcr.io/ukri-bench/spack-buildcache-cuda:${{ github.event.inputs.container_hash }}
       options: --gpus all
       env:
         OMPI_ALLOW_RUN_AS_ROOT: 1
@@ -48,14 +53,14 @@ jobs:
       #       ghcr.io/ukri-bench/spack-buildcache-cuda:e2c77d9a807741c6a6264119ae2831f3c9fbc5cc \
       #       bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
 
-      - name: Install CUDA
-        run: |
-          apt-get update
-          apt-get install -y wget
-          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
-          dpkg -i cuda-keyring_1.1-1_all.deb
-          apt-get update
-          apt-get -y install cuda-cudart-12-9
+      # - name: Install CUDA
+      #   run: |
+      #     apt-get update
+      #     apt-get install -y wget
+      #     wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-keyring_1.1-1_all.deb
+      #     dpkg -i cuda-keyring_1.1-1_all.deb
+      #     apt-get update
+      #     apt-get -y install cuda-cudart-12-9
       - name: Run (GPU, serial)
         run: |
           bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
