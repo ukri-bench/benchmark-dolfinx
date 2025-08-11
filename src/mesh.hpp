@@ -64,7 +64,8 @@ dolfinx::mesh::Mesh<T> create_mesh(MPI_Comm comm, std::array<std::int64_t, 3> n,
 ///    shared with any other process.
 /// 2. Cells which share degrees-of-freedom with other processes.
 ///
-/// @param V Function space of the finite element space
+/// @param topology Mesh topology.
+/// @param dofmap Degree-of-freedom map defined on `topology`.
 /// @returns Lists of cells: (0) local cells and (1) boundary cells.
 std::array<std::vector<std::int32_t>, 2>
 compute_boundary_cells(const dolfinx::mesh::Topology& topology,
