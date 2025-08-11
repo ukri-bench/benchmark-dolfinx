@@ -26,7 +26,7 @@ namespace benchdolfinx
 template <typename T, int Q>
 __global__ void geometry_computation(const T* xgeom, T* G_entity,
                                      const std::int32_t* geometry_dofmap,
-                                     const T* _dphi, const T* weights,
+                                     const T* dphi, const T* weights,
                                      const int* entities, int n_entities)
 {
   // One block per cell
@@ -85,7 +85,7 @@ __global__ void geometry_computation(const T* xgeom, T* G_entity,
 
   // For each quadrature point / thread
   {
-    auto dphi_idx = [](int i, int j) { return (i * nq + iq) * ncdofs + j; };
+    auto dphi_idx = [iq](int i, int j) { return (i * nq + iq) * ncdofs + j; };
     for (std::size_t i = 0; i < gdim; i++)
     {
       for (std::size_t j = 0; j < gdim; j++)
