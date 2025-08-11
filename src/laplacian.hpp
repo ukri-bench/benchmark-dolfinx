@@ -86,8 +86,7 @@ build_bc_markers(const dolfinx::fem::DirichletBC<T>& bc)
 } // namespace impl
 
 #if defined(USE_CUDA) || defined(USE_HIP)
-  // GPU
-
+/// GPU
 template <typename T>
 class MatFreeLaplacian
 {
@@ -116,7 +115,8 @@ public:
         _bc_marker(impl::build_bc_markers(bc))
   {
     {
-      auto [lcells, bcells] = benchdolfinx::compute_boundary_cells<T>(V);
+      auto [lcells, bcells] = benchdolfinx::compute_boundary_cells(
+          *V.mesh()->topology(), *V.dofmap());
       _lcells = lcells;
       _bcells = bcells;
     }
@@ -448,8 +448,7 @@ private:
 
 #else
 
-// CPU Version
-
+/// CPU Version
 template <typename T>
 class MatFreeLaplacian
 {
@@ -478,7 +477,8 @@ public:
         _bc_marker(impl::build_bc_markers(bc))
   {
     {
-      auto [lcells, bcells] = benchdolfinx::compute_boundary_cells<T>(V);
+      auto [lcells, bcells] = benchdolfinx::compute_boundary_cells(
+          *V.mesh()->topology(), *V.dofmap());
       _lcells = lcells;
       _bcells = bcells;
     }
@@ -637,7 +637,7 @@ public:
 
 private:
   template <int Q = 2>
-  void compute_geometry(int nq, std::span<const int> cell_list)
+  void compute_geometry(int nq, std::span<const std::int32_t> cell_list)
   {
     if constexpr (Q < 10)
     {
@@ -656,10 +656,8 @@ private:
         spdlog::info("cell_list size {}", cell_list.size());
         spdlog::info("Calling geometry_computation [{} {}]", Q, nq);
 
-        geometry_computation<T, Q>(_xgeom.data(), _g_entity.data(),
-                                   _geometry_dofmap.data(),
-                                   _dphi_geometry.data(), _g_weights.data(),
-                                   cell_list.data(), cell_list.size());
+        geometry_computation_cpu<T, Q>(_xgeom, _g_entity, _geometry_dofmap,
+                                       _dphi_geometry, _g_weights, cell_list);
 
         spdlog::debug("Done geometry_computation");
       }

@@ -23,16 +23,17 @@ namespace po = boost::program_options;
 
 namespace
 {
-
-/// @brief Run benchmark
-/// @param comm MPI Communicator
-/// @param nx Cube mesh dimensions (nx, ny, nz)
+/// @brief Run benchmark on a cube domain.
+///
+/// @param comm MPI Communicator.
+/// @param nx Number of cells in direction (nx, ny, nz).
 /// @param geom_perturb_fact Geometry perturbation factor
-/// @param degree Polynomial degree
-/// @param qmode Quadrature mode (0 or 1)
-/// @param nreps Number of repetitions
+/// @param degree Polynomial degree of the elements.
+/// @param qmode Quadrature mode (0 or 1).
+/// @param nreps Number of repetitions of ....
 /// @param use_gauss Use Gauss quadrature, rather than GLL
-/// @param matrix_comparison Compare to assembled CSR Matrix
+/// @param matrix_comparison Verify computation against the action of an
+/// assembled CSR Matrix.
 template <typename T>
 Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
                           double geom_perturb_fact, int degree, int qmode,
@@ -43,7 +44,8 @@ Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   MPI_Comm_size(comm, &size);
 
   // Create mesh
-  spdlog::info("Mesh shape: {}x{}x{}", nx[0], nx[1], nx[2]);
+  spdlog::info("Mesh cells in each direction: {} x {} x {}", nx[0], nx[1],
+               nx[2]);
   auto mesh = std::make_shared<mesh::Mesh<T>>(
       benchdolfinx::create_mesh<T>(comm, nx, geom_perturb_fact));
 
@@ -114,7 +116,7 @@ Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
 
 int main(int argc, char* argv[])
 {
-  // Program options
+  // Define command line options
   po::options_description desc("Options");
   desc.add_options()("help,h", "Print usage message")
       //
@@ -147,6 +149,7 @@ int main(int argc, char* argv[])
       ("json", po::value<std::string>()->default_value(""),
        "Filename for JSON output");
 
+  // Parse command line options
   po::variables_map vm;
   po::store(po::command_line_parser(argc, argv)
                 .options(desc)
@@ -222,6 +225,7 @@ int main(int argc, char* argv[])
     std::array<std::int64_t, 3> nx
         = benchdolfinx::compute_mesh_size(ndofs, degree, size);
 
+    // Run benchmark
     if (float_size == 32)
     {
       throw std::runtime_error("Float32 not implemented yet.");
@@ -240,6 +244,7 @@ int main(int argc, char* argv[])
           std::format("Invalid float size {}. Must be 32 or 64.", float_size));
     }
 
+    // Report performance data
     if (rank == 0 and !json_filename.empty())
     {
       Json::StreamWriterBuilder builder;

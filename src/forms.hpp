@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <dolfinx/fem/Constant.h>
 #include <dolfinx/fem/Form.h>
 #include <dolfinx/fem/FunctionSpace.h>
 #include <map>

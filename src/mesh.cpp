@@ -5,8 +5,9 @@
 #include "mesh.hpp"
 #include <basix/finite-element.h>
 #include <dolfinx/fem/CoordinateElement.h>
-#include <dolfinx/fem/FunctionSpace.h>
+#include <dolfinx/fem/DofMap.h>
 #include <dolfinx/mesh/Mesh.h>
+#include <dolfinx/mesh/Topology.h>
 #include <dolfinx/mesh/cell_types.h>
 #include <dolfinx/mesh/generation.h>
 #include <dolfinx/mesh/utils.h>
@@ -112,11 +113,11 @@ ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
   return new_mesh;
 }
 } // namespace
-
+//----------------------------------------------------------------------------
 std::array<std::int64_t, 3>
 benchdolfinx::compute_mesh_size(std::int64_t ndofs, int degree, int mpi_size)
 {
-  double nx_approx = (std::pow(ndofs * mpi_size, 1.0 / 3.0) - 1) / degree;
+  double nx_approx = (std::pow(ndofs * mpi_size, 1. / 3.) - 1) / degree;
   std::int64_t n0 = static_cast<std::int64_t>(nx_approx);
   std::array<std::int64_t, 3> nx = {n0, n0, n0};
 
@@ -148,25 +149,20 @@ benchdolfinx::compute_mesh_size(std::int64_t ndofs, int degree, int mpi_size)
 
   return nx;
 }
-
-template <typename T>
+//----------------------------------------------------------------------------
 std::array<std::vector<std::int32_t>, 2>
-benchdolfinx::compute_boundary_cells(const dolfinx::fem::FunctionSpace<T>& V)
+benchdolfinx::compute_boundary_cells(const dolfinx::mesh::Topology& topology,
+                                     const dolfinx::fem::DofMap& dofmap)
 {
-  auto mesh = V.mesh();
-  auto topology = mesh->topology_mutable();
-  int tdim = topology->dim();
-  int fdim = tdim - 1;
-  topology->create_connectivity(fdim, tdim);
-
-  std::int32_t ncells_local = topology->index_map(tdim)->size_local();
-  std::int32_t ncells_ghost = topology->index_map(tdim)->num_ghosts();
-  std::int32_t ndofs_local = V.dofmap()->index_map->size_local();
+  int tdim = topology.dim();
+  std::int32_t ncells_local = topology.index_map(tdim)->size_local();
+  std::int32_t ncells_ghost = topology.index_map(tdim)->num_ghosts();
+  std::int32_t ndofs_local = dofmap.index_map->size_local();
 
   std::vector<std::uint8_t> cell_mark(ncells_local + ncells_ghost, 0);
   for (int i = 0; i < ncells_local; ++i)
   {
-    auto cell_dofs = V.dofmap()->cell_dofs(i);
+    auto cell_dofs = dofmap.cell_dofs(i);
     for (auto dof : cell_dofs)
       if (dof >= ndofs_local)
         cell_mark[i] = 1;
@@ -189,16 +185,8 @@ benchdolfinx::compute_boundary_cells(const dolfinx::fem::FunctionSpace<T>& V)
 
   return {std::move(local_cells), std::move(boundary_cells)};
 }
-
-/// @brief Create a cube mesh of size n[0] x n[1] x n[2] with an appropriate
-/// ghost layer, so that local and boundary cells can be treated in separate
-/// steps in a solver.
-/// @tparam T Scalar type
-/// @param comm MPI Communicator
-/// @param n Number of cells in each direction
-/// @param geom_perturb_fact Random perturbation to the geometry by this factor
-/// @return A mesh
-template <typename T>
+//----------------------------------------------------------------------------
+template <std::floating_point T>
 dolfinx::mesh::Mesh<T> benchdolfinx::create_mesh(MPI_Comm comm,
                                                  std::array<std::int64_t, 3> n,
                                                  T geom_perturb_fact)
@@ -227,7 +215,7 @@ dolfinx::mesh::Mesh<T> benchdolfinx::create_mesh(MPI_Comm comm,
 
   return ghost_layer_mesh(mesh0, celement);
 }
-
+//----------------------------------------------------------------------------
 // Explicit instantiation for double and float
 /// @cond
 template dolfinx::mesh::Mesh<double>
@@ -237,10 +225,5 @@ template dolfinx::mesh::Mesh<float>
 benchdolfinx::create_mesh<float>(MPI_Comm comm, std::array<std::int64_t, 3> n,
                                  float geom_perturb_fact);
 
-template std::array<std::vector<std::int32_t>, 2>
-benchdolfinx::compute_boundary_cells(
-    const dolfinx::fem::FunctionSpace<double>& V);
-template std::array<std::vector<std::int32_t>, 2>
-benchdolfinx::compute_boundary_cells(
-    const dolfinx::fem::FunctionSpace<float>& V);
 /// @endcond
+//----------------------------------------------------------------------------
