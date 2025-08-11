@@ -83,7 +83,8 @@ static __global__ void unpack_add(std::int32_t N,
 
 namespace benchdolfinx
 {
-/// @brief Distributed vector
+/// @brief Distributed vector.
+///
 /// @tparam T Scalar type
 template <typename T>
 class Vector
@@ -187,7 +188,9 @@ public:
     }
   }
 
-  /// @brief Begin scatter of local data from owner to ghosts on other ranks
+  /// @brief Begin scatter of local data from owner to ghosts on other
+  /// ranks.
+  ///
   /// @param block_size GPU block size for pack operation
   /// @note Collective MPI operation
   void scatter_fwd_begin(int block_size = 512)
@@ -218,7 +221,9 @@ public:
         dolfinx::common::Scatterer<>::type::p2p);
   }
 
-  /// @brief Complete scatter of local data from owner to ghosts on other ranks
+  /// @brief Complete scatter of local data from owner to ghosts on
+  /// other ranks.
+  ///
   /// @param block_size GPU block size for unpack operation
   /// @note Collective MPI operation
   void scatter_fwd_end(int block_size = 512)
@@ -255,7 +260,8 @@ public:
     spdlog::debug("scatter_fwd_end end");
   }
 
-  /// @brief Scatter local data to ghost positions on other ranks
+  /// @brief Scatter local data to ghost positions on other ranks.
+  ///
   /// @note Collective MPI operation
   void scatter_fwd()
   {
@@ -263,7 +269,8 @@ public:
     this->scatter_fwd_end();
   }
 
-  /// @brief Begin scatter of ghost data back to owning ranks
+  /// @brief Begin scatter of ghost data back to owning ranks.
+  ///
   /// @param block_size GPU block size for pack operation
   /// @note Collective MPI operation
   void scatter_rev_begin(int block_size = 512)
@@ -291,7 +298,8 @@ public:
         dolfinx::common::Scatterer<>::type::p2p);
   }
 
-  /// @brief Complete scatter of ghost data back to owning ranks
+  /// @brief Complete scatter of ghost data back to owning ranks.
+  ///
   /// @param block_size GPU block size for unpack operation
   /// @note Collective MPI operation
   void scatter_rev_end(int block_size = 512)
@@ -315,8 +323,9 @@ public:
     device_synchronize();
   }
 
-  /// @brief Scatter local data from ghosts, and accumulate in owned part of
-  /// vector
+  /// @brief Scatter local data from ghosts, and accumulate in owned
+  /// part of vector.
+  ///
   /// @note Collective MPI operation
   void scatter_rev()
   {
@@ -376,7 +385,8 @@ auto inner_product(const Vector& a, const Vector& b)
   return result;
 }
 
-/// @brief Compute the squared L2 norm of vector
+/// @brief Compute the squared L2 norm of vector.
+///
 /// @param a Vector input
 /// @note Collective MPI operation
 template <typename Vector>
@@ -387,10 +397,12 @@ auto squared_norm(const Vector& a)
   return std::real(result);
 }
 
-/// @brief Compute the norm of the vector
+/// @brief Compute the norm of the vector.
+///
 /// @note Collective MPI operation
 /// @param a A vector
-/// @param type Norm type (supported types are \f$L^2\f$ and \f$L^\infty\f$)
+/// @param type Norm type (supported types are \f$L^2\f$ and
+/// \f$L^\infty\f$).
 template <typename Vector>
 auto norm(const Vector& a, dolfinx::la::Norm type = dolfinx::la::Norm::l2)
 {
@@ -417,6 +429,7 @@ auto norm(const Vector& a, dolfinx::la::Norm type = dolfinx::la::Norm::l2)
 }
 
 /// @brief Compute vector r = alpha * x + y.
+///
 /// @tparam S Scalar Type
 /// @tparam Vector Vector Type
 /// @param [in,out] r Result
@@ -448,7 +461,8 @@ void scale(Vector& r, S alpha)
                    [alpha] __host__ __device__(T & v) { v *= alpha; });
 }
 
-/// @brief Copy Vector b into Vector a
+/// @brief Copy Vector b into Vector a.
+///
 /// @param [in,out] a
 /// @param [in] b
 /// @note Only copies the owned part of the Vector, no ghosts
@@ -463,7 +477,8 @@ void copy(Vector& a, const Vector& b)
   thrust::copy(thrust::device, x_b.begin(), x_b.end(), x_a.begin());
 }
 
-/// @brief Compute pointwise vector multiplication w[i] = x[i] * y[i]
+/// @brief Compute pointwise vector multiplication w[i] = x[i] * y[i].
+///
 /// @param [in,out] w
 /// @param [in] x
 /// @param [in] y
