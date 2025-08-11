@@ -16,8 +16,8 @@ namespace benchdolfinx
 /// @param[out] G_entity geometry data [n_entities, nq, 6]
 /// @param[in] geometry_dofmap Location of coordinates for each cell in
 /// `xgeom [:, ncdofs]`.
-/// @param[in] _dphi Basis derivative tabulation for cell at quadrature
-/// `points [3, nq, ncdofs]`
+/// @param[in] dphi Basis derivative tabulation for cell at quadrature
+/// `points [3, nq, ncdofs]`.
 /// @param[in] weights Quadrature weights [nq]
 /// @param[in] entities list of cells to compute for [n_entities]
 /// @param[in] n_entities total number of cells to compute for
