@@ -4,62 +4,68 @@
 
 #pragma once
 
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
 namespace benchdolfinx
 {
-template <typename T, int Q>
-void geometry_computation(const T* xgeom, T* G_entity,
-                          const std::int32_t* geometry_dofmap, const T* _dphi,
-                          const T* weights, const int* entities, int n_entities)
+/// @todo Document
+template <std::floating_point T, int Q>
+void geometry_computation_cpu(std::span<const T> xgeom, std::span<T> G_entity,
+                              std::span<const std::int32_t> geometry_dofmap,
+                              std::span<const T> dphi,
+                              std::span<const T> weights,
+                              std::span<const int> entities)
 {
-  for (int c = 0; c < n_entities; ++c)
+  // Number of quadrature points (must match arrays in weights and
+  // dphi)
+  constexpr int nq = Q * Q * Q;
+
+  // Number of coordinate dofs
+  constexpr int ncdofs = 8;
+
+  // Geometric dimension
+  constexpr int gdim = 3;
+
+  // Iterator over cells
+  for (std::size_t c = 0; c < entities.size(); ++c)
   {
     // Cell index
-    int cell = entities[c];
-
-    // Number of quadrature points (must match arrays in weights and
-    // dphi)
-    constexpr int nq = Q * Q * Q;
-
-    // Number of coordinate dofs
-    constexpr int ncdofs = 8;
-
-    // Geometric dimension
-    constexpr int gdim = 3;
+    std::int32_t cell = entities[c];
 
     // coord_dofs has shape [ncdofs, gdim]
-    T _coord_dofs[ncdofs * gdim];
+    T coord_dofs[ncdofs * gdim];
     for (int i = 0; i < 8; ++i)
+    {
       for (int j = 0; j < 3; ++j)
       {
-        _coord_dofs[i * 3 + j]
+        coord_dofs[i * 3 + j]
             = xgeom[3 * geometry_dofmap[cell * ncdofs + i] + j];
       }
+    }
 
     // Jacobian
     T J[3][3];
-    auto coord_dofs = [&_coord_dofs](int i, int j) -> T&
-    { return _coord_dofs[i * gdim + j]; };
+    auto idx = [](int i, int j) { return i * gdim + j; };
 
+    // Iterate over quadrature points
     for (int iq = 0; iq < nq; ++iq)
-    // For each quadrature point
     {
       // dphi has shape [gdim, ncdofs]
-      auto dphi = [&_dphi, iq](int i, int j) -> const T
-      { return _dphi[(i * nq + iq) * ncdofs + j]; };
+      auto idx_dphi = [iq](int i, int j) { return (i * nq + iq) * ncdofs + j; };
       for (std::size_t i = 0; i < gdim; i++)
       {
         for (std::size_t j = 0; j < gdim; j++)
         {
           J[i][j] = 0.0;
           for (std::size_t k = 0; k < ncdofs; k++)
-            J[i][j] += coord_dofs(k, i) * dphi(j, k);
+            J[i][j] += coord_dofs[idx(k, i)] * dphi[idx_dphi(j, k)];
         }
       }
 
-      // Components of K = J^-1 (detJ)
+      // Compute K = J^-1 (detJ)
       T K[3][3] = {{J[1][1] * J[2][2] - J[1][2] * J[2][1],
                     -J[0][1] * J[2][2] + J[0][2] * J[2][1],
                     J[0][1] * J[1][2] - J[0][2] * J[1][1]},

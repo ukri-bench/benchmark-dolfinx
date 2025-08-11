@@ -11,12 +11,13 @@ namespace benchdolfinx
 {
 /// @brief Computes weighted geometry tensor G from the coordinates and
 /// quadrature weights.
+///
 /// @param[in] xgeom Geometry points [:, 3]
 /// @param[out] G_entity geometry data [n_entities, nq, 6]
 /// @param[in] geometry_dofmap Location of coordinates for each cell in
-/// xgeom [:, ncdofs]
-/// @param[in] _dphi Basis derivative tabulation for cell at quadrature
-/// points [3, nq, ncdofs]
+/// `xgeom [:, ncdofs]`.
+/// @param[in] dphi Basis derivative tabulation for cell at quadrature
+/// `points [3, nq, ncdofs]`.
 /// @param[in] weights Quadrature weights [nq]
 /// @param[in] entities list of cells to compute for [n_entities]
 /// @param[in] n_entities total number of cells to compute for
@@ -25,7 +26,7 @@ namespace benchdolfinx
 template <typename T, int Q>
 __global__ void geometry_computation(const T* xgeom, T* G_entity,
                                      const std::int32_t* geometry_dofmap,
-                                     const T* _dphi, const T* weights,
+                                     const T* dphi, const T* weights,
                                      const int* entities, int n_entities)
 {
   // One block per cell
@@ -50,9 +51,9 @@ __global__ void geometry_computation(const T* xgeom, T* G_entity,
   __shared__ T shared_mem[ncdofs * gdim];
 
   // coord_dofs has shape [ncdofs, gdim]
-  T* _coord_dofs = shared_mem;
+  T* coord_dofs = shared_mem;
 
-  // First collect geometry into shared memory
+  // Bring cell geometry into shared memory
   int iq = threadIdx.x;
   if constexpr (nq < 27)
   {
@@ -60,7 +61,7 @@ __global__ void geometry_computation(const T* xgeom, T* G_entity,
     assert(iq < 8);
     for (int j = 0; j < 3; ++j)
     {
-      _coord_dofs[iq * 3 + j]
+      coord_dofs[iq * 3 + j]
           = xgeom[3 * geometry_dofmap[cell * ncdofs + iq] + j];
     }
   }
@@ -69,7 +70,7 @@ __global__ void geometry_computation(const T* xgeom, T* G_entity,
     int i = iq / gdim;
     int j = iq % gdim;
     if (i < ncdofs)
-      _coord_dofs[iq] = xgeom[3 * geometry_dofmap[cell * ncdofs + i] + j];
+      coord_dofs[iq] = xgeom[3 * geometry_dofmap[cell * ncdofs + i] + j];
   }
 
   __syncthreads();
@@ -80,21 +81,18 @@ __global__ void geometry_computation(const T* xgeom, T* G_entity,
 
   // Jacobian
   T J[3][3];
-  auto coord_dofs = [&_coord_dofs](int i, int j) -> T&
-  { return _coord_dofs[i * gdim + j]; };
+  auto idx = [](int i, int j) { return i * gdim + j; };
 
   // For each quadrature point / thread
   {
-    // dphi has shape [gdim, ncdofs]
-    auto dphi = [&_dphi, iq](int i, int j) -> const T
-    { return _dphi[(i * nq + iq) * ncdofs + j]; };
+    auto idx_dphi = [iq](int i, int j) { return (i * nq + iq) * ncdofs + j; };
     for (std::size_t i = 0; i < gdim; i++)
     {
       for (std::size_t j = 0; j < gdim; j++)
       {
-        J[i][j] = 0.0;
+        J[i][j] = 0;
         for (std::size_t k = 0; k < ncdofs; k++)
-          J[i][j] += coord_dofs(k, i) * dphi(j, k);
+          J[i][j] += coord_dofs[idx(k, i)] * dphi[idx_dphi(j, k)];
       }
     }
 
@@ -111,7 +109,7 @@ __global__ void geometry_computation(const T* xgeom, T* G_entity,
 
     T detJ = J[0][0] * K[0][0] - J[0][1] * K[1][0] + J[0][2] * K[2][0];
 
-    int offset = (c * nq * 6 + iq);
+    std::size_t offset = (c * nq * 6 + iq);
     G_entity[offset]
         = (K[0][0] * K[0][0] + K[0][1] * K[0][1] + K[0][2] * K[0][2])
           * weights[iq] / detJ;

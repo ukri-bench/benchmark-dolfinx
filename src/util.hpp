@@ -6,6 +6,7 @@
 
 #include <cstdio>
 #include <sstream>
+#include <string>
 
 #ifdef USE_HIP
 #include <hip/hip_runtime.h>
