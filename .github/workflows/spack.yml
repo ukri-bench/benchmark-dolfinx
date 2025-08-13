@@ -5,9 +5,9 @@ name: Spack build and run
 
 on:
   # Uncomment the below 'push' to trigger on push
-  push:
-    branches:
-      - "**"
+  # push:
+  #   branches:
+  #     - "**"
   # pull_request:
   #   branches: [ "main" ]
   # merge_group:
@@ -163,7 +163,6 @@ jobs:
     uses: ./.github/workflows/runs-on-ci.yml
     with:
       container_hash: ${{ github.sha }}
-
 
   # run-code-aws:
   #   name: Run benchmark code on AWS CodeBuild
