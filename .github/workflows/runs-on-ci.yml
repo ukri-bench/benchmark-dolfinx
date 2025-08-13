@@ -9,8 +9,7 @@ on:
         type: string
   workflow_call:
     inputs:
-      container_tag:
-        description: 'Container hash'
+      tag:
         required: true
         type: string
 
@@ -20,17 +19,18 @@ env:
 
 jobs:
   build:
-    runs-on:
-      # - runs-on=${{github.run_id}}/runner=2cpu-linux-x64/image=ubuntu24-gpu-x64/region=us-east-2
-      - runs-on=${{ github.run_id }}
-      - family=g4dn.xlarge     # NVIDIA T4 GPU
-      - region=us-east-2
-      - image=ubuntu24-gpu-x64
-      - spot=true
-      - tag=nv
+    runs-on: ubuntu-latest
+    # runs-on:
+    #   # - runs-on=${{github.run_id}}/runner=2cpu-linux-x64/image=ubuntu24-gpu-x64/region=us-east-2
+    #   - runs-on=${{ github.run_id }}
+    #   - family=g4dn.xlarge     # NVIDIA T4 GPU
+    #   - region=us-east-2
+    #   - image=ubuntu24-gpu-x64
+    #   - spot=true
+    #   - tag=nv
 
     container:
-      image: ghcr.io/ukri-bench/spack-buildcache-cuda:${{ inputs.container_tag }}
+      image: ghcr.io/ukri-bench/spack-buildcache-cuda:${{ inputs.tag }}
       options: --gpus all
       env:
         OMPI_ALLOW_RUN_AS_ROOT: 1

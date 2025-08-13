@@ -162,7 +162,7 @@ jobs:
     needs: build
     uses: ./.github/workflows/runs-on-ci.yml
     with:
-      container_tag: ${{ github.sha }}
+      tag: ${{ github.sha }}
 
   # run-code-aws:
   #   name: Run benchmark on AWS CodeBuild
@@ -202,9 +202,9 @@ jobs:
   #       azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
   #       azure-template-parameters: '{"IMAGE_NAME": "spack-buildcache-cuda", "TAG": "${{ github.sha }}"}'
 
-  # run-cpu-reuable:
-  #   name: Run benchmark (CPU, reusable)
-  #   needs: build
-  #   uses: ./.github/workflows/run_cpu.yml
-  #   with:
-  #     tag: ${{ github.sha }}
+  run-cpu-reuable:
+    name: Run benchmark (CPU, reusable)
+    needs: build
+    uses: ./.github/workflows/run_cpu.yml
+    with:
+      tag: ${{ github.sha }}
