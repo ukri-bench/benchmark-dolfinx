@@ -157,6 +157,14 @@ jobs:
             ghcr.io/ukri-bench/spack-buildcache-cpu:e156f080fda032cb1d60ea0fdfd0aa82ac226e8c \
             mpirun -np 2 bench_dolfinx  --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
 
+  run-cuda-aws:
+    name: Run benchmark code (CUDA) on AWS
+    needs: build
+    uses: ./.github/workflows/runs-on-ci.yml
+    with:
+      container_hash: ${{ github.sha }}
+
+
   # run-code-aws:
   #   name: Run benchmark code on AWS CodeBuild
   #   needs: build
