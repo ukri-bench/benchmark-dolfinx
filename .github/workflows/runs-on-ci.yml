@@ -3,13 +3,13 @@ name: AWS run (runs-on)
 on:
   workflow_dispatch:
     inputs:
-      container_hash:
+      container_tag:
         description: 'Container hash'
         required: true
         type: string
   workflow_call:
     inputs:
-      container_hash:
+      container_tag:
         description: 'Container hash'
         required: true
         type: string
@@ -30,7 +30,7 @@ jobs:
       - tag=nv
 
     container:
-      image: ghcr.io/ukri-bench/spack-buildcache-cuda:${{ github.event.inputs.container_hash }}
+      image: ghcr.io/ukri-bench/spack-buildcache-cuda:${{ inputs.container_tag }}
       options: --gpus all
       env:
         OMPI_ALLOW_RUN_AS_ROOT: 1
