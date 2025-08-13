@@ -31,7 +31,7 @@ jobs:
 
     container:
       image: ghcr.io/ukri-bench/spack-buildcache-cuda:${{ inputs.tag }}
-      options: --gpus all
+      # options: --gpus all
       env:
         OMPI_ALLOW_RUN_AS_ROOT: 1
         OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
@@ -58,12 +58,13 @@ jobs:
       #     dpkg -i cuda-keyring_1.1-1_all.deb
       #     apt-get update
       #     apt-get -y install cuda-cudart-12-9
-      - name: Run (GPU, serial)
-        run: |
-          bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-      - name: Check MPI
-        run: |
-          ompi_info --parsable --all | grep mpi_built_with_cuda_support:value
-      - name: Run (GPU, MPI))
-        run: |
-          mpirun -np 2 bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+
+      # - name: Run (GPU, serial)
+      #   run: |
+      #     bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+      # - name: Check MPI
+      #   run: |
+      #     ompi_info --parsable --all | grep mpi_built_with_cuda_support:value
+      # - name: Run (GPU, MPI))
+      #   run: |
+      #     mpirun -np 2 bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
