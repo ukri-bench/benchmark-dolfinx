@@ -100,7 +100,8 @@ public:
   ///
   /// @param A DOLFINx sparse matrix.
   /// @param comm MPI communicator that the matrix is defined on.
-  MatrixOperator(const dolfinx::la::MatrixCSR<T>& A, MPI_Comm comm) : _comm(comm)
+  MatrixOperator(const dolfinx::la::MatrixCSR<T>& A, MPI_Comm comm)
+      : _comm(comm), _row_map(A.index_map(0)), _col_map(A.index_map(1))
   {
     dolfinx::common::Timer t0("~setup phase MatrixOperator");
 

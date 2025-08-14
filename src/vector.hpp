@@ -166,7 +166,7 @@ public:
     return std::span<T>(ptr, _x.size());
   }
 
-  /// @brief Debug diagnostic printout of veector values
+  /// @brief Debug diagnostic printout of vector values
   void print() const
   {
     // FIXME: printing order is wrong.
