@@ -6,6 +6,7 @@
 
 #include "util.hpp"
 #include <dolfinx/la/MatrixCSR.h>
+#include <mpi.h>
 #include <thrust/device_vector.h>
 
 namespace benchdolfinx::impl
@@ -93,38 +94,22 @@ public:
   /// conditions
   /// @param a A finite element form
   /// @param bcs Set of boundary conditions to be applied
-  MatrixOperator(
-      const dolfinx::fem::Form<T, T>& a,
-      std::vector<std::reference_wrapper<const dolfinx::fem::DirichletBC<T>>>
-          bcs)
-      : _comm(a.function_spaces()[0]->mesh()->comm())
+
+  /// @brief Construct a CSR matrix for the Form a, with given boundary
+  /// conditions.
+  ///
+  /// @param A DOLFINx sparse matrix.
+  /// @param comm MPI communicator that the matrix is defined on.
+  MatrixOperator(const dolfinx::la::MatrixCSR<T>& A, MPI_Comm comm) : _comm(comm)
   {
     dolfinx::common::Timer t0("~setup phase MatrixOperator");
 
-    if (a.rank() != 2)
-      throw std::runtime_error("Form should have rank be 2.");
-
-    auto V = a.function_spaces()[0];
-    dolfinx::la::SparsityPattern pattern
-        = dolfinx::fem::create_sparsity_pattern(a);
-    pattern.finalize();
-    _col_map = std::make_shared<const dolfinx::common::IndexMap>(
-        pattern.column_index_map());
-    _row_map = V->dofmap()->index_map;
-
-    _A = std::make_unique<
-        dolfinx::la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
-                               std::vector<std::int32_t>>>(pattern);
-    dolfinx::fem::assemble_matrix(_A->mat_add_values(), a, bcs);
-    _A->scatter_rev();
-    dolfinx::fem::set_diagonal<T>(_A->mat_set_values(), *V, bcs, T(1.0));
-
     std::int32_t num_rows = _row_map->size_local();
-    std::int32_t nnz = _A->row_ptr()[num_rows];
+    std::int32_t nnz = A.row_ptr()[num_rows];
     _nnz = nnz;
 
     T norm = 0;
-    for (T v : _A->values())
+    for (T v : A.values())
       norm += v * v;
 
     spdlog::info("A norm = {}", std::sqrt(norm));
@@ -133,10 +118,10 @@ public:
     std::vector<T> diag_inv(num_rows);
     for (int i = 0; i < num_rows; ++i)
     {
-      for (int j = _A->row_ptr()[i]; j < _A->row_ptr()[i + 1]; ++j)
+      for (int j = A.row_ptr()[i]; j < A.row_ptr()[i + 1]; ++j)
       {
-        if (_A->cols()[j] == i)
-          diag_inv[i] = 1 / _A->values()[j];
+        if (A.cols()[j] == i)
+          diag_inv[i] = 1 / A.values()[j];
       }
     }
 
@@ -152,20 +137,19 @@ public:
     spdlog::info("Creating Device matrix with {} non zeros", _nnz);
     spdlog::info("Creating row_ptr with {} to {}", num_rows + 1,
                  _row_ptr.size());
-    thrust::copy(_A->row_ptr().begin(), _A->row_ptr().begin() + num_rows + 1,
+    thrust::copy(A.row_ptr().begin(), A.row_ptr().begin() + num_rows + 1,
                  _row_ptr.begin());
 
-    spdlog::info("Creating off_diag with {} to {}",
-                 _A->off_diag_offset().size(), _off_diag_offset.size());
-    thrust::copy(_A->off_diag_offset().begin(),
-                 _A->off_diag_offset().begin() + num_rows,
+    spdlog::info("Creating off_diag with {} to {}", A.off_diag_offset().size(),
+                 _off_diag_offset.size());
+    thrust::copy(A.off_diag_offset().begin(),
+                 A.off_diag_offset().begin() + num_rows,
                  _off_diag_offset.begin());
 
     spdlog::info("Creating cols with {} to {}", nnz, _cols.size());
-    thrust::copy(_A->cols().begin(), _A->cols().begin() + nnz, _cols.begin());
+    thrust::copy(A.cols().begin(), A.cols().begin() + nnz, _cols.begin());
     spdlog::info("Creating values with {} to {}", nnz, _values.size());
-    thrust::copy(_A->values().begin(), _A->values().begin() + nnz,
-                 _values.begin());
+    thrust::copy(A.values().begin(), A.values().begin() + nnz, _values.begin());
   }
 
   /// Destructor
@@ -281,11 +265,6 @@ private:
 
   // IndexMaps for the columns and rows of the matrix
   std::shared_ptr<const dolfinx::common::IndexMap> _col_map, _row_map;
-
-  // CSR matrix in CPU memory
-  std::unique_ptr<dolfinx::la::MatrixCSR<
-      T, std::vector<T>, std::vector<std::int32_t>, std::vector<std::int32_t>>>
-      _A;
 
   // MPI Comm associated with the Matrix
   MPI_Comm _comm;

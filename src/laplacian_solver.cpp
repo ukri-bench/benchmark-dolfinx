@@ -17,6 +17,34 @@ using namespace benchdolfinx;
 #include <thrust/execution_policy.h>
 #include <thrust/sequence.h>
 
+namespace
+{
+template <typename T>
+dolfinx::la::MatrixCSR<T> build_matrix(
+    const dolfinx::fem::Form<T, T>& a,
+    std::vector<std::reference_wrapper<const dolfinx::fem::DirichletBC<T>>> bcs)
+{
+  if (a.rank() != 2)
+    throw std::runtime_error("Form should have rank be 2.");
+
+  auto V = a.function_spaces()[0];
+  dolfinx::la::SparsityPattern pattern
+      = dolfinx::fem::create_sparsity_pattern(a);
+  pattern.finalize();
+  // _col_map = std::make_shared<const dolfinx::common::IndexMap>(
+  //     pattern.column_index_map());
+  // _row_map = V->dofmap()->index_map;
+
+  dolfinx::la::MatrixCSR<T> A(pattern);
+  dolfinx::fem::assemble_matrix(A.mat_add_values(), a, bcs);
+  A.scatter_rev();
+  dolfinx::fem::set_diagonal<T>(A.mat_set_values(), *V, bcs, T(1));
+
+  return A;
+}
+
+} // namespace
+
 //----------------------------------------------------------------------------
 template <typename T>
 BenchmarkResults benchdolfinx::laplace_action(
@@ -25,6 +53,7 @@ BenchmarkResults benchdolfinx::laplace_action(
     int nreps, bool use_gauss, bool matrix_comparison)
 {
   auto V = a.function_spaces()[0];
+  MPI_Comm comm = V->mesh()->comm();
 
   // Define vectors
   using DeviceVector = benchdolfinx::Vector<T>;
@@ -34,7 +63,7 @@ BenchmarkResults benchdolfinx::laplace_action(
   spdlog::info("Create device vector u");
 
   DeviceVector u(map, 1);
-  u.set(T{0.0});
+  u.set(T{0});
 
   // Output vector
   spdlog::info("Create device vector y");
@@ -91,9 +120,11 @@ BenchmarkResults benchdolfinx::laplace_action(
   {
     // Compare to assembling on CPU and copying matrix to GPU
     DeviceVector z(map, 1);
-    z.set(T{0.0});
+    z.set(T{0});
 
-    benchdolfinx::MatrixOperator<T> mat_op(a, {bc});
+    dolfinx::la::MatrixCSR<T> A = build_matrix(a, {bc});
+
+    benchdolfinx::MatrixOperator<T> mat_op(A, comm);
     dolfinx::common::Timer mtimer("% CSR Matvec");
     for (int i = 0; i < nreps; ++i)
       mat_op.apply(u, z);
@@ -133,12 +164,12 @@ BenchmarkResults benchdolfinx::laplace_action(
 
   spdlog::info("Create vector u");
   dolfinx::la::Vector<T> u(map, 1);
-  u.set(0.0);
+  u.set(0);
 
   // Output vector
   spdlog::info("Create vector y");
   dolfinx::la::Vector<T> y(map, 1);
-  y.set(0.0);
+  y.set(0);
 
   // Create matrix free operator
   spdlog::info("Create MatFreeLaplacian");
@@ -188,7 +219,7 @@ BenchmarkResults benchdolfinx::laplace_action(
   if (matrix_comparison)
   {
     dolfinx::la::Vector<T> z(map, 1);
-    z.set(T{0.0});
+    z.set(T{0});
 
     dolfinx::la::SparsityPattern sp = dolfinx::fem::create_sparsity_pattern(a);
     sp.finalize();
@@ -200,7 +231,7 @@ BenchmarkResults benchdolfinx::laplace_action(
     dolfinx::common::Timer mtimer("% CSR Matvec");
     for (int i = 0; i < nreps; ++i)
     {
-      z.set(T{0.0});
+      z.set(T{0});
       mat_op.mult(u, z);
     }
     mtimer.stop();
@@ -243,7 +274,8 @@ benchdolfinx::laplace_action<double>(const dolfinx::fem::Form<double>&,
                                      const dolfinx::fem::DirichletBC<double>&,
                                      int, int, double, int, bool, bool);
 
-template benchdolfinx::BenchmarkResults benchdolfinx::laplace_action<float>(
-    const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
-    const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool, bool);
+// template benchdolfinx::BenchmarkResults benchdolfinx::laplace_action<float>(
+//     const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
+//     const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool,
+//     bool);
 /// @endcond
