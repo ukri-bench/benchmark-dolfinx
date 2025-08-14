@@ -110,7 +110,6 @@ public:
         _request(_scatterer->create_request_vector(
             dolfinx::common::Scatterer<>::type::p2p)),
         _x(bs * (map->size_local() + map->num_ghosts()), 0)
-
   {
   }
 
