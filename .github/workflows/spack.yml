@@ -190,7 +190,7 @@ jobs:
   #         python src/test_output.py b.json
 
   # run-code-azure:
-  #   name: Run benchmark on Azure Pipelines
+  #   name: Trigger Azure Pipeline (run)
   #   needs: build
   #   runs-on: ubuntu-latest
   #   steps:
@@ -202,7 +202,7 @@ jobs:
   #       azure-devops-token: ${{ secrets.AZURE_DEVOPS_TOKEN }}
   #       azure-template-parameters: '{"IMAGE_NAME": "spack-buildcache-cuda", "TAG": "${{ github.sha }}"}'
 
-  run-cpu-reuable:
+  run-cpu-reusable:
     name: Run benchmark (CPU, reusable)
     needs: build
     uses: ./.github/workflows/run_cpu.yml
