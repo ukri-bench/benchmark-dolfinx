@@ -17,6 +17,7 @@ std::string benchdolfinx::get_device_information()
 #ifdef USE_HIP
   hipError_t status = hipGetDeviceCount(&devCount);
   s << "Num devices: " << devCount << std::endl;
+
   hipDeviceProp_t props;
   status = hipGetDeviceProperties(&props, 0);
   if (status != hipSuccess)
@@ -26,6 +27,7 @@ std::string benchdolfinx::get_device_information()
 #elif USE_CUDA
   cudaError_t status = cudaGetDeviceCount(&devCount);
   s << "Num devices: " << devCount << std::endl;
+
   cudaDeviceProp props;
   status = cudaGetDeviceProperties(&props, 0);
   if (status != cudaSuccess)

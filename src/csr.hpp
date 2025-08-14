@@ -24,7 +24,8 @@ namespace benchdolfinx::impl
 /// @param[in] x Input vector
 /// @param[in, out] y Output vector
 template <typename T>
-__global__ void spmv_impl(int N, const T* values, const std::int32_t* row_begin,
+__global__ void spmv_impl(int N, const thrust::device_vector<T>& values,
+                          const std::int32_t* row_begin,
                           const std::int32_t* row_end,
                           const std::int32_t* indices, const T* x, T* y)
 {
@@ -56,7 +57,7 @@ __global__ void spmv_impl(int N, const T* values, const std::int32_t* row_begin,
 /// @param[in] x Input vector
 /// @param[in, out] y Output vector
 template <typename T>
-__global__ void spmvT_impl(int N, const T* values,
+__global__ void spmvT_impl(int N, const thrust::device_vector<T>& values,
                            const std::int32_t* row_begin,
                            const std::int32_t* row_end,
                            const std::int32_t* indices, const T* x, T* y)
@@ -207,7 +208,7 @@ public:
       dim3 grid_size((num_rows + block_size.x - 1) / block_size.x);
       x.scatter_fwd_begin();
       impl::spmvT_impl<T><<<grid_size, block_size, 0, 0>>>(
-          num_rows, thrust::raw_pointer_cast(_values.data()),
+          num_rows, thrust::raw_pointer_cast(_values),
           thrust::raw_pointer_cast(_row_ptr.data()),
           thrust::raw_pointer_cast(_off_diag_offset.data()),
           thrust::raw_pointer_cast(_cols.data()), _x, _y);
@@ -215,7 +216,7 @@ public:
       x.scatter_fwd_end();
 
       impl::spmvT_impl<T><<<grid_size, block_size, 0, 0>>>(
-          num_rows, thrust::raw_pointer_cast(_values.data()),
+          num_rows, thrust::raw_pointer_cast(_values),
           thrust::raw_pointer_cast(_off_diag_offset.data()),
           thrust::raw_pointer_cast(_row_ptr.data()) + 1,
           thrust::raw_pointer_cast(_cols.data()), _x, _y);

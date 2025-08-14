@@ -197,6 +197,8 @@ int main(int argc, char* argv[])
     {
 #if defined(USE_CUDA) || defined(USE_HIP)
       std::cout << benchdolfinx::get_device_information();
+#else
+      std::cout << "CPU device" << std::endl;
 #endif
       std::cout << "-----------------------------------\n";
       std::cout << "Polynomial degree : " << degree << "\n";
@@ -207,7 +209,6 @@ int main(int argc, char* argv[])
       std::cout << "Use Gauss-Jacobi: " << use_gauss << std::endl;
       std::cout << "Compare to matrix: " << matrix_comparison << std::endl;
       std::cout << "-----------------------------------" << std::endl;
-      ;
       std::cout << std::flush;
     }
 

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       container_tag:
-        description: 'Container hash'
+        description: 'Container tag'
         required: true
         type: string
   workflow_call:
