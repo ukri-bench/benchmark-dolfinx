@@ -101,7 +101,7 @@ jobs:
         name: Push runnable test image
         shell: spack-bash {0}
         run: |
-          spack -e . buildcache push --base-image nvidia/cuda:13.0.0-base-ubuntu24.04 \
+          spack -e . buildcache push --base-image nvidia/cuda:12.9.1-base-ubuntu24.04 \
             --update-index --tag ${{ github.sha }} local-buildcache-${{ matrix.backend.device }}
 
       - if: ${{ matrix.backend.device != 'cuda' }}
