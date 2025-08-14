@@ -1,0 +1,46 @@
+name: CUDA run (AWS, runs-on)
+
+on:
+  workflow_dispatch:
+    inputs:
+      container_tag:
+        description: 'Container hash'
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+
+env:
+  GITHUB_USER: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  run:
+    runs-on:
+      - runs-on=${{ github.run_id }}
+      - family=g4dn.xlarge     # NVIDIA T4 GPU
+      - region=us-east-2
+      - image=ubuntu24-gpu-x64
+      - spot=true
+      - tag=nv
+
+    container:
+      image: ghcr.io/ukri-bench/spack-buildcache-cuda:${{ inputs.tag }}
+      options: --gpus all
+      env:
+        OMPI_ALLOW_RUN_AS_ROOT: 1
+        OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+        PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
+    steps:
+      - name: Run (GPU, serial)
+        run: |
+          bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+      - name: Check MPI
+        run: |
+          ompi_info --parsable --all | grep mpi_built_with_cuda_support:value
+      - name: Run (GPU, MPI))
+        run: |
+          mpirun -np 2 bench_dolfinx --ndofs=10000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
