@@ -208,16 +208,14 @@ public:
       dim3 grid_size((num_rows + block_size.x - 1) / block_size.x);
       x.scatter_fwd_begin();
       impl::spmvT_impl<T><<<grid_size, block_size, 0, 0>>>(
-          num_rows, thrust::raw_pointer_cast(_values),
-          thrust::raw_pointer_cast(_row_ptr.data()),
+          num_rows, _values, thrust::raw_pointer_cast(_row_ptr.data()),
           thrust::raw_pointer_cast(_off_diag_offset.data()),
           thrust::raw_pointer_cast(_cols.data()), _x, _y);
       check_device_last_error();
       x.scatter_fwd_end();
 
       impl::spmvT_impl<T><<<grid_size, block_size, 0, 0>>>(
-          num_rows, thrust::raw_pointer_cast(_values),
-          thrust::raw_pointer_cast(_off_diag_offset.data()),
+          num_rows, _values, thrust::raw_pointer_cast(_off_diag_offset.data()),
           thrust::raw_pointer_cast(_row_ptr.data()) + 1,
           thrust::raw_pointer_cast(_cols.data()), _x, _y);
       check_device_last_error();
