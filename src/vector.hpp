@@ -135,8 +135,7 @@ public:
   void copy_from_host(const OtherVector& other)
   {
     // Copies only local data
-    thrust::copy(other.array().begin(),
-                 other.array().begin() + _map->size_local(), _x.begin());
+    thrust::copy_n(other.array().begin(), _map->size_local(), _x.begin());
   }
 
   /// @brief Vector IndexMap
@@ -147,17 +146,13 @@ public:
   /// @returns Block size of the Vector
   constexpr int bs() const { return _bs; }
 
-  /// @brief Direct access to underlying thrust vector
-  /// @returns Reference to underlying thrust::device_vector
-  thrust::device_vector<T>& thrust_vector() { return _x; }
+  /// @brief Access the underlying Thrust vector.
+  /// @returns Underlying vector.
+  // thrust::device_vector<T>& thrust_vector() { return _x; }
 
   /// Get local part of the vector (const version)
   /// @returns Span of the local part of the vector data
-  std::span<const T> array() const
-  {
-    auto* ptr = thrust::raw_pointer_cast(_x.data());
-    return std::span<const T>(ptr, _x.size());
-  }
+  const thrust::device_vector<T>& array() const { return _x; }
 
   /// Get local part of the vector
   /// @returns Spacn of the local part of the vector data
@@ -205,7 +200,7 @@ public:
     {
       const std::int32_t* indices
           = thrust::raw_pointer_cast(_local_indices.data());
-      const T* in = this->array().data();
+      const T* in = thrust::raw_pointer_cast(this->array().data());
       T* out = thrust::raw_pointer_cast(_buffer_local.data());
       benchdolfinx::impl::pack<T><<<dim_grid, dim_block, 0, 0>>>(
           _local_indices.size(), indices, in, out);
@@ -284,7 +279,7 @@ public:
     const std::int32_t local_size = _bs * _map->size_local();
     const std::int32_t* indices
         = thrust::raw_pointer_cast(_remote_indices.data());
-    const T* in = this->array().data() + local_size;
+    const T* in = thrust::raw_pointer_cast(this->array().data() + local_size);
     T* out = thrust::raw_pointer_cast(_buffer_remote.data());
     benchdolfinx::impl::pack<T><<<dim_grid, dim_block, 0, 0>>>(
         _remote_indices.size(), indices, in, out);
@@ -370,14 +365,14 @@ auto inner_product(const Vector& a, const Vector& b)
   using T = typename Vector::value_type;
 
   const std::int32_t local_size = a.bs() * a.map()->size_local();
-  std::span<const T> x_a = a.array().subspan(0, local_size);
-  std::span<const T> x_b = b.array().subspan(0, local_size);
-
+  // std::span<const T> x_a = a.array().subspan(0, local_size);
+  // std::span<const T> x_b = b.array().subspan(0, local_size);
   if (local_size != b.bs() * b.map()->size_local())
     throw std::runtime_error("Incompatible vector sizes");
 
-  T local = thrust::inner_product(thrust::device, x_a.begin(), x_a.end(),
-                                  x_b.begin(), T{0.0});
+  T local = thrust::inner_product(thrust::device, a.array().begin(),
+                                  std::next(a.array().begin(), local_size),
+                                  b.array().begin(), T{0});
 
   T result;
   MPI_Allreduce(&local, &result, 1, dolfinx::MPI::mpi_t<T>, MPI_SUM,
@@ -415,8 +410,10 @@ auto norm(const Vector& a, dolfinx::la::Norm type = dolfinx::la::Norm::l2)
   case dolfinx::la::Norm::linf:
   {
     const std::int32_t size_local = a.bs() * a.map()->size_local();
-    std::span<const T> x_a = a.array().subspan(0, size_local);
-    auto max_pos = thrust::max_element(thrust::device, x_a.begin(), x_a.end());
+    // std::span<const T> x_a = a.array().subspan(0, size_local);
+    auto max_pos
+        = thrust::max_element(thrust::device, a.array().begin(),
+                              thrust::next(a.array().begin(), size_local));
     auto local_linf = std::abs(*max_pos);
     decltype(local_linf) linf = 0;
     MPI_Allreduce(&local_linf, &linf, 1, dolfinx::MPI::mpi_t<decltype(linf)>,
@@ -442,7 +439,7 @@ void axpy(Vector& r, S alpha, const Vector& x, const Vector& y)
   spdlog::debug("AXPY start");
   using T = typename Vector::value_type;
   thrust::transform(thrust::device, x.array().begin(),
-                    x.array().begin() + x.map()->size_local(),
+                    thrust::next(x.array().begin(), x.map()->size_local()),
                     y.array().begin(), r.mutable_array().begin(),
                     [alpha] __host__ __device__(const T& vx, const T& vy)
                     { return vx * alpha + vy; });
@@ -472,9 +469,9 @@ void copy(Vector& a, const Vector& b)
 {
   using T = typename Vector::value_type;
   const std::int32_t local_size = a.bs() * a.map()->size_local();
-  std::span<T> x_a = a.mutable_array().subspan(0, local_size);
-  std::span<const T> x_b = b.array().subspan(0, local_size);
-  thrust::copy(thrust::device, x_b.begin(), x_b.end(), x_a.begin());
+  // std::span<T> x_a = a.mutable_array().subspan(0, local_size);
+  // std::span<const T> x_b = b.array().subspan(0, local_size);
+  thrust::copy_n(thrust::device, b.begin(), local_size, a.begin());
 }
 
 /// @brief Compute pointwise vector multiplication w[i] = x[i] * y[i].
@@ -491,7 +488,7 @@ void pointwise_mult(Vector& w, const Vector& x, const Vector& y)
 
   using T = typename Vector::value_type;
   thrust::transform(thrust::device, x.array().begin(),
-                    x.array().begin() + x.map()->size_local(),
+                    thrust::next(x.array().begin(), x.map()->size_local()),
                     y.array().begin(), w.mutable_array().begin(),
                     [] __host__ __device__(const T& xi, const T& yi)
                     { return xi * yi; });
