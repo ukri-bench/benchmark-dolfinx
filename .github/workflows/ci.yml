@@ -6,9 +6,9 @@ name: Benchmark build and run
 
 on:
   # Uncomment the below 'push' to trigger on push
-  # push:
-  #   branches:
-  #     - "**"
+  push:
+    branches:
+      - "**"
   pull_request:
     branches: [ "main" ]
   merge_group:
@@ -38,7 +38,6 @@ jobs:
           ]
 
     steps:
-      - uses: actions/checkout@v4
 
       - if: ${{ matrix.backend.device != 'cpu' }}
         name: Install GPU compiler/driver
@@ -85,7 +84,7 @@ jobs:
       - name: Install dependencies
         shell: spack-bash {0}
         run: |
-          spack -e . add bench-dolfinx${{ matrix.backend.spack_opt }}
+          spack -e . add fencis-dolfinx@main bench-dolfinx${{ matrix.backend.spack_opt }}
           spack -e . install -U -j 4 --use-buildcache auto --only dependencies
 
       - name: View Spack packages
@@ -96,6 +95,21 @@ jobs:
         shell: spack-bash {0}
         run: spack -e . build-env --dump build_env.sh bench-dolfinx
 
+      - uses: actions/checkout@v5
+        with:
+          repository:  ukri-bench/benchmark-dolfinx
+          path: dolfinx
+          ref: main
+
+      - name: Build DOLFINx
+        shell: spack-bash {0}
+        run: |
+          source ./build_env.sh
+          cmake -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on -B build_dolfinx -S dolfinx/src/
+          cmake --build build_dolfinx --parallel
+          cmake --install build_dolfinx
+
+          - uses: actions/checkout@v5
       - name: Build benchmark
         shell: spack-bash {0}
         run: |
