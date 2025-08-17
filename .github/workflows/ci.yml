@@ -105,7 +105,7 @@ jobs:
         shell: spack-bash {0}
         run: |
           source ./build_env.sh
-          cmake -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on -B build_dolfinx -S dolfinx/src/
+          cmake -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on -B build_dolfinx -S ../dolfinx/src/
           cmake --build build_dolfinx --parallel
           cmake --install build_dolfinx
 
