@@ -104,16 +104,16 @@ jobs:
       - name: Build DOLFINx
         shell: spack-bash {0}
         run: |
-          source ./build_env.sh
+          spack env activate .
           cmake -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on -B build_dolfinx -S dolfinx/cpp/
           cmake --build build_dolfinx --parallel
-          sudo cmake --install build_dolfinx
+          cmake --install build_dolfinx
 
           - uses: actions/checkout@v5
       - name: Build benchmark
         shell: spack-bash {0}
         run: |
-          source ./build_env.sh
+          spack env activate .
           cmake -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on ${{ matrix.backend.cmake_opt }} -B build -S src/
           cmake --build build --parallel
           cmake --install build
