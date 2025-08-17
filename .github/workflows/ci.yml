@@ -86,7 +86,7 @@ jobs:
       - name: Install dependencies
         shell: spack-bash {0}
         run: |
-          spack -e . add fenics-dolfinx@git.main bench-dolfinx${{ matrix.backend.spack_opt }}
+          spack -e . add bench-dolfinx${{ matrix.backend.spack_opt }} ^fenics-dolfinx@git.main
           spack -e . install -U -j 4 --use-buildcache auto
 
       # - name: View Spack packages
