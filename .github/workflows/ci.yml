@@ -33,8 +33,8 @@ jobs:
         backend:
           [
             { device: cpu, spack_opt: "@git.${{ github.ref }}~cuda~rocm", cmake_opt: "" },
-            { device: rocm, spack_opt: "@@git.${{ github.ref }}+rocm amdgpu_target=gfx90a", cmake_opt: -DHIP_ARCH=gfx90a },
-            { device: cuda, spack_opt: "@@git.${{ github.ref }}+cuda cuda_arch=75", cmake_opt: -DCUDA_ARCH=75 },
+            { device: rocm, spack_opt: "@git.${{ github.ref }}+rocm amdgpu_target=gfx90a", cmake_opt: -DHIP_ARCH=gfx90a },
+            { device: cuda, spack_opt: "@git.${{ github.ref }}+cuda cuda_arch=75", cmake_opt: -DCUDA_ARCH=75 },
           ]
 
     steps:
