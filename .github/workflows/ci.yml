@@ -107,7 +107,7 @@ jobs:
           source ./build_env.sh
           cmake -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on -B build_dolfinx -S dolfinx/cpp/
           cmake --build build_dolfinx --parallel
-          cmake --install build_dolfinx
+          sudo cmake --install build_dolfinx
 
           - uses: actions/checkout@v5
       - name: Build benchmark
