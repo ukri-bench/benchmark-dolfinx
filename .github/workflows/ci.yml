@@ -86,16 +86,16 @@ jobs:
       - name: Install dependencies
         shell: spack-bash {0}
         run: |
-          spack -e . add bench-dolfinx${{ matrix.backend.spack_opt }}
-          spack -e . install -U -j 4 --use-buildcache auto --only dependencies
+          spack -e . add fenics-dolfinx@git.main bench-dolfinx${{ matrix.backend.spack_opt }}
+          spack -e . install -U -j 4 --use-buildcache auto
 
-      - name: View Spack packages
-        shell: spack-bash {0}
-        run: spack -e . config get packages
+      # - name: View Spack packages
+      #   shell: spack-bash {0}
+      #   run: spack -e . config get packages
 
-      - name: Generate Spack build-env
-        shell: spack-bash {0}
-        run: spack -e . build-env --dump build_env.sh bench-dolfinx
+      # - name: Generate Spack build-env
+      #   shell: spack-bash {0}
+      #   run: spack -e . build-env --dump build_env.sh bench-dolfinx
 
       # - name: Build benchmark
       #   shell: spack-bash {0}
@@ -105,26 +105,26 @@ jobs:
       #     cmake --build build --parallel
       #     cmake --install build
 
-      # - if: ${{ matrix.backend.device == 'cpu' }}
-      #   name: Run benchmark (CPU)
-      #   shell: spack-bash {0}
-      #   run: |
-      #     source ./build_env.sh
-      #     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-      #     mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+      - if: ${{ matrix.backend.device == 'cpu' }}
+        name: Run benchmark (CPU)
+        shell: spack-bash {0}
+        run: |
+          spack env actiavte .
+          bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+          mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
 
-      # - if: ${{ matrix.backend.device == 'cpu' }}
-      #   name: Post-process
-      #   shell: spack-bash {0}
-      #   run: |
-      #     spack env activate .
-      #     spack load py-numpy
-      #     python src/test_output.py a.json
-      #     python src/test_output.py b.json
+      - if: ${{ matrix.backend.device == 'cpu' }}
+        name: Post-process
+        shell: spack-bash {0}
+        run: |
+          spack env activate .
+          spack load py-numpy
+          python src/test_output.py a.json
+          python src/test_output.py b.json
 
-      # - name: Push packages and update index
-      #   shell: spack-bash {0}
-      #   run: |
-      #     spack -e . buildcache push --only dependencies --with-build-dependencies \
-      #       --base-image ubuntu:24.04 --update-index local-buildcache
-      #   if: ${{ !cancelled() }}
+      - name: Push packages and update index
+        shell: spack-bash {0}
+        run: |
+          spack -e . buildcache push --only dependencies --with-build-dependencies \
+            --base-image ubuntu:24.04 --update-index local-buildcache
+        if: ${{ !cancelled() }}
