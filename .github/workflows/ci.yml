@@ -6,9 +6,9 @@ name: Benchmark build and run
 
 on:
   # Uncomment the below 'push' to trigger on push
-  push:
-    branches:
-      - "**"
+  # push:
+  #   branches:
+  #     - "**"
   pull_request:
     branches: [ "main" ]
   merge_group:
@@ -32,12 +32,14 @@ jobs:
       matrix:
         backend:
           [
-            { device: cpu, spack_opt: "@main~cuda~rocm", cmake_opt: "" },
-            { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a", cmake_opt: -DHIP_ARCH=gfx90a },
-            { device: cuda, spack_opt: "@main+cuda cuda_arch=75", cmake_opt: -DCUDA_ARCH=75 },
+            { device: cpu, spack_opt: "@git.ci-update~cuda~rocm", cmake_opt: "" },
+            # { device: cpu, spack_opt: "@main~cuda~rocm", cmake_opt: "" },
+            # { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a", cmake_opt: -DHIP_ARCH=gfx90a },
+            # { device: cuda, spack_opt: "@main+cuda cuda_arch=75", cmake_opt: -DCUDA_ARCH=75 },
           ]
 
     steps:
+      - uses: actions/checkout@v4
 
       - if: ${{ matrix.backend.device != 'cpu' }}
         name: Install GPU compiler/driver
@@ -84,7 +86,7 @@ jobs:
       - name: Install dependencies
         shell: spack-bash {0}
         run: |
-          spack -e . add fenics-dolfinx@main bench-dolfinx${{ matrix.backend.spack_opt }}
+          spack -e . add bench-dolfinx${{ matrix.backend.spack_opt }}
           spack -e . install -U -j 4 --use-buildcache auto --only dependencies
 
       - name: View Spack packages
@@ -95,49 +97,34 @@ jobs:
         shell: spack-bash {0}
         run: spack -e . build-env --dump build_env.sh bench-dolfinx
 
-      - uses: actions/checkout@v5
-        with:
-          repository: fenics/dolfinx
-          path: dolfinx
-          ref: main
+      # - name: Build benchmark
+      #   shell: spack-bash {0}
+      #   run: |
+      #     source ./build_env.sh
+      #     cmake -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on ${{ matrix.backend.cmake_opt }} -B build -S src/
+      #     cmake --build build --parallel
+      #     cmake --install build
 
-      - name: Build DOLFINx
-        shell: spack-bash {0}
-        run: |
-          spack env activate .
-          cmake -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on -B build_dolfinx -S dolfinx/cpp/
-          cmake --build build_dolfinx --parallel
-          cmake --install build_dolfinx
+      # - if: ${{ matrix.backend.device == 'cpu' }}
+      #   name: Run benchmark (CPU)
+      #   shell: spack-bash {0}
+      #   run: |
+      #     source ./build_env.sh
+      #     bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+      #     mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
 
-          - uses: actions/checkout@v5
-      - name: Build benchmark
-        shell: spack-bash {0}
-        run: |
-          spack env activate .
-          cmake -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on ${{ matrix.backend.cmake_opt }} -B build -S src/
-          cmake --build build --parallel
-          cmake --install build
+      # - if: ${{ matrix.backend.device == 'cpu' }}
+      #   name: Post-process
+      #   shell: spack-bash {0}
+      #   run: |
+      #     spack env activate .
+      #     spack load py-numpy
+      #     python src/test_output.py a.json
+      #     python src/test_output.py b.json
 
-      - if: ${{ matrix.backend.device == 'cpu' }}
-        name: Run benchmark (CPU)
-        shell: spack-bash {0}
-        run: |
-          source ./build_env.sh
-          bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-          mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
-
-      - if: ${{ matrix.backend.device == 'cpu' }}
-        name: Post-process
-        shell: spack-bash {0}
-        run: |
-          spack env activate .
-          spack load py-numpy
-          python src/test_output.py a.json
-          python src/test_output.py b.json
-
-      - name: Push packages and update index
-        shell: spack-bash {0}
-        run: |
-          spack -e . buildcache push --only dependencies --with-build-dependencies \
-            --base-image ubuntu:24.04 --update-index local-buildcache
-        if: ${{ !cancelled() }}
+      # - name: Push packages and update index
+      #   shell: spack-bash {0}
+      #   run: |
+      #     spack -e . buildcache push --only dependencies --with-build-dependencies \
+      #       --base-image ubuntu:24.04 --update-index local-buildcache
+      #   if: ${{ !cancelled() }}
