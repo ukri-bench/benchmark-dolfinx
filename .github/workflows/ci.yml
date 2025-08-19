@@ -31,7 +31,7 @@ jobs:
 
     env:
       dolfinx_ref: main
-      bench_dolfinx_ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+      # bench_dolfinx_ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
     strategy:
       matrix:
         backend:
@@ -42,8 +42,6 @@ jobs:
           ]
 
     steps:
-      - uses: actions/checkout@v5
-
       - if: ${{ matrix.backend.device != 'cpu' }}
         name: Install GPU compiler/driver
         uses: ukri-bench/spack-configs/actions/install-gpu-driver@main
@@ -86,11 +84,15 @@ jobs:
           spack -e . external find -p /usr/local/cuda --all --not-buildable
           spack -e . config get packages
 
-      - name: Install dependencies
+      - uses: actions/checkout@v5
+      - name: Point Spack to benchmark code
+        shell: spack-bash {0}
+        run: spack -e . develop -p . bench-dolfinx@main
+
+      - name: Build benchmark
         shell: spack-bash {0}
         run: |
-          spack -e . add bench-dolfinx@git.${{ env.bench_dolfinx_ref }}${{ matrix.backend.spack_opt }} \
-            ^fenics-dolfinx@git.${{ env.dolfinx_ref }}=main
+          spack -e . add bench-dolfinx@main ${{ matrix.backend.spack_opt }} ^fenics-dolfinx@git.${{ env.dolfinx_ref }}=main
           spack -e . install -U -j 4 --use-buildcache auto
 
       - if: ${{ matrix.backend.device == 'cpu' }}
