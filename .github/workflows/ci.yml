@@ -42,6 +42,8 @@ jobs:
           ]
 
     steps:
+      - uses: actions/checkout@v5
+
       - if: ${{ matrix.backend.device != 'cpu' }}
         name: Install GPU compiler/driver
         uses: ukri-bench/spack-configs/actions/install-gpu-driver@main
@@ -84,14 +86,12 @@ jobs:
           spack -e . external find -p /usr/local/cuda --all --not-buildable
           spack -e . config get packages
 
-      - uses: actions/checkout@v5
-
       - name: Point Spack to benchmark code
         shell: spack-bash {0}
         run: |
           pwd
           ls -alh
-        # spack develop --path . bench-dolfinx@main
+          spack develop --path . --no-clone bench-dolfinx@main
 
       - name: Build benchmark
         shell: spack-bash {0}
