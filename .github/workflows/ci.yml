@@ -88,10 +88,7 @@ jobs:
 
       - name: Point Spack to benchmark code
         shell: spack-bash {0}
-        run: |
-          pwd
-          ls -alh
-          spack develop --path . --no-clone bench-dolfinx@main
+        run: spack -e . develop --path . --no-clone bench-dolfinx@main
 
       - name: Build benchmark
         shell: spack-bash {0}
