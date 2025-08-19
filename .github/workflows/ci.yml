@@ -6,9 +6,9 @@ name: Benchmark build and run
 
 on:
   # Uncomment the below 'push' to trigger on push
-  # push:
-  #   branches:
-  #     - "**"
+  push:
+    branches:
+      - "**"
   pull_request:
     branches: [ "main" ]
   merge_group:
@@ -28,17 +28,21 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       packages: write
+
+    env:
+      dolfinx_ref: main
+      # bench_dolfinx_ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
     strategy:
       matrix:
         backend:
           [
-            { device: cpu, spack_opt: "@main~cuda~rocm", cmake_opt: "" },
-            { device: rocm, spack_opt: "@main+rocm amdgpu_target=gfx90a", cmake_opt: -DHIP_ARCH=gfx90a },
-            { device: cuda, spack_opt: "@main+cuda cuda_arch=75", cmake_opt: -DCUDA_ARCH=75 },
+            { device: cpu,  spack_opt: "~cuda~rocm", cmake_opt: "" },
+            { device: rocm, spack_opt: "++rocm amdgpu_target=gfx90a ^openmpi+rocm amdgpu_target=gfx90a", cmake_opt: -DHIP_ARCH=gfx90a },
+            { device: cuda, spack_opt: "++cuda cuda_arch=75 ^openmpi", cmake_opt: -DCUDA_ARCH=75 },
           ]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - if: ${{ matrix.backend.device != 'cpu' }}
         name: Install GPU compiler/driver
@@ -82,33 +86,21 @@ jobs:
           spack -e . external find -p /usr/local/cuda --all --not-buildable
           spack -e . config get packages
 
-      - name: Install dependencies
+      - name: Point Spack to benchmark code
         shell: spack-bash {0}
-        run: |
-          spack -e . add bench-dolfinx${{ matrix.backend.spack_opt }}
-          spack -e . install -U -j 4 --use-buildcache auto --only dependencies
-
-      - name: View Spack packages
-        shell: spack-bash {0}
-        run: spack -e . config get packages
-
-      - name: Generate Spack build-env
-        shell: spack-bash {0}
-        run: spack -e . build-env --dump build_env.sh bench-dolfinx
+        run: spack -e . develop --path . --no-clone bench-dolfinx@main
 
       - name: Build benchmark
         shell: spack-bash {0}
         run: |
-          source ./build_env.sh
-          cmake -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=on ${{ matrix.backend.cmake_opt }} -B build -S src/
-          cmake --build build --parallel
-          cmake --install build
+          spack -e . add bench-dolfinx@main ${{ matrix.backend.spack_opt }} ^fenics-dolfinx@git.${{ env.dolfinx_ref }}=main
+          spack -e . install -U -j 4 --use-buildcache auto
 
       - if: ${{ matrix.backend.device == 'cpu' }}
         name: Run benchmark (CPU)
         shell: spack-bash {0}
         run: |
-          source ./build_env.sh
+          spack env activate .
           bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
           mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
 
