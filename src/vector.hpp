@@ -123,10 +123,10 @@ public:
   /// @param[in] v The value to set all entries to (on calling rank)
   void set(T v) { thrust::fill(_x.begin(), _x.end(), v); }
 
-  /// @brief Copy data from host to device
-  /// @tparam OtherVector Host vector type, e.g. dolfinx::la::Vector
-  /// @param other Host vector to copy from
-  /// @note Only copies the owned region (not ghost entries)
+  // @brief Copy data from host to device
+  // @tparam OtherVector Host vector type, e.g. dolfinx::la::Vector
+  // @param other Host vector to copy from
+  // @note Only copies the owned region (not ghost entries)
   // template <typename OtherVector>
   // void copy_from_host(const OtherVector& other)
   // {
@@ -134,7 +134,7 @@ public:
   //   thrust::copy_n(other.array().begin(), _map->size_local(), _x.begin());
   // }
 
-  /// @brief Vector IndexMap
+  /// @brief Vector IndexMap.
   /// @returns IndexMap of the Vector
   std::shared_ptr<const dolfinx::common::IndexMap> map() const { return _map; }
 
@@ -215,20 +215,18 @@ public:
       }
     };
 
-    pack_fn(_x, idx, _buffer_local);
-
     // TODO: Limit size of _x to owned?
-    // scatter_fwd_begin(_x, std::span<T> local_buffer, std::span<T>
-    // remote_buffer,
-    //                   pack_fn, std::span(_request),
-    //                   dolfinx::common::Scatterer<>::type::p2p);
+    _scatterer.scatter_fwd_begin(_x, _buffer_local, _buffer_remote, pack_fn,
+                                 std::span(_request),
+                                 dolfinx::common::ScattererType::p2p);
 
-    _scatterer.scatter_fwd_begin(
-        std::span(thrust::raw_pointer_cast(_buffer_local.data()),
-                  _buffer_local.size()),
-        std::span(thrust::raw_pointer_cast(_buffer_remote.data()),
-                  _buffer_remote.size()),
-        std::span(_request), dolfinx::common::ScattererType::type::p2p);
+    // pack_fn(_x, idx, _buffer_local);
+    // _scatterer.scatter_fwd_begin(
+    //     std::span(thrust::raw_pointer_cast(_buffer_local.data()),
+    //               _buffer_local.size()),
+    //     std::span(thrust::raw_pointer_cast(_buffer_remote.data()),
+    //               _buffer_remote.size()),
+    //     std::span(_request), dolfinx::common::ScattererType::type::p2p);
   }
 
   /// @brief Complete scatter of local data from owner to ghosts on
@@ -240,29 +238,38 @@ public:
   void scatter_fwd_end(int block_size = 512)
   {
     spdlog::debug("scatter_fwd_end start");
-    // TODO: which block_size to use??
-    std::int32_t local_size = _bs * _map->size_local();
-    std::int32_t num_ghosts = _bs * _map->num_ghosts();
     _scatterer.scatter_fwd_end(std::span<MPI_Request>(_request));
 
-    spdlog::debug("scatter_fwd_end step 1");
-    spdlog::debug("scatter_fwd_end local buf size = {}, remote buf size {}",
-                  _buffer_local.size(), _buffer_remote.size());
-
-    int num_blocks = (_remote_indices.size() + block_size - 1) / block_size;
-    dim3 dim_block(block_size);
-    dim3 dim_grid(num_blocks);
-    spdlog::debug("scatter_fwd_end step 2");
-
-    if (!_remote_indices.empty())
+    auto unpack = [](const std::device_vector<value_type>& buffer_remote,
+                     const std::device_vector<std::int32_t>& remote_indices,
+                     value_type* out)
     {
-      std::int32_t* indices = thrust::raw_pointer_cast(_remote_indices.data());
-      const T* in = thrust::raw_pointer_cast(_buffer_remote.data());
-      T* out = thrust::raw_pointer_cast(_x.data() + local_size);
-      benchdolfinx::impl::unpack<T><<<dim_grid, dim_block, 0, 0>>>(
-          _remote_indices.size(), indices, in, out);
-      device_synchronize();
-    }
+      // TODO: which block_size to use??
+      // std::int32_t local_size = _bs * _map->size_local();
+      // std::int32_t num_ghosts = _bs * _map->num_ghosts();
+
+      spdlog::debug("scatter_fwd_end step 1");
+      spdlog::debug("scatter_fwd_end local buf size = {}, remote buf size {}",
+                    buffer_local.size(), buffer_remote.size());
+
+      int num_blocks = (remote_indices.size() + block_size - 1) / block_size;
+      dim3 dim_block(block_size);
+      dim3 dim_grid(num_blocks);
+      spdlog::debug("scatter_fwd_end step 2");
+
+      if (!remote_indices.empty())
+      {
+        std::int32_t* indices = thrust::raw_pointer_cast(remote_indices.data());
+        const T* in = thrust::raw_pointer_cast(buffer_remote.data());
+        benchdolfinx::impl::unpack<T><<<dim_grid, dim_block, 0, 0>>>(
+            _remote_indices.size(), indices, in, out);
+        device_synchronize();
+      }
+    };
+
+    std::int32_t local_size = _bs * _map->size_local();
+    unpack(_buffer_remote, _remote_indices, _x.data() + local_size);
+
     spdlog::debug("scatter_fwd_end end");
   }
 
