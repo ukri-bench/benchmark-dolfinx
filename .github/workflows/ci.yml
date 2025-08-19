@@ -87,7 +87,10 @@ jobs:
       - uses: actions/checkout@v5
       - name: Point Spack to benchmark code
         shell: spack-bash {0}
-        run: spack -e . develop -p . bench-dolfinx@main
+        run: |
+          pwd
+          ls -alh
+          spack develop -p . bench-dolfinx@main
 
       - name: Build benchmark
         shell: spack-bash {0}
