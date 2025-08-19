@@ -55,7 +55,7 @@ BenchmarkResults benchdolfinx::laplace_action(
 
   dolfinx::la::Vector<T> b(map, 1);
   dolfinx::fem::assemble_vector(b.mutable_array(), L);
-  dolfinx::fem::apply_lifting<T, T>(b.mutable_array(), {a}, {{bc}}, {}, T(1.0));
+  dolfinx::fem::apply_lifting(b.mutable_array(), {a}, {{bc}}, {}, T(1.0));
   b.scatter_rev(std::plus<T>());
   bc.set(b.mutable_array(), std::nullopt);
 

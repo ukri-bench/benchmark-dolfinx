@@ -197,8 +197,8 @@ public:
     dolfinx::common::Timer t0("% MatrixOperator application");
 
     y.set(0);
-    T* _x = x.mutable_array().data();
-    T* _y = y.mutable_array().data();
+    T* _x = x.mutable_array().data().get();
+    T* _y = y.mutable_array().data().get();
 
     if (transpose)
     {
