@@ -17,6 +17,49 @@ using namespace benchdolfinx;
 #include <thrust/execution_policy.h>
 #include <thrust/sequence.h>
 
+namespace
+{
+/// @brief pack data before MPI (neighbor) all-to-all operation
+/// @tparam T Scalar data type
+/// @param N Number of entries in indices
+/// @param indices Indices of input data to be packed
+/// @param in Input data to be sent: from owned region, for forward scatter, or
+/// from ghost region for reverse scatter.
+/// @param out Output data packed into blocks for each receiving MPI process
+template <typename T>
+static __global__ void pack(const int N,
+                            const std::int32_t* __restrict__ indices,
+                            const T* __restrict__ in, T* __restrict__ out)
+{
+  int gid = blockIdx.x * blockDim.x + threadIdx.x;
+  if (gid < N)
+  {
+    out[gid] = in[indices[gid]];
+  }
+}
+
+/// @brief unpack data after MPI all-to-all operation
+/// @tparam T Scalar data type
+/// @param N Number of entries in indices
+/// @param indices Indices of output data to be unpacked into
+/// @param in Input data packed in blocks received from each MPI process
+/// @param out Output data: to ghost region if forward scatter, or to owned
+/// region for reverse scatter.
+/// @note Overwrites values if multiple are received with the same index, should
+/// only be used for forward scatter to ghost region.
+template <typename T>
+static __global__ void unpack(const int N,
+                              const std::int32_t* __restrict__ indices,
+                              const T* __restrict__ in, T* __restrict__ out)
+{
+  int gid = blockIdx.x * blockDim.x + threadIdx.x;
+  if (gid < N)
+  {
+    out[indices[gid]] = in[gid];
+  }
+}
+} // namespace
+
 //----------------------------------------------------------------------------
 template <typename T>
 BenchmarkResults benchdolfinx::laplace_action(
@@ -34,12 +77,12 @@ BenchmarkResults benchdolfinx::laplace_action(
   spdlog::info("Create device vector u");
 
   DeviceVector u(map, 1);
-  u.set(T{0.0});
+  set_value(u, T{0});
 
   // Output vector
   spdlog::info("Create device vector y");
   DeviceVector y(map, 1);
-  y.set(0);
+  set_value(y, T{0});
 
   // Create matrix free operator
   spdlog::info("Create MatFreeLaplacian");
@@ -59,8 +102,14 @@ BenchmarkResults benchdolfinx::laplace_action(
   b.scatter_rev(std::plus<T>());
   bc.set(b.mutable_array(), std::nullopt);
 
-  u.copy_from_host(b); // Copy data from host vector to device vector
-  u.scatter_fwd();
+  // u.copy_from_host(b); // Copy data from host vector to device vector
+
+  // Copy data from host vector to device vector. Copies only local data.
+  thrust::copy_n(b.array().begin(), u.index_map()->size_local(),
+                 u.mutable_array().begin());
+
+  u.scatter_fwd(get_pack_fn<T>(512), get_unpack_fn<T>(512, 1),
+                [](auto&& x) { return x.data().get(); });
 
   BenchmarkResults b_results;
 
@@ -91,7 +140,7 @@ BenchmarkResults benchdolfinx::laplace_action(
   {
     // Compare to assembling on CPU and copying matrix to GPU
     DeviceVector z(map, 1);
-    z.set(T{0.0});
+    set_value(z, T{0});
 
     benchdolfinx::MatrixOperator<T> mat_op(a, {bc});
     dolfinx::common::Timer mtimer("% CSR Matvec");
@@ -133,12 +182,12 @@ BenchmarkResults benchdolfinx::laplace_action(
 
   spdlog::info("Create vector u");
   dolfinx::la::Vector<T> u(map, 1);
-  u.set(0.0);
+  set_value(u, T{0});
 
   // Output vector
   spdlog::info("Create vector y");
   dolfinx::la::Vector<T> y(map, 1);
-  y.set(0.0);
+  set_value(y, T{0});
 
   // Create matrix free operator
   spdlog::info("Create MatFreeLaplacian");
@@ -188,7 +237,7 @@ BenchmarkResults benchdolfinx::laplace_action(
   if (matrix_comparison)
   {
     dolfinx::la::Vector<T> z(map, 1);
-    z.set(T{0.0});
+    set_value(z, T{0});
 
     dolfinx::la::SparsityPattern sp = dolfinx::fem::create_sparsity_pattern(a);
     sp.finalize();
@@ -200,7 +249,7 @@ BenchmarkResults benchdolfinx::laplace_action(
     dolfinx::common::Timer mtimer("% CSR Matvec");
     for (int i = 0; i < nreps; ++i)
     {
-      z.set(T{0.0});
+      set_value(z, T{0});
       mat_op.mult(u, z);
     }
     mtimer.stop();
@@ -243,7 +292,8 @@ benchdolfinx::laplace_action<double>(const dolfinx::fem::Form<double>&,
                                      const dolfinx::fem::DirichletBC<double>&,
                                      int, int, double, int, bool, bool);
 
-template benchdolfinx::BenchmarkResults benchdolfinx::laplace_action<float>(
-    const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
-    const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool, bool);
+// template benchdolfinx::BenchmarkResults benchdolfinx::laplace_action<float>(
+//     const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
+//     const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool,
+//     bool);
 /// @endcond

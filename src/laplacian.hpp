@@ -6,6 +6,7 @@
 
 #include "mesh.hpp"
 #include "util.hpp"
+#include "vector.hpp"
 #include <basix/finite-element.h>
 #include <basix/interpolation.h>
 #include <basix/quadrature.h>
@@ -284,7 +285,8 @@ private:
   {
     spdlog::debug("impl_operator operator start");
 
-    in.scatter_fwd_begin();
+    in.scatter_fwd_begin(get_pack_fn<T>(512),
+                         [](auto&& x) { return x.data().get(); });
 
     T* geometry_ptr = thrust::raw_pointer_cast(_g_entity.data());
 
@@ -317,7 +319,7 @@ private:
     spdlog::debug("cell_dofmap size {}", _cell_dofmap.size());
     spdlog::debug("bc_marker size {}", _bc_marker.size());
 
-    in.scatter_fwd_end();
+    in.scatter_fwd_end(get_unpack_fn<T>(512, 1));
 
     spdlog::debug("impl_operator after scatter");
 
@@ -356,7 +358,7 @@ public:
   void apply(Vector& in, Vector& out)
   {
     spdlog::debug("Mat free operator start");
-    out.set(0);
+    set_value(out, T{0});
 
     if (_op_nq == _degree + 1)
     {
@@ -589,7 +591,7 @@ public:
   void apply(Vector& in, Vector& out)
   {
     spdlog::debug("Mat free operator start");
-    out.set(0);
+    set_value(out, T{0});
 
     if (_op_nq == _degree + 1)
     {
@@ -679,7 +681,8 @@ private:
   {
     spdlog::debug("impl_operator operator start");
 
-    in.scatter_fwd_begin();
+    in.scatter_fwd_begin(get_pack_fn<T>(512),
+                         [](auto&& x) { return x.data().get(); });
 
     T* geometry_ptr = _g_entity.data();
 
@@ -705,7 +708,7 @@ private:
     spdlog::debug("cell_dofmap size {}", _cell_dofmap.size());
     spdlog::debug("bc_marker size {}", _bc_marker.size());
 
-    in.scatter_fwd_end();
+    in.scatter_fwd_end(get_unpack_fn<T>(512, 1));
 
     spdlog::debug("impl_operator after scatter");
 
