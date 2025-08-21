@@ -6,7 +6,6 @@
 
 #include "mesh.hpp"
 #include "util.hpp"
-#include "vector.hpp"
 #include <basix/finite-element.h>
 #include <basix/interpolation.h>
 #include <basix/quadrature.h>
@@ -15,6 +14,7 @@
 
 #if defined(USE_CUDA) || defined(USE_HIP)
 // GPU
+#include "vector.hpp"
 #include "geometry_gpu.hpp"
 #include "laplacian_gpu.hpp"
 #include <thrust/device_vector.h>

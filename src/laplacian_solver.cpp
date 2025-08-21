@@ -108,8 +108,9 @@ BenchmarkResults benchdolfinx::laplace_action(
   thrust::copy_n(b.array().begin(), u.index_map()->size_local(),
                  u.mutable_array().begin());
 
-  u.scatter_fwd(get_pack_fn<T>(512), get_unpack_fn<T>(512, 1),
-                [](auto&& x) { return x.data().get(); });
+  u.scatter_fwd_begin(get_pack_fn<T>(512),
+                      [](auto&& x) { return x.data().get(); });
+  u.scatter_fwd_end(get_unpack_fn<T>(512, 1));
 
   BenchmarkResults b_results;
 
