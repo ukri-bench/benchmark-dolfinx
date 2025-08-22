@@ -30,7 +30,7 @@ jobs:
       packages: write
 
     env:
-      dolfinx_ref: "garth/generalise-vector-container"
+      dolfinx_ref: main
       # bench_dolfinx_ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
     strategy:
       matrix:
