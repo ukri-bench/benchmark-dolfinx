@@ -178,8 +178,7 @@ public:
   template <typename Vector>
   void get_diag_inverse(Vector& diag_inv)
   {
-    thrust::copy(_diag_inv.begin(), _diag_inv.end(),
-                 diag_inv.mutable_array().begin());
+    thrust::copy(_diag_inv.begin(), _diag_inv.end(), diag_inv.array().begin());
   }
 
   /// @brief The matrix-vector multiplication operator, y=Ax,

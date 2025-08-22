@@ -97,16 +97,16 @@ BenchmarkResults benchdolfinx::laplace_action(
   op_create_timer.stop();
 
   dolfinx::la::Vector<T> b(map, 1);
-  dolfinx::fem::assemble_vector(b.mutable_array(), L);
-  dolfinx::fem::apply_lifting(b.mutable_array(), {a}, {{bc}}, {}, T(1.0));
+  dolfinx::fem::assemble_vector(b.array(), L);
+  dolfinx::fem::apply_lifting(b.array(), {a}, {{bc}}, {}, T(1.0));
   b.scatter_rev(std::plus<T>());
-  bc.set(b.mutable_array(), std::nullopt);
+  bc.set(b.array(), std::nullopt);
 
   // u.copy_from_host(b); // Copy data from host vector to device vector
 
   // Copy data from host vector to device vector. Copies only local data.
   thrust::copy_n(b.array().begin(), u.index_map()->size_local(),
-                 u.mutable_array().begin());
+                 u.array().begin());
 
   u.scatter_fwd_begin(get_pack_fn<T>(512),
                       [](auto&& x) { return x.data().get(); });
@@ -202,10 +202,10 @@ BenchmarkResults benchdolfinx::laplace_action(
 
   op_create_timer.stop();
 
-  dolfinx::fem::assemble_vector(u.mutable_array(), L);
-  dolfinx::fem::apply_lifting<T, T>(u.mutable_array(), {a}, {{bc}}, {}, T(1.0));
+  dolfinx::fem::assemble_vector(u.array(), L);
+  dolfinx::fem::apply_lifting<T, T>(u.array(), {a}, {{bc}}, {}, T(1.0));
   u.scatter_rev(std::plus<T>());
-  bc.set(u.mutable_array(), std::nullopt);
+  bc.set(u.array(), std::nullopt);
 
   BenchmarkResults b_results = {0};
   // Matrix free
@@ -262,7 +262,7 @@ BenchmarkResults benchdolfinx::laplace_action(
 
     auto axpy = [](auto&& r, auto alpha, auto&& x, auto&& y)
     {
-      std::ranges::transform(x.array(), y.array(), r.mutable_array().begin(),
+      std::ranges::transform(x.array(), y.array(), r.array().begin(),
                              [alpha](auto x, auto y) { return alpha * x + y; });
     };
 

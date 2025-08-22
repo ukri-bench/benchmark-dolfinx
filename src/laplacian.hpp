@@ -294,8 +294,8 @@ private:
     {
       spdlog::debug("Calling stiffness_operator on local cells [{}]",
                     _lcells.size());
-      T* x = in.mutable_array().data().get();
-      T* y = out.mutable_array().data().get();
+      T* x = in.array().data().get();
+      T* y = out.array().data().get();
 
       dim3 block_size(Q, Q, Q);
       dim3 grid_size(_lcells.size());
@@ -330,8 +330,8 @@ private:
 
       geometry_ptr += 6 * Q * Q * Q * _lcells.size();
 
-      T* x = in.mutable_array().data().get();
-      T* y = out.mutable_array().data().get();
+      T* x = in.array().data().get();
+      T* y = out.array().data().get();
 
       dim3 block_size(Q, Q, Q);
       dim3 grid_size(_bcells.size());
@@ -690,8 +690,8 @@ private:
     {
       spdlog::debug("Calling stiffness_operator on local cells [{}]",
                     _lcells.size());
-      T* x = in.mutable_array().data();
-      T* y = out.mutable_array().data();
+      T* x = in.array().data();
+      T* y = out.array().data();
 
       stiffness_operator<T, P, Q>(
           x, _cell_constants.data(), y, geometry_ptr, _phi0_const.data(),
@@ -719,8 +719,8 @@ private:
 
       geometry_ptr += 6 * Q * Q * Q * _lcells.size();
 
-      T* x = in.mutable_array().data();
-      T* y = out.mutable_array().data();
+      T* x = in.array().data();
+      T* y = out.array().data();
 
       stiffness_operator<T, P, Q>(
           x, _cell_constants.data(), y, geometry_ptr, _phi0_const.data(),

@@ -235,7 +235,7 @@ void axpy(U& r, S alpha, const U& x, const U& y)
   thrust::transform(
       thrust::device, x.array().begin(),
       thrust::next(x.array().begin(), x.index_map()->size_local()),
-      y.array().begin(), r.mutable_array().begin(),
+      y.array().begin(), r.array().begin(),
       [alpha] __host__ __device__(const T& vx, const T& vy)
       { return vx * alpha + vy; });
   spdlog::debug("AXPY end");
@@ -282,7 +282,7 @@ void pointwise_mult(U& w, const U& x, const U& y)
   thrust::transform(
       thrust::device, x.array().begin(),
       thrust::next(x.array().begin(), x.index_map()->size_local()),
-      y.array().begin(), w.mutable_array().begin(),
+      y.array().begin(), w.array().begin(),
       [] __host__ __device__(T xi, T yi) { return xi * yi; });
   spdlog::debug("pointwise_mult end");
 }
@@ -291,7 +291,7 @@ void pointwise_mult(U& w, const U& x, const U& y)
 template <typename U, typename T>
 void set_value(U& x, T v)
 {
-  thrust::fill(x.mutable_array().begin(), x.mutable_array().end(), v);
+  thrust::fill(x.array().begin(), x.array().end(), v);
 }
 
 } // namespace benchdolfinx
