@@ -14,9 +14,9 @@
 
 #if defined(USE_CUDA) || defined(USE_HIP)
 // GPU
-#include "vector.hpp"
 #include "geometry_gpu.hpp"
 #include "laplacian_gpu.hpp"
+#include "vector.hpp"
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 #else
