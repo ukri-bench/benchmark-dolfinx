@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include "geometry_cpu.hpp"
+#include "laplacian.hpp"
+#include "laplacian_cpu.hpp"
 #include "mesh.hpp"
 #include "util.hpp"
 #include <basix/finite-element.h>
@@ -18,9 +21,6 @@
 #include "vector.hpp"
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
-#else // CPU
-#include "geometry_cpu.hpp"
-#include "laplacian_cpu.hpp"
 #endif
 
 namespace benchdolfinx
@@ -87,7 +87,7 @@ build_bc_markers(const dolfinx::fem::DirichletBC<T>& bc)
 #if defined(USE_CUDA) || defined(USE_HIP)
 /// GPU
 template <typename T>
-class MatFreeLaplacian
+class MatFreeLaplacianGPU
 {
 public:
   using value_type = T;
@@ -99,9 +99,9 @@ public:
   /// @param qmode Quadrature mode (0 or 1)
   /// @param constant Coefficient value, used on all cells
   /// @param quad_type Quadrature type (GLL or Gauss)
-  MatFreeLaplacian(const dolfinx::fem::FunctionSpace<T>& V,
-                   const dolfinx::fem::DirichletBC<T>& bc, int degree,
-                   int qmode, T constant, basix::quadrature::type quad_type)
+  MatFreeLaplacianGPU(const dolfinx::fem::FunctionSpace<T>& V,
+                      const dolfinx::fem::DirichletBC<T>& bc, int degree,
+                      int qmode, T constant, basix::quadrature::type quad_type)
       : _degree(degree), _cell_constants(impl::num_cells(*V.mesh()), constant),
         _cell_dofmap(V.dofmap()->map().data_handle(),
                      V.dofmap()->map().data_handle()
@@ -297,7 +297,7 @@ private:
 
       dim3 block_size(Q, Q, Q);
       dim3 grid_size(_lcells.size());
-      stiffness_operator<T, P, Q><<<grid_size, block_size>>>(
+      stiffness_operator_gpu<T, P, Q><<<grid_size, block_size>>>(
           x, thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
           thrust::raw_pointer_cast(_phi0_const.data()),
           thrust::raw_pointer_cast(_dphi1_const.data()),
@@ -333,7 +333,7 @@ private:
 
       dim3 block_size(Q, Q, Q);
       dim3 grid_size(_bcells.size());
-      stiffness_operator<T, P, Q><<<grid_size, block_size>>>(
+      stiffness_operator_gpu<T, P, Q><<<grid_size, block_size>>>(
           x, thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
           thrust::raw_pointer_cast(_phi0_const.data()),
           thrust::raw_pointer_cast(_dphi1_const.data()),
@@ -445,12 +445,10 @@ private:
   /// dphi1 Input basis function derivative table
   thrust::device_vector<T> _dphi1_const;
 };
+#endif
 
-#else
-
-/// CPU Version
 template <typename T>
-class MatFreeLaplacian
+class MatFreeLaplacianCPU
 {
 public:
   using value_type = T;
@@ -462,9 +460,9 @@ public:
   /// @param qmode Quadrature mode (0 or 1)
   /// @param constant Coefficient value, used on all cells
   /// @param quad_type Quadrature type (GLL or Gauss)
-  MatFreeLaplacian(const dolfinx::fem::FunctionSpace<T>& V,
-                   const dolfinx::fem::DirichletBC<T>& bc, int degree,
-                   int qmode, T constant, basix::quadrature::type quad_type)
+  MatFreeLaplacianCPU(const dolfinx::fem::FunctionSpace<T>& V,
+                      const dolfinx::fem::DirichletBC<T>& bc, int degree,
+                      int qmode, T constant, basix::quadrature::type quad_type)
       : _degree(degree), _cell_constants(impl::num_cells(*V.mesh()), constant),
         _cell_dofmap(V.dofmap()->map().data_handle(),
                      V.dofmap()->map().data_handle()
@@ -691,7 +689,7 @@ private:
       T* x = in.array().data();
       T* y = out.array().data();
 
-      stiffness_operator<T, P, Q>(
+      stiffness_operator_cpu<T, P, Q>(
           x, _cell_constants.data(), y, geometry_ptr, _phi0_const.data(),
           _dphi1_const.data(), _cell_dofmap.data(), _lcells.data(),
           _lcells.size(), _bc_marker.data(), _is_identity);
@@ -720,7 +718,7 @@ private:
       T* x = in.array().data();
       T* y = out.array().data();
 
-      stiffness_operator<T, P, Q>(
+      stiffness_operator_cpu<T, P, Q>(
           x, _cell_constants.data(), y, geometry_ptr, _phi0_const.data(),
           _dphi1_const.data(), _cell_dofmap.data(), _bcells.data(),
           _bcells.size(), _bc_marker.data(), _is_identity);
@@ -772,5 +770,4 @@ private:
   /// dphi1 Input basis function derivative table
   std::vector<T> _dphi1_const;
 };
-#endif
 } // namespace benchdolfinx

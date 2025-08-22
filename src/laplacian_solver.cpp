@@ -92,7 +92,7 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
       = use_gauss ? basix::quadrature::type::gauss_jacobi
                   : basix::quadrature::type::gll;
 
-  MatFreeLaplacian<T> op(*V, bc, degree, qmode, kappa, quad_type);
+  MatFreeLaplacianGPU<T> op(*V, bc, degree, qmode, kappa, quad_type);
 
   op_create_timer.stop();
 
@@ -176,9 +176,9 @@ benchdolfinx::laplace_action_gpu<double>(
     const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool,
     bool);
 
-template benchdolfinx::BenchmarkResults benchdolfinx::laplace_action_gpu<float>(
-    const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
-    const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool, bool);
+// template benchdolfinx::BenchmarkResults benchdolfinx::laplace_action_gpu<float>(
+//     const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
+//     const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool, bool);
 /// @endcond
 #endif
 //----------------------------------------------------------------------------
@@ -210,12 +210,12 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
       = use_gauss ? basix::quadrature::type::gauss_jacobi
                   : basix::quadrature::type::gll;
 
-  MatFreeLaplacian<T> op(*V, bc, degree, qmode, kappa, quad_type);
+  MatFreeLaplacianCPU<T> op(*V, bc, degree, qmode, kappa, quad_type);
 
   op_create_timer.stop();
 
   dolfinx::fem::assemble_vector(u.array(), L);
-  dolfinx::fem::apply_lifting<T, T>(u.array(), {a}, {{bc}}, {}, T(1.0));
+  dolfinx::fem::apply_lifting(u.array(), {a}, {{bc}}, {}, T(1.0));
   u.scatter_rev(std::plus<T>());
   bc.set(u.array(), std::nullopt);
 
@@ -305,7 +305,7 @@ benchdolfinx::laplace_action_cpu<double>(
     const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool,
     bool);
 
-template benchdolfinx::BenchmarkResults benchdolfinx::laplace_action_cpu<float>(
-    const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
-    const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool, bool);
+// template benchdolfinx::BenchmarkResults benchdolfinx::laplace_action_cpu<float>(
+//     const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
+//     const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool, bool);
 /// @endcond
