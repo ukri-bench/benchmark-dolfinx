@@ -62,7 +62,7 @@ static __global__ void unpack(const int N,
 
 //----------------------------------------------------------------------------
 template <typename T>
-BenchmarkResults benchdolfinx::laplace_action(
+BenchmarkResults benchdolfinx::laplace_action_gpu(
     const dolfinx::fem::Form<T>& a, const dolfinx::fem::Form<T>& L,
     const dolfinx::fem::DirichletBC<T>& bc, int degree, int qmode, T kappa,
     int nreps, bool use_gauss, bool matrix_comparison)
@@ -169,9 +169,21 @@ BenchmarkResults benchdolfinx::laplace_action(
   return b_results;
 }
 //----------------------------------------------------------------------------
-#else // CPU
+/// @cond protect from doxygen
+template benchdolfinx::BenchmarkResults
+benchdolfinx::laplace_action_gpu<double>(
+    const dolfinx::fem::Form<double>&, const dolfinx::fem::Form<double>&,
+    const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool,
+    bool);
+
+template benchdolfinx::BenchmarkResults benchdolfinx::laplace_action_gpu<float>(
+    const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
+    const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool, bool);
+/// @endcond
+#endif
+//----------------------------------------------------------------------------
 template <typename T>
-BenchmarkResults benchdolfinx::laplace_action(
+BenchmarkResults benchdolfinx::laplace_action_cpu(
     const dolfinx::fem::Form<T>& a, const dolfinx::fem::Form<T>& L,
     const dolfinx::fem::DirichletBC<T>& bc, int degree, int qmode, T kappa,
     int nreps, bool use_gauss, bool matrix_comparison)
@@ -285,16 +297,15 @@ BenchmarkResults benchdolfinx::laplace_action(
 
   return b_results;
 }
-#endif
 
 /// @cond protect from doxygen
 template benchdolfinx::BenchmarkResults
-benchdolfinx::laplace_action<double>(const dolfinx::fem::Form<double>&,
-                                     const dolfinx::fem::Form<double>&,
-                                     const dolfinx::fem::DirichletBC<double>&,
-                                     int, int, double, int, bool, bool);
+benchdolfinx::laplace_action_cpu<double>(
+    const dolfinx::fem::Form<double>&, const dolfinx::fem::Form<double>&,
+    const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool,
+    bool);
 
-template benchdolfinx::BenchmarkResults benchdolfinx::laplace_action<float>(
+template benchdolfinx::BenchmarkResults benchdolfinx::laplace_action_cpu<float>(
     const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
     const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool, bool);
 /// @endcond

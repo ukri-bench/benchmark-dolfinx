@@ -12,15 +12,13 @@
 #include <dolfinx/fem/DirichletBC.h>
 #include <dolfinx/fem/FunctionSpace.h>
 
-#if defined(USE_CUDA) || defined(USE_HIP)
-// GPU
+#if defined(USE_CUDA) || defined(USE_HIP) // GPU
 #include "geometry_gpu.hpp"
 #include "laplacian_gpu.hpp"
 #include "vector.hpp"
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
-#else
-// CPU
+#else // CPU
 #include "geometry_cpu.hpp"
 #include "laplacian_cpu.hpp"
 #endif
@@ -259,7 +257,7 @@ private:
         spdlog::info("cell_list size {}", cell_list.size());
         spdlog::info("Calling geometry_computation [{} {}]", Q, nq);
 
-        geometry_computation<T, Q><<<grid_size, block_size>>>(
+        geometry_computation_gpu<T, Q><<<grid_size, block_size>>>(
             thrust::raw_pointer_cast(_xgeom.data()),
             thrust::raw_pointer_cast(_g_entity.data()),
             thrust::raw_pointer_cast(_geometry_dofmap.data()),

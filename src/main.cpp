@@ -96,9 +96,15 @@ Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   auto bdofs = fem::locate_dofs_topological(*topology, *dofmap, fdim, facets);
   fem::DirichletBC<T> bc(1.3, bdofs, V);
 
-  auto results = benchdolfinx::laplace_action<T>(a, L, bc, degree, qmode,
-                                                 kappa->value[0], nreps,
-                                                 use_gauss, matrix_comparison);
+#if defined(USE_CUDA) || defined(USE_HIP)
+  auto results = benchdolfinx::laplace_action_gpu<T>(
+      a, L, bc, degree, qmode, kappa->value[0], nreps, use_gauss,
+      matrix_comparison);
+#else
+  auto results = benchdolfinx::laplace_action_cpu<T>(
+      a, L, bc, degree, qmode, kappa->value[0], nreps, use_gauss,
+      matrix_comparison);
+#endif
 
   Json::Value output;
   output["ncells_global"] = mesh->topology()->index_map(tdim)->size_global();
