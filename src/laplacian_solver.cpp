@@ -77,12 +77,12 @@ BenchmarkResults benchdolfinx::laplace_action(
   spdlog::info("Create device vector u");
 
   DeviceVector u(map, 1);
-  set_value(u, T{0});
+  thrust::fill(u.array().begin(), u.array().end(), 0);
 
   // Output vector
   spdlog::info("Create device vector y");
   DeviceVector y(map, 1);
-  set_value(y, T{0});
+  thrust::fill(y.array().begin(), y.array().end(), 0);
 
   // Create matrix free operator
   spdlog::info("Create MatFreeLaplacian");
@@ -141,7 +141,7 @@ BenchmarkResults benchdolfinx::laplace_action(
   {
     // Compare to assembling on CPU and copying matrix to GPU
     DeviceVector z(map, 1);
-    set_value(z, T{0});
+    thrust::fill(z.array().begin(), z.array().end(), 0);
 
     benchdolfinx::MatrixOperator<T> mat_op(a, {bc});
     dolfinx::common::Timer mtimer("% CSR Matvec");
@@ -183,12 +183,12 @@ BenchmarkResults benchdolfinx::laplace_action(
 
   spdlog::info("Create vector u");
   dolfinx::la::Vector<T> u(map, 1);
-  set_value(u, T{0});
+  std::ranges::fill(u.array(), T{0});
 
   // Output vector
   spdlog::info("Create vector y");
   dolfinx::la::Vector<T> y(map, 1);
-  set_value(y, T{0});
+  std::ranges::fill(u.array(), T{0});
 
   // Create matrix free operator
   spdlog::info("Create MatFreeLaplacian");
@@ -238,7 +238,7 @@ BenchmarkResults benchdolfinx::laplace_action(
   if (matrix_comparison)
   {
     dolfinx::la::Vector<T> z(map, 1);
-    set_value(z, T{0});
+    std::fill(z.array().begin(), z.array().end(), 0);
 
     dolfinx::la::SparsityPattern sp = dolfinx::fem::create_sparsity_pattern(a);
     sp.finalize();
@@ -250,7 +250,8 @@ BenchmarkResults benchdolfinx::laplace_action(
     dolfinx::common::Timer mtimer("% CSR Matvec");
     for (int i = 0; i < nreps; ++i)
     {
-      set_value(z, T{0});
+      std::fill(z.array().begin(), z.array().end(), 0);
+
       mat_op.mult(u, z);
     }
     mtimer.stop();
@@ -293,8 +294,7 @@ benchdolfinx::laplace_action<double>(const dolfinx::fem::Form<double>&,
                                      const dolfinx::fem::DirichletBC<double>&,
                                      int, int, double, int, bool, bool);
 
-// template benchdolfinx::BenchmarkResults benchdolfinx::laplace_action<float>(
-//     const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
-//     const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool,
-//     bool);
+template benchdolfinx::BenchmarkResults benchdolfinx::laplace_action<float>(
+    const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
+    const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool, bool);
 /// @endcond
