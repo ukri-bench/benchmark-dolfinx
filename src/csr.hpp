@@ -108,6 +108,7 @@ public:
         = dolfinx::fem::create_sparsity_pattern(a);
     pattern.finalize();
 
+    // Assemble on CPU
     dolfinx::la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
                            std::vector<std::int32_t>>
         A(pattern);
@@ -120,8 +121,7 @@ public:
         T, thrust::device_vector<T>, thrust::device_vector<std::int32_t>,
         thrust::device_vector<std::int32_t>>>(A);
 
-    std::int32_t num_rows = _A->index_map(0)->size_local();
-
+    // Compute Matrix Norm
     T norm = thrust::transform_reduce(
         thrust::device, _A->values().begin(), _A->values().end(),
         [] __device__(auto x) { return x * x; }, T(0.0),
@@ -129,10 +129,8 @@ public:
     spdlog::info("A norm = {}", std::sqrt(norm));
 
     // Get inverse diagonal entries (for Jacobi preconditioning)
-    // FIXME: on device
-    _diag_inv = thrust::device_vector<T>(num_rows);
-
-    for (int i = 0; i < num_rows; ++i)
+    _diag_inv = thrust::device_vector<T>(_A->index_map(0)->size_local());
+    for (int i = 0; i < _diag_inv.size(); ++i)
     {
       // Find diagonal entry on each row
       thrust::copy_if(thrust::device,
@@ -142,7 +140,6 @@ public:
                       thrust::next(_diag_inv.begin(), i),
                       [=] __device__(auto col) { return (col == i); });
     }
-
     thrust::transform(thrust::device, _diag_inv.begin(), _diag_inv.end(),
                       _diag_inv.begin(), [](auto x) { return 1 / x; });
 
