@@ -24,10 +24,10 @@ namespace benchdolfinx
 /// @tparam T scalar type
 /// @tparam Q number of quadrature points (in 1D)
 template <typename T, int Q>
-__global__ void geometry_computation(const T* xgeom, T* G_entity,
-                                     const std::int32_t* geometry_dofmap,
-                                     const T* dphi, const T* weights,
-                                     const int* entities, int n_entities)
+__global__ void geometry_computation_gpu(const T* xgeom, T* G_entity,
+                                         const std::int32_t* geometry_dofmap,
+                                         const T* dphi, const T* weights,
+                                         const int* entities, int n_entities)
 {
   // One block per cell
   int c = blockIdx.x;

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "util.hpp"
+#include "vector.hpp"
 #include <dolfinx/la/MatrixCSR.h>
 #include <thrust/device_vector.h>
 
@@ -177,8 +178,7 @@ public:
   template <typename Vector>
   void get_diag_inverse(Vector& diag_inv)
   {
-    thrust::copy(_diag_inv.begin(), _diag_inv.end(),
-                 diag_inv.mutable_array().begin());
+    thrust::copy(_diag_inv.begin(), _diag_inv.end(), diag_inv.array().begin());
   }
 
   /// @brief The matrix-vector multiplication operator, y=Ax,
@@ -196,23 +196,22 @@ public:
   {
     dolfinx::common::Timer t0("% MatrixOperator application");
 
-    y.set(0);
-    T* _x = x.mutable_array().data();
-    T* _y = y.mutable_array().data();
+    set_value(y, T{0});
+    T* _x = x.array().data().get();
+    T* _y = y.array().data().get();
 
     if (transpose)
     {
       int num_rows = _row_map->size_local();
       dim3 block_size(256);
       dim3 grid_size((num_rows + block_size.x - 1) / block_size.x);
-      x.scatter_fwd_begin();
+      x.scatter_fwd_begin(get_pack_fn<T>(512),
+                          [](auto&& x) { return x.data().get(); });
       impl::spmvT_impl<T><<<grid_size, block_size, 0, 0>>>(
-          num_rows, thrust::raw_pointer_cast(_values.data()),
-          thrust::raw_pointer_cast(_row_ptr.data()),
-          thrust::raw_pointer_cast(_off_diag_offset.data()),
-          thrust::raw_pointer_cast(_cols.data()), _x, _y);
+          num_rows, _values.data().get(), _row_ptr.data().get(),
+          _off_diag_offset.data().get(), _cols.data().get(), _x, _y);
       check_device_last_error();
-      x.scatter_fwd_end();
+      x.scatter_fwd_end(get_unpack_fn<T>(512, 1));
 
       impl::spmvT_impl<T><<<grid_size, block_size, 0, 0>>>(
           num_rows, thrust::raw_pointer_cast(_values.data()),
@@ -226,14 +225,15 @@ public:
       int num_rows = _row_map->size_local();
       dim3 block_size(256);
       dim3 grid_size((num_rows + block_size.x - 1) / block_size.x);
-      x.scatter_fwd_begin();
+      x.scatter_fwd_begin(get_pack_fn<T>(512),
+                          [](auto&& x) { return x.data().get(); });
       impl::spmv_impl<T><<<grid_size, block_size, 0, 0>>>(
           num_rows, thrust::raw_pointer_cast(_values.data()),
           thrust::raw_pointer_cast(_row_ptr.data()),
           thrust::raw_pointer_cast(_off_diag_offset.data()),
           thrust::raw_pointer_cast(_cols.data()), _x, _y);
       check_device_last_error();
-      x.scatter_fwd_end();
+      x.scatter_fwd_end(get_unpack_fn<T>(512, 1));
 
       impl::spmv_impl<T><<<grid_size, block_size, 0, 0>>>(
           num_rows, thrust::raw_pointer_cast(_values.data()),

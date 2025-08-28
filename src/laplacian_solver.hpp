@@ -21,10 +21,21 @@ struct BenchmarkResults
 
 using BenchmarkResults = struct BenchmarkResults;
 
-/// @brief Compute action of Laplacian on GPU or CPU
+#if defined(USE_CUDA) || defined(USE_HIP)
+/// @brief Compute action of Laplacian on GPU
 template <typename T>
-BenchmarkResults
-laplace_action(const dolfinx::fem::Form<T>& a, const dolfinx::fem::Form<T>& L,
-               const dolfinx::fem::DirichletBC<T>& bc, int degree, int qmode,
-               T kappa, int nreps, bool use_gauss, bool matrix_comparison);
+BenchmarkResults laplace_action_gpu(const dolfinx::fem::Form<T>& a,
+                                    const dolfinx::fem::Form<T>& L,
+                                    const dolfinx::fem::DirichletBC<T>& bc,
+                                    int degree, int qmode, T kappa, int nreps,
+                                    bool use_gauss, bool matrix_comparison);
+#endif
+
+/// @brief Compute action of Laplacian on CPU
+template <typename T>
+BenchmarkResults laplace_action_cpu(const dolfinx::fem::Form<T>& a,
+                                    const dolfinx::fem::Form<T>& L,
+                                    const dolfinx::fem::DirichletBC<T>& bc,
+                                    int degree, int qmode, T kappa, int nreps,
+                                    bool use_gauss, bool matrix_comparison);
 } // namespace benchdolfinx

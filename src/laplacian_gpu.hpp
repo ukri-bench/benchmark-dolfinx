@@ -89,16 +89,13 @@ __device__ __forceinline__ int ijk(int i, int j, int k)
 /// single entity. The block size is (P+1, P+1, P+1) and the shared
 /// memory 2 * (P+1)^3 * sizeof(T).
 template <typename T, int P, int Q>
-__launch_bounds__(Q* Q* Q) __global__
-    void stiffness_operator(const T* __restrict__ u,
-                            const T* __restrict__ entity_constants,
-                            T* __restrict__ b, const T* __restrict__ G_entity,
-                            const T* __restrict__ phi0_const,
-                            const T* __restrict__ dphi1_const,
-                            const std::int32_t* __restrict__ entity_dofmap,
-                            const int* __restrict__ entities, int n_entities,
-                            const std::int8_t* __restrict__ bc_marker,
-                            bool identity)
+__launch_bounds__(Q* Q* Q) __global__ void stiffness_operator_gpu(
+    const T* __restrict__ u, const T* __restrict__ entity_constants,
+    T* __restrict__ b, const T* __restrict__ G_entity,
+    const T* __restrict__ phi0_const, const T* __restrict__ dphi1_const,
+    const std::int32_t* __restrict__ entity_dofmap,
+    const int* __restrict__ entities, int n_entities,
+    const std::int8_t* __restrict__ bc_marker, bool identity)
 {
   // Note: each thread is respinsible for one quadrature point. Since
   // the number of DOFs is less than or equal to the number quadrature

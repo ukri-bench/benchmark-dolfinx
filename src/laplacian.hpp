@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include "geometry_cpu.hpp"
+#include "laplacian.hpp"
+#include "laplacian_cpu.hpp"
 #include "mesh.hpp"
 #include "util.hpp"
 #include <basix/finite-element.h>
@@ -12,16 +15,12 @@
 #include <dolfinx/fem/DirichletBC.h>
 #include <dolfinx/fem/FunctionSpace.h>
 
-#if defined(USE_CUDA) || defined(USE_HIP)
-// GPU
+#if defined(USE_CUDA) || defined(USE_HIP) // GPU
 #include "geometry_gpu.hpp"
 #include "laplacian_gpu.hpp"
+#include "vector.hpp"
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
-#else
-// CPU
-#include "geometry_cpu.hpp"
-#include "laplacian_cpu.hpp"
 #endif
 
 namespace benchdolfinx
@@ -88,7 +87,7 @@ build_bc_markers(const dolfinx::fem::DirichletBC<T>& bc)
 #if defined(USE_CUDA) || defined(USE_HIP)
 /// GPU
 template <typename T>
-class MatFreeLaplacian
+class MatFreeLaplacianGPU
 {
 public:
   using value_type = T;
@@ -100,9 +99,9 @@ public:
   /// @param qmode Quadrature mode (0 or 1)
   /// @param constant Coefficient value, used on all cells
   /// @param quad_type Quadrature type (GLL or Gauss)
-  MatFreeLaplacian(const dolfinx::fem::FunctionSpace<T>& V,
-                   const dolfinx::fem::DirichletBC<T>& bc, int degree,
-                   int qmode, T constant, basix::quadrature::type quad_type)
+  MatFreeLaplacianGPU(const dolfinx::fem::FunctionSpace<T>& V,
+                      const dolfinx::fem::DirichletBC<T>& bc, int degree,
+                      int qmode, T constant, basix::quadrature::type quad_type)
       : _degree(degree), _cell_constants(impl::num_cells(*V.mesh()), constant),
         _cell_dofmap(V.dofmap()->map().data_handle(),
                      V.dofmap()->map().data_handle()
@@ -258,7 +257,7 @@ private:
         spdlog::info("cell_list size {}", cell_list.size());
         spdlog::info("Calling geometry_computation [{} {}]", Q, nq);
 
-        geometry_computation<T, Q><<<grid_size, block_size>>>(
+        geometry_computation_gpu<T, Q><<<grid_size, block_size>>>(
             thrust::raw_pointer_cast(_xgeom.data()),
             thrust::raw_pointer_cast(_g_entity.data()),
             thrust::raw_pointer_cast(_geometry_dofmap.data()),
@@ -284,7 +283,8 @@ private:
   {
     spdlog::debug("impl_operator operator start");
 
-    in.scatter_fwd_begin();
+    in.scatter_fwd_begin(get_pack_fn<T>(512),
+                         [](auto&& x) { return x.data().get(); });
 
     T* geometry_ptr = thrust::raw_pointer_cast(_g_entity.data());
 
@@ -292,12 +292,12 @@ private:
     {
       spdlog::debug("Calling stiffness_operator on local cells [{}]",
                     _lcells.size());
-      T* x = in.mutable_array().data();
-      T* y = out.mutable_array().data();
+      T* x = in.array().data().get();
+      T* y = out.array().data().get();
 
       dim3 block_size(Q, Q, Q);
       dim3 grid_size(_lcells.size());
-      stiffness_operator<T, P, Q><<<grid_size, block_size>>>(
+      stiffness_operator_gpu<T, P, Q><<<grid_size, block_size>>>(
           x, thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
           thrust::raw_pointer_cast(_phi0_const.data()),
           thrust::raw_pointer_cast(_dphi1_const.data()),
@@ -317,7 +317,7 @@ private:
     spdlog::debug("cell_dofmap size {}", _cell_dofmap.size());
     spdlog::debug("bc_marker size {}", _bc_marker.size());
 
-    in.scatter_fwd_end();
+    in.scatter_fwd_end(get_unpack_fn<T>(512, 1));
 
     spdlog::debug("impl_operator after scatter");
 
@@ -328,12 +328,12 @@ private:
 
       geometry_ptr += 6 * Q * Q * Q * _lcells.size();
 
-      T* x = in.mutable_array().data();
-      T* y = out.mutable_array().data();
+      T* x = in.array().data().get();
+      T* y = out.array().data().get();
 
       dim3 block_size(Q, Q, Q);
       dim3 grid_size(_bcells.size());
-      stiffness_operator<T, P, Q><<<grid_size, block_size>>>(
+      stiffness_operator_gpu<T, P, Q><<<grid_size, block_size>>>(
           x, thrust::raw_pointer_cast(_cell_constants.data()), y, geometry_ptr,
           thrust::raw_pointer_cast(_phi0_const.data()),
           thrust::raw_pointer_cast(_dphi1_const.data()),
@@ -356,7 +356,7 @@ public:
   void apply(Vector& in, Vector& out)
   {
     spdlog::debug("Mat free operator start");
-    out.set(0);
+    set_value(out, T{0});
 
     if (_op_nq == _degree + 1)
     {
@@ -445,12 +445,10 @@ private:
   /// dphi1 Input basis function derivative table
   thrust::device_vector<T> _dphi1_const;
 };
+#endif
 
-#else
-
-/// CPU Version
 template <typename T>
-class MatFreeLaplacian
+class MatFreeLaplacianCPU
 {
 public:
   using value_type = T;
@@ -462,9 +460,9 @@ public:
   /// @param qmode Quadrature mode (0 or 1)
   /// @param constant Coefficient value, used on all cells
   /// @param quad_type Quadrature type (GLL or Gauss)
-  MatFreeLaplacian(const dolfinx::fem::FunctionSpace<T>& V,
-                   const dolfinx::fem::DirichletBC<T>& bc, int degree,
-                   int qmode, T constant, basix::quadrature::type quad_type)
+  MatFreeLaplacianCPU(const dolfinx::fem::FunctionSpace<T>& V,
+                      const dolfinx::fem::DirichletBC<T>& bc, int degree,
+                      int qmode, T constant, basix::quadrature::type quad_type)
       : _degree(degree), _cell_constants(impl::num_cells(*V.mesh()), constant),
         _cell_dofmap(V.dofmap()->map().data_handle(),
                      V.dofmap()->map().data_handle()
@@ -589,7 +587,7 @@ public:
   void apply(Vector& in, Vector& out)
   {
     spdlog::debug("Mat free operator start");
-    out.set(0);
+    std::fill(out.array().begin(), out.array().end(), 0);
 
     if (_op_nq == _degree + 1)
     {
@@ -687,10 +685,10 @@ private:
     {
       spdlog::debug("Calling stiffness_operator on local cells [{}]",
                     _lcells.size());
-      T* x = in.mutable_array().data();
-      T* y = out.mutable_array().data();
+      T* x = in.array().data();
+      T* y = out.array().data();
 
-      stiffness_operator<T, P, Q>(
+      stiffness_operator_cpu<T, P, Q>(
           x, _cell_constants.data(), y, geometry_ptr, _phi0_const.data(),
           _dphi1_const.data(), _cell_dofmap.data(), _lcells.data(),
           _lcells.size(), _bc_marker.data(), _is_identity);
@@ -716,10 +714,10 @@ private:
 
       geometry_ptr += 6 * Q * Q * Q * _lcells.size();
 
-      T* x = in.mutable_array().data();
-      T* y = out.mutable_array().data();
+      T* x = in.array().data();
+      T* y = out.array().data();
 
-      stiffness_operator<T, P, Q>(
+      stiffness_operator_cpu<T, P, Q>(
           x, _cell_constants.data(), y, geometry_ptr, _phi0_const.data(),
           _dphi1_const.data(), _cell_dofmap.data(), _bcells.data(),
           _bcells.size(), _bc_marker.data(), _is_identity);
@@ -771,5 +769,4 @@ private:
   /// dphi1 Input basis function derivative table
   std::vector<T> _dphi1_const;
 };
-#endif
 } // namespace benchdolfinx
