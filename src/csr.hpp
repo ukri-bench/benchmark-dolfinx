@@ -135,21 +135,17 @@ public:
 
     for (int i = 0; i < num_rows; ++i)
     {
-      //      thrust::copy_if(thrust::device,
-      //                      thrust::next(_A->values().begin(),
-      //                      _A->row_ptr()[i]),
-      //                      thrust::next(_A->values().begin(), _A->row_ptr()[i
-      //                      + 1]), thrust::next(_A->cols().begin(),
-      //                      _A->row_ptr()[i]), thrust::next(_diag_inv.begin(),
-      //                      i),
-      //                      [&i] __device__(auto col) { return col == i; });
-
-      for (int j = _A->row_ptr()[i]; j < _A->row_ptr()[i + 1]; ++j)
-      {
-        if (_A->cols()[j] == i)
-          _diag_inv[i] = 1 / _A->values()[j];
-      }
+      // Find diagonal entry on each row
+      thrust::copy_if(thrust::device,
+                      thrust::next(_A->values().begin(), _A->row_ptr()[i]),
+                      thrust::next(_A->values().begin(), _A->row_ptr()[i + 1]),
+                      thrust::next(_A->cols().begin(), _A->row_ptr()[i]),
+                      thrust::next(_diag_inv.begin(), i),
+                      [=] __device__(auto col) { return (col == i); });
     }
+
+    thrust::transform(thrust::device, _diag_inv.begin(), _diag_inv.end(),
+                      _diag_inv.begin(), [](auto x) { return 1 / x; });
 
     spdlog::info("Created device CSR matrix");
   }
