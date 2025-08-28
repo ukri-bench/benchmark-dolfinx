@@ -89,10 +89,8 @@ public:
   /// The value type
   using value_type = T;
 
-  /// @brief Construct a CSR matrix for the Form a, with given boundary
-  /// conditions
-  /// @param a A finite element form
-  /// @param bcs Set of boundary conditions to be applied
+  /// @brief An on-device CSR Matrix
+  /// @param A CPU-based CSR Matrix
   MatrixOperator(
       dolfinx::la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
                              std::vector<std::int32_t>>& A)
