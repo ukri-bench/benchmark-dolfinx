@@ -157,12 +157,11 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
       A.scatter_rev();
       dolfinx::fem::set_diagonal<T>(A.mat_set_values(), *V, {bc}, T(1.0));
 
-      // Compare to assembling on CPU and copying matrix to GPU
-      DeviceVector z(map, 1);
-      thrust::fill(z.array().begin(), z.array().end(), 0);
-
       mat_op = std::make_unique<benchdolfinx::MatrixOperator<T>>(A);
     }
+
+    DeviceVector z(map, 1);
+    thrust::fill(z.array().begin(), z.array().end(), 0);
 
     dolfinx::common::Timer mtimer("% CSR Matvec");
     for (int i = 0; i < nreps; ++i)
