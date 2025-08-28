@@ -97,7 +97,6 @@ public:
       const dolfinx::fem::Form<T, T>& a,
       std::vector<std::reference_wrapper<const dolfinx::fem::DirichletBC<T>>>
           bcs)
-      : _comm(a.function_spaces()[0]->mesh()->comm())
   {
     dolfinx::common::Timer t0("~setup phase MatrixOperator");
 
@@ -229,18 +228,14 @@ public:
   }
 
 private:
-  // Values stored on-device.
-  // Copy of the inverse of the diagonal entries of the matrix - may be
-  // used for Jacobi preconditioning.
-  thrust::device_vector<T> _diag_inv;
-
   // CSR matrix in GPU memory
   std::unique_ptr<dolfinx::la::MatrixCSR<T, thrust::device_vector<T>,
                                          thrust::device_vector<std::int32_t>,
                                          thrust::device_vector<std::int32_t>>>
       _A;
 
-  // MPI Comm associated with the Matrix
-  MPI_Comm _comm;
+  // Copy of the inverse of the diagonal entries of the matrix - may be
+  // used for Jacobi preconditioning.
+  thrust::device_vector<T> _diag_inv;
 };
 } // namespace benchdolfinx
