@@ -108,64 +108,50 @@ public:
     dolfinx::la::SparsityPattern pattern
         = dolfinx::fem::create_sparsity_pattern(a);
     pattern.finalize();
-    _col_map = std::make_shared<const dolfinx::common::IndexMap>(
-        pattern.column_index_map());
-    _row_map = V->dofmap()->index_map;
 
-    _A = std::make_unique<
-        dolfinx::la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
-                               std::vector<std::int32_t>>>(pattern);
-    dolfinx::fem::assemble_matrix(_A->mat_add_values(), a, bcs);
-    _A->scatter_rev();
-    dolfinx::fem::set_diagonal<T>(_A->mat_set_values(), *V, bcs, T(1.0));
+    dolfinx::la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
+                           std::vector<std::int32_t>>
+        A(pattern);
+    dolfinx::fem::assemble_matrix(A.mat_add_values(), a, bcs);
+    A.scatter_rev();
+    dolfinx::fem::set_diagonal<T>(A.mat_set_values(), *V, bcs, T(1.0));
 
-    std::int32_t num_rows = _row_map->size_local();
-    std::int32_t nnz = _A->row_ptr()[num_rows];
-    _nnz = nnz;
+    // Copy to device
+    _A = std::make_unique<dolfinx::la::MatrixCSR<
+        T, thrust::device_vector<T>, thrust::device_vector<std::int32_t>,
+        thrust::device_vector<std::int32_t>>>(A);
 
-    T norm = 0;
-    for (T v : _A->values())
-      norm += v * v;
+    std::int32_t num_rows = _A->index_map(0)->size_local();
 
+    T norm = thrust::transform_reduce(
+        thrust::device, _A->values().begin(), _A->values().end(),
+        [] __device__(auto x) { return x * x; }, T(0.0),
+        [] __device__(auto x, auto y) { return x + y; });
     spdlog::info("A norm = {}", std::sqrt(norm));
 
     // Get inverse diagonal entries (for Jacobi preconditioning)
-    std::vector<T> diag_inv(num_rows);
+    // FIXME: on device
+    _diag_inv = thrust::device_vector<T>(num_rows);
+
     for (int i = 0; i < num_rows; ++i)
     {
+      //      thrust::copy_if(thrust::device,
+      //                      thrust::next(_A->values().begin(),
+      //                      _A->row_ptr()[i]),
+      //                      thrust::next(_A->values().begin(), _A->row_ptr()[i
+      //                      + 1]), thrust::next(_A->cols().begin(),
+      //                      _A->row_ptr()[i]), thrust::next(_diag_inv.begin(),
+      //                      i),
+      //                      [&i] __device__(auto col) { return col == i; });
+
       for (int j = _A->row_ptr()[i]; j < _A->row_ptr()[i + 1]; ++j)
       {
         if (_A->cols()[j] == i)
-          diag_inv[i] = 1 / _A->values()[j];
+          _diag_inv[i] = 1 / _A->values()[j];
       }
     }
 
-    _diag_inv = thrust::device_vector<T>(diag_inv.size());
-    thrust::copy(diag_inv.begin(), diag_inv.end(), _diag_inv.begin());
-
-    _row_ptr = thrust::device_vector<std::int32_t>(num_rows + 1);
-    _off_diag_offset = thrust::device_vector<std::int32_t>(num_rows);
-    _cols = thrust::device_vector<std::int32_t>(nnz);
-    _values = thrust::device_vector<T>(nnz);
-
-    // Copy data from host to device
-    spdlog::info("Creating Device matrix with {} non zeros", _nnz);
-    spdlog::info("Creating row_ptr with {} to {}", num_rows + 1,
-                 _row_ptr.size());
-    thrust::copy(_A->row_ptr().begin(), _A->row_ptr().begin() + num_rows + 1,
-                 _row_ptr.begin());
-
-    spdlog::info("Creating off_diag with {} to {}",
-                 _A->off_diag_offset().size(), _off_diag_offset.size());
-    thrust::copy(_A->off_diag_offset().begin(),
-                 _A->off_diag_offset().begin() + num_rows,
-                 _off_diag_offset.begin());
-
-    spdlog::info("Creating cols with {} to {}", nnz, _cols.size());
-    thrust::copy(_A->cols().begin(), _A->cols().begin() + nnz, _cols.begin());
-    spdlog::info("Creating values with {} to {}", nnz, _values.size());
-    thrust::copy(_A->values().begin(), _A->values().begin() + nnz,
-                 _values.begin());
+    spdlog::info("Created device CSR matrix");
   }
 
   /// Destructor
@@ -202,92 +188,60 @@ public:
 
     if (transpose)
     {
-      int num_rows = _row_map->size_local();
+      int num_rows = _A->index_map(0)->size_local();
       dim3 block_size(256);
       dim3 grid_size((num_rows + block_size.x - 1) / block_size.x);
       x.scatter_fwd_begin(get_pack_fn<T>(512),
                           [](auto&& x) { return x.data().get(); });
       impl::spmvT_impl<T><<<grid_size, block_size, 0, 0>>>(
-          num_rows, _values.data().get(), _row_ptr.data().get(),
-          _off_diag_offset.data().get(), _cols.data().get(), _x, _y);
+          num_rows, _A->values().data().get(), _A->row_ptr().data().get(),
+          _A->off_diag_offset().data().get(), _A->cols().data().get(), _x, _y);
       check_device_last_error();
       x.scatter_fwd_end(get_unpack_fn<T>(512, 1));
 
       impl::spmvT_impl<T><<<grid_size, block_size, 0, 0>>>(
-          num_rows, thrust::raw_pointer_cast(_values.data()),
-          thrust::raw_pointer_cast(_off_diag_offset.data()),
-          thrust::raw_pointer_cast(_row_ptr.data()) + 1,
-          thrust::raw_pointer_cast(_cols.data()), _x, _y);
+          num_rows, thrust::raw_pointer_cast(_A->values().data()),
+          thrust::raw_pointer_cast(_A->off_diag_offset().data()),
+          thrust::raw_pointer_cast(_A->row_ptr().data()) + 1,
+          thrust::raw_pointer_cast(_A->cols().data()), _x, _y);
       check_device_last_error();
     }
     else
     {
-      int num_rows = _row_map->size_local();
+      int num_rows = _A->index_map(0)->size_local();
       dim3 block_size(256);
       dim3 grid_size((num_rows + block_size.x - 1) / block_size.x);
       x.scatter_fwd_begin(get_pack_fn<T>(512),
                           [](auto&& x) { return x.data().get(); });
       impl::spmv_impl<T><<<grid_size, block_size, 0, 0>>>(
-          num_rows, thrust::raw_pointer_cast(_values.data()),
-          thrust::raw_pointer_cast(_row_ptr.data()),
-          thrust::raw_pointer_cast(_off_diag_offset.data()),
-          thrust::raw_pointer_cast(_cols.data()), _x, _y);
+          num_rows, thrust::raw_pointer_cast(_A->values().data()),
+          thrust::raw_pointer_cast(_A->row_ptr().data()),
+          thrust::raw_pointer_cast(_A->off_diag_offset().data()),
+          thrust::raw_pointer_cast(_A->cols().data()), _x, _y);
       check_device_last_error();
       x.scatter_fwd_end(get_unpack_fn<T>(512, 1));
 
       impl::spmv_impl<T><<<grid_size, block_size, 0, 0>>>(
-          num_rows, thrust::raw_pointer_cast(_values.data()),
-          thrust::raw_pointer_cast(_off_diag_offset.data()),
-          thrust::raw_pointer_cast(_row_ptr.data()) + 1,
-          thrust::raw_pointer_cast(_cols.data()), _x, _y);
+          num_rows, thrust::raw_pointer_cast(_A->values().data()),
+          thrust::raw_pointer_cast(_A->off_diag_offset().data()),
+          thrust::raw_pointer_cast(_A->row_ptr().data()) + 1,
+          thrust::raw_pointer_cast(_A->cols().data()), _x, _y);
       check_device_last_error();
     }
 
     device_synchronize();
   }
 
-  /// @brief IndexMap for the column space of the matrix
-  /// @returns IndexMap
-  std::shared_ptr<const dolfinx::common::IndexMap> column_index_map()
-  {
-    return _col_map;
-  }
-
-  /// @brief IndexMap for the row space of the matrix
-  /// @returns IndexMap
-  std::shared_ptr<const dolfinx::common::IndexMap> row_index_map()
-  {
-    return _row_map;
-  }
-
-  /// @brief Number of non-zeros in the matrix
-  /// @returns Number of non-zeros
-  std::size_t nnz() { return _nnz; }
-
 private:
-  // Number of non-zeros in the matrix
-  std::size_t _nnz;
-
-  // Values stored on-device using CSR storage, _values, _cols and
-  // _row_ptr, as conventional for CSR
-  thrust::device_vector<T> _values;
-  thrust::device_vector<std::int32_t> _cols;
-  thrust::device_vector<std::int32_t> _row_ptr;
-
   // Values stored on-device.
   // Copy of the inverse of the diagonal entries of the matrix - may be
   // used for Jacobi preconditioning.
   thrust::device_vector<T> _diag_inv;
 
-  // Start point, on each row, of the off-diagonal block (ghost region)
-  thrust::device_vector<std::int32_t> _off_diag_offset;
-
-  // IndexMaps for the columns and rows of the matrix
-  std::shared_ptr<const dolfinx::common::IndexMap> _col_map, _row_map;
-
-  // CSR matrix in CPU memory
-  std::unique_ptr<dolfinx::la::MatrixCSR<
-      T, std::vector<T>, std::vector<std::int32_t>, std::vector<std::int32_t>>>
+  // CSR matrix in GPU memory
+  std::unique_ptr<dolfinx::la::MatrixCSR<T, thrust::device_vector<T>,
+                                         thrust::device_vector<std::int32_t>,
+                                         thrust::device_vector<std::int32_t>>>
       _A;
 
   // MPI Comm associated with the Matrix
