@@ -5,6 +5,7 @@
 #pragma once
 
 #include "util.hpp"
+#include "vector.hpp"
 #include <dolfinx/la/MatrixCSR.h>
 #include <thrust/device_vector.h>
 
