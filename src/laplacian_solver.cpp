@@ -139,14 +139,34 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
 
   if (matrix_comparison)
   {
-    // Compare to assembling on CPU and copying matrix to GPU
-    DeviceVector z(map, 1);
-    thrust::fill(z.array().begin(), z.array().end(), 0);
+    if (a.rank() != 2)
+      throw std::runtime_error("Form should have rank be 2.");
 
-    benchdolfinx::MatrixOperator<T> mat_op(a, {bc});
+    auto V = a.function_spaces()[0];
+    dolfinx::la::SparsityPattern pattern
+        = dolfinx::fem::create_sparsity_pattern(a);
+    pattern.finalize();
+
+    // Assemble on CPU and copy to GPU
+    std::unique_ptr<benchdolfinx::MatrixOperator<T>> mat_op;
+    {
+      dolfinx::la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
+                             std::vector<std::int32_t>>
+          A(pattern);
+      dolfinx::fem::assemble_matrix(A.mat_add_values(), a, {bc});
+      A.scatter_rev();
+      dolfinx::fem::set_diagonal<T>(A.mat_set_values(), *V, {bc}, T(1.0));
+
+      // Compare to assembling on CPU and copying matrix to GPU
+      DeviceVector z(map, 1);
+      thrust::fill(z.array().begin(), z.array().end(), 0);
+
+      mat_op = std::make_unique<benchdolfinx::MatrixOperator<T>>(A);
+    }
+
     dolfinx::common::Timer mtimer("% CSR Matvec");
     for (int i = 0; i < nreps; ++i)
-      mat_op.apply(u, z);
+      mat_op->apply(u, z);
     mtimer.stop();
 
     T unorm = benchdolfinx::norm(u);
@@ -162,7 +182,6 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
       std::cout << "Norm of z = " << znorm << std::endl;
       std::cout << "Norm of error = " << enorm << std::endl;
       std::cout << "Relative norm of error = " << enorm / znorm << std::endl;
-      // out_root["error_norm"] = enorm;
     }
   }
 
@@ -293,7 +312,6 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
       std::cout << "Norm of z = " << znorm << std::endl;
       std::cout << "Norm of error = " << enorm << std::endl;
       std::cout << "Relative norm of error = " << enorm / znorm << std::endl;
-      // out_root["error_norm"] = enorm;
     }
   }
 

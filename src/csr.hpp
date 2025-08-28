@@ -94,27 +94,10 @@ public:
   /// @param a A finite element form
   /// @param bcs Set of boundary conditions to be applied
   MatrixOperator(
-      const dolfinx::fem::Form<T, T>& a,
-      std::vector<std::reference_wrapper<const dolfinx::fem::DirichletBC<T>>>
-          bcs)
+      dolfinx::la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
+                             std::vector<std::int32_t>>& A)
   {
     dolfinx::common::Timer t0("~setup phase MatrixOperator");
-
-    if (a.rank() != 2)
-      throw std::runtime_error("Form should have rank be 2.");
-
-    auto V = a.function_spaces()[0];
-    dolfinx::la::SparsityPattern pattern
-        = dolfinx::fem::create_sparsity_pattern(a);
-    pattern.finalize();
-
-    // Assemble on CPU
-    dolfinx::la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
-                           std::vector<std::int32_t>>
-        A(pattern);
-    dolfinx::fem::assemble_matrix(A.mat_add_values(), a, bcs);
-    A.scatter_rev();
-    dolfinx::fem::set_diagonal<T>(A.mat_set_values(), *V, bcs, T(1.0));
 
     // Copy to device
     _A = std::make_unique<dolfinx::la::MatrixCSR<
