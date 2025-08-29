@@ -150,7 +150,7 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
         = dolfinx::fem::create_sparsity_pattern(a);
     pattern.finalize();
 
-    if (pattern.num_non_zeros() >= std::numeric_limits<std::int32_t>::max())
+    if (pattern.num_nonzeros() >= std::numeric_limits<std::int32_t>::max())
       throw std::runtime_error("Too many matrix entries, need 64-bit row_ptr.");
 
     // Assemble on CPU and copy to GPU
