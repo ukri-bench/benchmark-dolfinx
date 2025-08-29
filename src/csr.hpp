@@ -75,6 +75,31 @@ __global__ void spmvT_impl(int N, const T* values,
   }
 }
 
+template <typename T>
+thrust::device_vector<T>
+compute_diag_inv(dolfinx::la::MatrixCSR<T, thrust::device_vector<T>,
+                                        thrust::device_vector<std::int32_t>,
+                                        thrust::device_vector<std::int32_t>>& A)
+{
+  thrust::device_vector<T> diag_inv(A.index_map(0)->size_local());
+  for (int i = 0; i < static_cast<int>(diag_inv.size()); ++i)
+  {
+    // Find diagonal entry on each row
+    thrust::copy_if(thrust::device,
+                    thrust::next(A.values().begin(), A.row_ptr()[i]),
+                    thrust::next(A.values().begin(), A.row_ptr()[i + 1]),
+                    thrust::next(A.cols().begin(), A.row_ptr()[i]),
+                    thrust::next(diag_inv.begin(), i),
+                    [=] __host__ __device__(std::int32_t col) -> bool
+                    { return (col == i); });
+  }
+
+  thrust::transform(thrust::device, diag_inv.begin(), diag_inv.end(),
+                    diag_inv.begin(),
+                    [] __host__ __device__(T x) { return 1 / x; });
+  return diag_inv;
+}
+
 } // namespace benchdolfinx::impl
 
 namespace benchdolfinx
@@ -102,33 +127,27 @@ public:
         T, thrust::device_vector<T>, thrust::device_vector<std::int32_t>,
         thrust::device_vector<std::int32_t>>>(A);
 
-    // Compute Matrix Norm
-    T norm = thrust::transform_reduce(
-        thrust::device, _A->values().begin(), _A->values().end(),
-        [] __device__(auto x) { return x * x; }, T(0.0),
-        [] __device__(auto x, auto y) { return x + y; });
-    spdlog::info("A norm = {}", std::sqrt(norm));
+    spdlog::info("A norm = {}", norm());
 
     // Get inverse diagonal entries (for Jacobi preconditioning)
-    _diag_inv = thrust::device_vector<T>(_A->index_map(0)->size_local());
-    for (int i = 0; i < _diag_inv.size(); ++i)
-    {
-      // Find diagonal entry on each row
-      thrust::copy_if(thrust::device,
-                      thrust::next(_A->values().begin(), _A->row_ptr()[i]),
-                      thrust::next(_A->values().begin(), _A->row_ptr()[i + 1]),
-                      thrust::next(_A->cols().begin(), _A->row_ptr()[i]),
-                      thrust::next(_diag_inv.begin(), i),
-                      [=] __device__(auto col) { return (col == i); });
-    }
-    thrust::transform(thrust::device, _diag_inv.begin(), _diag_inv.end(),
-                      _diag_inv.begin(), [](auto x) { return 1 / x; });
+    _diag_inv = impl::compute_diag_inv<T>(*_A);
 
     spdlog::info("Created device CSR matrix");
   }
 
   /// Destructor
   ~MatrixOperator() = default;
+
+  /// Compute Matrix Norm
+  /// @returns the Frobenius norm of the local part of the CSR matrix
+  T norm()
+  {
+    T n0 = thrust::transform_reduce(
+        thrust::device, _A->values().begin(), _A->values().end(),
+        [] __host__ __device__(T x) -> T { return x * x; }, T(0.0),
+        [] __host__ __device__(T x, T y) -> T { return x + y; });
+    return std::sqrt(n0);
+  }
 
   /// @brief Get the inverse of the diagonal values of the matrix.
   /// @param diag_inv [in/out] A Vector to copy the inverse diagonal
