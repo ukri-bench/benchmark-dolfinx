@@ -112,7 +112,7 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
                       [](auto&& x) { return x.data().get(); });
   u.scatter_fwd_end(get_unpack_fn<T>(512, 1));
 
-  BenchmarkResults b_results;
+  BenchmarkResults b_results = {0};
 
   // Matrix free
   auto start = std::chrono::high_resolution_clock::now();
@@ -123,6 +123,9 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
 
   T unorm = benchdolfinx::norm(u);
   T ynorm = benchdolfinx::norm(y);
+
+  b_results.unorm = unorm;
+  b_results.ynorm = ynorm;
 
   int rank = dolfinx::MPI::rank(V->mesh()->comm());
   if (rank == 0)
@@ -174,6 +177,9 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
     DeviceVector e(map, 1);
     benchdolfinx::axpy(e, T{-1}, y, z);
     T enorm = benchdolfinx::norm(e);
+
+    b_results.znorm = znorm;
+    b_results.enorm = enorm;
 
     if (rank == 0)
     {
