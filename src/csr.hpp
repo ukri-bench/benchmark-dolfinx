@@ -123,11 +123,6 @@ public:
   {
     dolfinx::common::Timer t0("~setup phase MatrixOperator");
 
-    // Copy to device
-    //    _A = std::make_unique<dolfinx::la::MatrixCSR<
-    //        T, thrust::device_vector<T>, thrust::device_vector<std::int32_t>,
-    //        thrust::device_vector<std::int32_t>>>(A);
-
     spdlog::info("A norm = {}", norm());
 
     // Get inverse diagonal entries (for Jacobi preconditioning)
@@ -140,7 +135,7 @@ public:
   ~MatrixOperator() = default;
 
   /// Compute Matrix Norm
-  /// @returns the Frobenius norm of the local part of the CSR matrix
+  /// @returns the Frobenius norm of the local rows of the CSR matrix
   T norm()
   {
     T n0 = thrust::transform_reduce(
