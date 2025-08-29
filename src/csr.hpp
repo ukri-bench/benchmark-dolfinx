@@ -7,6 +7,7 @@
 #include "util.hpp"
 #include "vector.hpp"
 #include <dolfinx/la/MatrixCSR.h>
+#include <limits>
 #include <thrust/device_vector.h>
 
 namespace benchdolfinx::impl
