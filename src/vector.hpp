@@ -196,8 +196,6 @@ auto squared_norm(const U& a)
 template <typename U>
 auto norm(const U& a, dolfinx::la::Norm type = dolfinx::la::Norm::l2)
 {
-  using T = typename U::value_type;
-
   switch (type)
   {
   case dolfinx::la::Norm::l2:
@@ -261,7 +259,6 @@ void scale(U& r, S alpha)
 template <typename U>
 void copy(U& a, const U& b)
 {
-  using T = typename U::value_type;
   std::int32_t local_size = a.bs() * a.index_map()->size_local();
   thrust::copy_n(thrust::device, b.begin(), local_size, a.begin());
 }

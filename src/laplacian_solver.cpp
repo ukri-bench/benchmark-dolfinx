@@ -112,7 +112,7 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
                       [](auto&& x) { return x.data().get(); });
   u.scatter_fwd_end(get_unpack_fn<T>(512, 1));
 
-  BenchmarkResults b_results;
+  BenchmarkResults b_results = {0};
 
   // Matrix free
   auto start = std::chrono::high_resolution_clock::now();
@@ -123,6 +123,9 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
 
   T unorm = benchdolfinx::norm(u);
   T ynorm = benchdolfinx::norm(y);
+
+  b_results.unorm = unorm;
+  b_results.ynorm = ynorm;
 
   int rank = dolfinx::MPI::rank(V->mesh()->comm());
   if (rank == 0)
@@ -139,15 +142,56 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
 
   if (matrix_comparison)
   {
-    // Compare to assembling on CPU and copying matrix to GPU
+
+    // Assemble on CPU and copy to GPU
+    std::unique_ptr<benchdolfinx::MatrixOperator<T>> mat_op;
+    {
+
+      if (a.rank() != 2)
+        throw std::runtime_error("Form should have rank be 2.");
+
+      auto V = a.function_spaces()[0];
+      dolfinx::la::SparsityPattern pattern
+          = dolfinx::fem::create_sparsity_pattern(a);
+      pattern.finalize();
+
+      std::cout << "NNZ = " << pattern.num_nonzeros() << "\n";
+
+      // Note: currently using CPU assembly, the 32-bit limit for row_ptr is
+      // unlikely to be reached as creating such a large matrix is prohibitively
+      // slow.
+      if (pattern.num_nonzeros() >= std::numeric_limits<std::int32_t>::max())
+        throw std::runtime_error(
+            "Too many matrix entries, need 64-bit row_ptr.");
+
+      dolfinx::common::Timer m1("% Create CPU MatrixCSR");
+      dolfinx::la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
+                             std::vector<std::int32_t>>
+          A(pattern);
+      m1.stop();
+      m1.flush();
+
+      dolfinx::common::Timer m2("% Assemble CPU MatrixCSR");
+      dolfinx::fem::assemble_matrix(A.mat_add_values(), a, {bc});
+      A.scatter_rev();
+      dolfinx::fem::set_diagonal<T>(A.mat_set_values(), *V, {bc}, T(1.0));
+      m2.stop();
+      m2.flush();
+
+      dolfinx::common::Timer m3("% Copy to GPU MatrixCSR");
+      mat_op = std::make_unique<benchdolfinx::MatrixOperator<T>>(A);
+      m3.stop();
+      m3.flush();
+    }
+
     DeviceVector z(map, 1);
     thrust::fill(z.array().begin(), z.array().end(), 0);
 
-    benchdolfinx::MatrixOperator<T> mat_op(a, {bc});
     dolfinx::common::Timer mtimer("% CSR Matvec");
     for (int i = 0; i < nreps; ++i)
-      mat_op.apply(u, z);
+      mat_op->apply(u, z);
     mtimer.stop();
+    mtimer.flush();
 
     T unorm = benchdolfinx::norm(u);
     T znorm = benchdolfinx::norm(z);
@@ -156,13 +200,15 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
     benchdolfinx::axpy(e, T{-1}, y, z);
     T enorm = benchdolfinx::norm(e);
 
+    b_results.znorm = znorm;
+    b_results.enorm = enorm;
+
     if (rank == 0)
     {
       std::cout << "Norm of u = " << unorm << std::endl;
       std::cout << "Norm of z = " << znorm << std::endl;
       std::cout << "Norm of error = " << enorm << std::endl;
       std::cout << "Relative norm of error = " << enorm / znorm << std::endl;
-      // out_root["error_norm"] = enorm;
     }
   }
 
@@ -293,7 +339,6 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
       std::cout << "Norm of z = " << znorm << std::endl;
       std::cout << "Norm of error = " << enorm << std::endl;
       std::cout << "Relative norm of error = " << enorm / znorm << std::endl;
-      // out_root["error_norm"] = enorm;
     }
   }
 
