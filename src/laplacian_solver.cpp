@@ -142,28 +142,46 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
 
   if (matrix_comparison)
   {
-    if (a.rank() != 2)
-      throw std::runtime_error("Form should have rank be 2.");
-
-    auto V = a.function_spaces()[0];
-    dolfinx::la::SparsityPattern pattern
-        = dolfinx::fem::create_sparsity_pattern(a);
-    pattern.finalize();
-
-    if (pattern.num_nonzeros() >= std::numeric_limits<std::int32_t>::max())
-      throw std::runtime_error("Too many matrix entries, need 64-bit row_ptr.");
 
     // Assemble on CPU and copy to GPU
     std::unique_ptr<benchdolfinx::MatrixOperator<T>> mat_op;
     {
+
+      if (a.rank() != 2)
+        throw std::runtime_error("Form should have rank be 2.");
+
+      auto V = a.function_spaces()[0];
+      dolfinx::la::SparsityPattern pattern
+          = dolfinx::fem::create_sparsity_pattern(a);
+      pattern.finalize();
+
+      std::cout << "NNZ = " << pattern.num_nonzeros() << "\n";
+
+      // Note: currently using CPU assembly, the 32-bit limit for row_ptr is
+      // unlikely to be reached as creating such a large matrix is prohibitively
+      // slow.
+      if (pattern.num_nonzeros() >= std::numeric_limits<std::int32_t>::max())
+        throw std::runtime_error(
+            "Too many matrix entries, need 64-bit row_ptr.");
+
+      dolfinx::common::Timer m1("% Create CPU MatrixCSR");
       dolfinx::la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
                              std::vector<std::int32_t>>
           A(pattern);
+      m1.stop();
+      m1.flush();
+
+      dolfinx::common::Timer m2("% Assemble CPU MatrixCSR");
       dolfinx::fem::assemble_matrix(A.mat_add_values(), a, {bc});
       A.scatter_rev();
       dolfinx::fem::set_diagonal<T>(A.mat_set_values(), *V, {bc}, T(1.0));
+      m2.stop();
+      m2.flush();
 
+      dolfinx::common::Timer m3("% Copy to GPU MatrixCSR");
       mat_op = std::make_unique<benchdolfinx::MatrixOperator<T>>(A);
+      m3.stop();
+      m3.flush();
     }
 
     DeviceVector z(map, 1);
@@ -173,6 +191,7 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
     for (int i = 0; i < nreps; ++i)
       mat_op->apply(u, z);
     mtimer.stop();
+    mtimer.flush();
 
     T unorm = benchdolfinx::norm(u);
     T znorm = benchdolfinx::norm(z);
