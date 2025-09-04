@@ -198,17 +198,6 @@ public:
     return std::sqrt(n0);
   }
 
-  /// Compute Matrix Norm
-  /// @returns the Frobenius norm of the local rows of the CSR matrix
-  T norm()
-  {
-    T n0 = thrust::transform_reduce(
-        thrust::device, _A.values().begin(), _A.values().end(),
-        [] __host__ __device__(T x) -> T { return x * x; }, T(0.0),
-        [] __host__ __device__(T x, T y) -> T { return x + y; });
-    return std::sqrt(n0);
-  }
-
   /// @brief Get the inverse of the diagonal values of the matrix.
   /// @param diag_inv [in/out] A Vector to copy the inverse diagonal
   /// values into.
