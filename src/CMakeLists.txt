@@ -101,7 +101,7 @@ add_executable(${PROJECT_NAME} main.cpp forms.cpp laplacian_solver.cpp mesh.cpp 
 # endif()
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
-target_link_libraries(${PROJECT_NAME} dolfinx Basix::basix Boost::program_options jsoncpp_lib)
+target_link_libraries(${PROJECT_NAME} dolfinx Basix::basix Boost::program_options jsoncpp_lib cusparse)
 
 if(amd)
   target_link_libraries(${PROJECT_NAME} roc::rocthrust)

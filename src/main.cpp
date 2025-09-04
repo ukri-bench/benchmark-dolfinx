@@ -270,7 +270,7 @@ int main(int argc, char* argv[])
     }
 
     // Display timings
-    // dolfinx::list_timings(MPI_COMM_WORLD);
+    dolfinx::list_timings(MPI_COMM_WORLD);
   }
 
   MPI_Finalize();

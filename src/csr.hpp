@@ -4,8 +4,19 @@
 
 #pragma once
 
+#define CHECK_CUSPARSE(func)                                                   \
+  {                                                                            \
+    cusparseStatus_t status = (func);                                          \
+    if (status != CUSPARSE_STATUS_SUCCESS)                                     \
+    {                                                                          \
+      printf("CUSPARSE API failed at line %d with error: %s (%d)\n", __LINE__, \
+             cusparseGetErrorString(status), status);                          \
+    }                                                                          \
+  }
+
 #include "util.hpp"
 #include "vector.hpp"
+#include <cusparse.h>
 #include <dolfinx/la/MatrixCSR.h>
 #include <limits>
 #include <thrust/device_vector.h>
@@ -120,7 +131,7 @@ public:
   MatrixOperator(
       dolfinx::la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
                              std::vector<std::int32_t>>& A)
-      : _A(A)
+      : _A(A), _handle(NULL)
   {
     dolfinx::common::Timer t0("~setup phase MatrixOperator");
 
@@ -129,11 +140,51 @@ public:
     // Get inverse diagonal entries (for Jacobi preconditioning)
     _diag_inv = impl::compute_diag_inv<T>(_A);
 
+    // CUSPARSE APIs
+    cusparseCreate(&_handle);
+    // Create sparse matrix A in CSR format
+    int A_num_rows = _A.index_map(0)->size_local();
+    int A_num_cols = _A.index_map(1)->size_local();
+    int A_nnz = _A.values().size();
+
+    cusparseCreateCsr(&_matA, A_num_rows, A_num_cols, A_nnz,
+                      (void*)(_A.row_ptr().data().get()),
+                      (void*)(_A.cols().data().get()),
+                      (void*)(_A.values().data().get()), CUSPARSE_INDEX_32I,
+                      CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, CUDA_R_64F);
+
+    // Create dummy vectors
+    thrust::device_vector<T> xv(A_num_cols), yv(A_num_rows);
+    cusparseDnVecDescr_t vecX, vecY;
+    cusparseCreateDnVec(&vecX, A_num_cols, xv.data().get(), CUDA_R_64F);
+    cusparseCreateDnVec(&vecY, A_num_rows, yv.data().get(), CUDA_R_64F);
+
+    double alpha = 1.0, beta = 0.0;
+    std::size_t bufferSize = 0;
+    cusparseSpMV_bufferSize(_handle, CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha,
+                            _matA, vecX, &beta, vecY, CUDA_R_64F,
+                            CUSPARSE_SPMV_ALG_DEFAULT, &bufferSize);
+
+    std::cout << "Buffer size = " << bufferSize << "\n";
+
+    _dBuffer.resize(bufferSize);
+
+    cusparseSpMV_preprocess(_handle, CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha,
+                            _matA, vecX, &beta, vecY, CUDA_R_64F,
+                            CUSPARSE_SPMV_ALG_DEFAULT, _dBuffer.data().get());
+
+    cusparseDestroyDnVec(vecX);
+    cusparseDestroyDnVec(vecY);
+
     spdlog::info("Created device CSR matrix");
   }
 
   /// Destructor
-  ~MatrixOperator() = default;
+  ~MatrixOperator()
+  {
+    cusparseDestroySpMat(_matA);
+    cusparseDestroy(_handle);
+  };
 
   /// Compute Matrix Norm
   /// @returns the Frobenius norm of the local rows of the CSR matrix
@@ -174,6 +225,28 @@ public:
     set_value(y, T{0});
     T* _x = x.array().data().get();
     T* _y = y.array().data().get();
+
+    bool use_cusparse = true;
+
+    if (use_cusparse)
+    {
+      int A_num_rows = _A.index_map(0)->size_local();
+      int A_num_cols = _A.index_map(1)->size_local();
+      cusparseDnVecDescr_t vecX, vecY;
+      cusparseCreateDnVec(&vecX, A_num_cols, _x, CUDA_R_64F);
+      cusparseCreateDnVec(&vecY, A_num_rows, _y, CUDA_R_64F);
+
+      double alpha = 1.0, beta = 0.0;
+
+      cusparseSpMV(_handle, CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, _matA,
+                   vecX, &beta, vecY, CUDA_R_64F, CUSPARSE_SPMV_ALG_DEFAULT,
+                   _dBuffer.data().get());
+
+      cusparseDestroyDnVec(vecX);
+      cusparseDestroyDnVec(vecY);
+      device_synchronize();
+      return;
+    }
 
     if (transpose)
     {
@@ -221,6 +294,10 @@ private:
                          thrust::device_vector<std::int32_t>,
                          thrust::device_vector<std::int32_t>>
       _A;
+
+  cusparseHandle_t _handle;
+  cusparseSpMatDescr_t _matA;
+  thrust::device_vector<char> _dBuffer;
 
   // Copy of the inverse of the diagonal entries of the matrix - may be
   // used for Jacobi preconditioning.
