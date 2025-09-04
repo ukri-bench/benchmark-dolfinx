@@ -132,6 +132,7 @@ public:
       dolfinx::la::MatrixCSR<T, std::vector<T>, std::vector<std::int32_t>,
                              std::vector<std::int32_t>>& A)
       : _A(A), _handle(NULL)
+
   {
     dolfinx::common::Timer t0("~setup phase MatrixOperator");
 
@@ -185,6 +186,17 @@ public:
     cusparseDestroySpMat(_matA);
     cusparseDestroy(_handle);
   };
+
+  /// Compute Matrix Norm
+  /// @returns the Frobenius norm of the local rows of the CSR matrix
+  T norm()
+  {
+    T n0 = thrust::transform_reduce(
+        thrust::device, _A.values().begin(), _A.values().end(),
+        [] __host__ __device__(T x) -> T { return x * x; }, T(0.0),
+        [] __host__ __device__(T x, T y) -> T { return x + y; });
+    return std::sqrt(n0);
+  }
 
   /// Compute Matrix Norm
   /// @returns the Frobenius norm of the local rows of the CSR matrix
@@ -295,6 +307,7 @@ private:
                          thrust::device_vector<std::int32_t>>
       _A;
 
+  // CUsparse
   cusparseHandle_t _handle;
   cusparseSpMatDescr_t _matA;
   thrust::device_vector<char> _dBuffer;
