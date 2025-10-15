@@ -115,9 +115,9 @@ ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
 } // namespace
 //----------------------------------------------------------------------------
 std::array<std::int64_t, 3>
-benchdolfinx::compute_mesh_size(std::int64_t ndofs, int degree, int mpi_size)
+benchdolfinx::compute_mesh_size(std::int64_t ndofs_global, int degree)
 {
-  double nx_approx = (std::pow(ndofs * mpi_size, 1. / 3.) - 1) / degree;
+  double nx_approx = (std::pow(ndofs_global, 1. / 3.) - 1) / degree;
   std::int64_t n0 = static_cast<std::int64_t>(nx_approx);
   std::array<std::int64_t, 3> nx = {n0, n0, n0};
 
@@ -126,7 +126,7 @@ benchdolfinx::compute_mesh_size(std::int64_t ndofs, int degree, int mpi_size)
   {
     std::int64_t best_misfit
         = (n0 * degree + 1) * (n0 * degree + 1) * (n0 * degree + 1)
-          - ndofs * mpi_size;
+          - ndofs_global;
     best_misfit = std::abs(best_misfit);
     for (std::int64_t nx0 = n0 - 5; nx0 < n0 + 6; ++nx0)
     {
@@ -136,7 +136,7 @@ benchdolfinx::compute_mesh_size(std::int64_t ndofs, int degree, int mpi_size)
         {
           std::int64_t misfit
               = (nx0 * degree + 1) * (ny0 * degree + 1) * (nz0 * degree + 1)
-                - ndofs * mpi_size;
+                - ndofs_global;
           if (std::abs(misfit) < best_misfit)
           {
             best_misfit = std::abs(misfit);

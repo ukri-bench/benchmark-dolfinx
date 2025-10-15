@@ -132,6 +132,9 @@ int main(int argc, char* argv[])
       ("ndofs", po::value<std::size_t>()->default_value(1000),
        "Number of degrees-of-freedom per MPI process")
       //
+      ("ndofs_global", po::value<std::size_t>()->default_value(-1),
+       "Number of global degrees-of-freedom")
+      //
       ("qmode", po::value<std::size_t>()->default_value(0),
        "Quadrature mode (0 or 1): qmode=0 has P+1 points in each direction,"
        "qmode=1 has P+2 points in each direction.")
@@ -162,6 +165,11 @@ int main(int argc, char* argv[])
                 .allow_unregistered()
                 .run(),
             vm);
+  if (vm.count("ndofs") && !vm["ndofs"].defaulted() && vm.count("ndofs_global")
+      && !vm["ndofs_global"].defaulted())
+  {
+    throw std::logic_error("Conflicting options 'ndofs' and 'ndofs_global'");
+  }
   po::notify(vm);
 
   if (vm.count("help"))
@@ -179,6 +187,7 @@ int main(int argc, char* argv[])
   if (float_size != 32 and float_size != 64)
     throw std::runtime_error("Invalid float size. Must be 32 or 64.");
   std::size_t ndofs = vm["ndofs"].as<std::size_t>();
+  std::size_t ndofs_global = vm["ndofs_global"].as<std::size_t>();
   std::size_t nreps = vm["nreps"].as<std::size_t>();
   std::size_t degree = vm["degree"].as<std::size_t>();
   bool matrix_comparison = vm["mat_comp"].as<bool>();
@@ -198,6 +207,11 @@ int main(int argc, char* argv[])
     int rank(0), size(0);
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &size);
+
+    if (vm["ndofs_global"].defaulted())
+      ndofs_global = ndofs * size;
+    else
+      ndofs = ndofs_global / size;
 
     if (rank == 0)
     {
@@ -229,7 +243,7 @@ int main(int argc, char* argv[])
     in_root["mat_comp"] = matrix_comparison;
 
     std::array<std::int64_t, 3> nx
-        = benchdolfinx::compute_mesh_size(ndofs, degree, size);
+        = benchdolfinx::compute_mesh_size(ndofs_global, degree);
 
     // Run benchmark
     if (float_size == 32)
