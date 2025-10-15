@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
       ("ndofs", po::value<std::size_t>()->default_value(1000),
        "Number of degrees-of-freedom per MPI process")
       //
-      ("ndofs_global", po::value<std::size_t>()->default_value(-1),
+      ("ndofs_global", po::value<std::size_t>()->default_value(0),
        "Number of global degrees-of-freedom")
       //
       ("qmode", po::value<std::size_t>()->default_value(0),
