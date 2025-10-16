@@ -30,14 +30,11 @@ namespace benchdolfinx
 /// Computation of the number of cells is for scalar continuous Lagrange
 /// finite elements.
 ///
-/// @todo Why is `mpi_size` required?
-///
-/// @param ndofs Target number of degrees-of-freedom.
+/// @param ndofs_global Target global number of degrees-of-freedom.
 /// @param degree Polynomial degree of the element.
-/// @param mpi_size Number of MPI ranks.
 /// @return Number of cells in each axis direction.
-std::array<std::int64_t, 3> compute_mesh_size(std::int64_t ndofs, int degree,
-                                              int mpi_size);
+std::array<std::int64_t, 3> compute_mesh_size(std::int64_t ndofs_global,
+                                              int degree);
 
 /// @brief Create a cube mesh with `n[0] x n[1] x n[2]` cells in each
 /// direction.
