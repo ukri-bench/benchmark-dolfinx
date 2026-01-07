@@ -57,10 +57,11 @@ options:
 
 ```bash
 spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
+spack repo add --name fenics https://github.com/FEniCS/spack-fenics.git fenics
 spack info bench-dolfinx
 ```
 
-Options are used tp specify CPU and GPU (AMD or CUDA) builds. The
+Options are used to specify CPU and GPU (AMD or CUDA) builds, e.g. `+cuda cuda_arch=80` or `+rocm amdgpu_target=gfx90a`. The
 benchmark builds an executable `bench_dolfinx`.
 
 ### CMake
