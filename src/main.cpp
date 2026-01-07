@@ -67,9 +67,9 @@ Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   auto f = std::make_shared<fem::Function<T>>(V);
 
   // TODO: Handle float type in generated code
-  fem::Form<double> a = benchdolfinx::create_laplacian_form2(
+  fem::Form<T> a = benchdolfinx::create_laplacian_form2<T>(
       V, {{"c0", kappa}}, qmode, use_gauss, degree);
-  fem::Form<double> L = benchdolfinx::create_laplacian_form1(
+  fem::Form<T> L = benchdolfinx::create_laplacian_form1<T>(
       V, {{"w0", f}}, qmode, use_gauss, degree);
 
   spdlog::debug("Interpolate (rank {})", rank);
@@ -248,9 +248,9 @@ int main(int argc, char* argv[])
     // Run benchmark
     if (float_size == 32)
     {
-      throw std::runtime_error("Float32 not implemented yet.");
-      // run_benchmark<float>(comm, nx, geom_perturb_fact, degree, qmode, nreps,
-      //                use_gauss, matrix_comparison);
+      root["output"]
+          = run_benchmark<float>(comm, nx, geom_perturb_fact, degree, qmode,
+                                 nreps, use_gauss, matrix_comparison);
     }
     else if (float_size == 64)
     {

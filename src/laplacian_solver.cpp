@@ -222,11 +222,9 @@ benchdolfinx::laplace_action_gpu<double>(
     const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool,
     bool);
 
-// template benchdolfinx::BenchmarkResults
-// benchdolfinx::laplace_action_gpu<float>(
-//     const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
-//     const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool,
-//     bool);
+template benchdolfinx::BenchmarkResults benchdolfinx::laplace_action_gpu<float>(
+    const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
+    const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool, bool);
 /// @endcond
 #endif
 //----------------------------------------------------------------------------

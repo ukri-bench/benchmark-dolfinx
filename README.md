@@ -67,7 +67,7 @@ benchmark builds an executable `bench_dolfinx`.
 ### CMake
 
 The benchmark depends on the library
-[DOLFINx](https://github.com/fenics/dolfinx) and can be built using
+[DOLFINx](https://github.com/fenics/dolfinx) v0.10.0 and can be built using
 CMake. See the benchmark Spack package
 [file](spack/packages/bench-dolfinx/package.py) and the Spack
 dependencies for a comprehensive list of dependencies.
