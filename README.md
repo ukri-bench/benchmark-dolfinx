@@ -104,10 +104,6 @@ TODO
 
 ### Old text
 
-The DOLFINx timers provide information about the CPU portion of the
-code, which creates the mesh, e.g.
-- `Build BoxMesh (hexahedra)`: time taken to build the initial mesh
-
 The GPU performance is presented as the number of GigaDOFs processed per
 second: e.g. `Mat-free action Gdofs/s: 3.88691`
 
