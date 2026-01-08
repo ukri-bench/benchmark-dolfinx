@@ -102,6 +102,7 @@ static std::vector Lforms64_gll1{
     form_poisson64_L_7_9_GLL};
 } // namespace
 
+/// @cond
 //----------------------------------------------------------------------------
 template <>
 dolfinx::fem::Form<double> benchdolfinx::create_laplacian_form2(
@@ -211,3 +212,4 @@ dolfinx::fem::Form<float> benchdolfinx::create_laplacian_form1(
   return fem::create_form<float>(*form, {V}, coeffs, {}, {}, {});
 }
 //----------------------------------------------------------------------------
+/// @endcond

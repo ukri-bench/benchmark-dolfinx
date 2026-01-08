@@ -19,6 +19,7 @@ namespace benchdolfinx
 /// @param qmode Quadrature mode (0=colocated nq=p+1, 1=interpolated nq=p+2)
 /// @param use_gauss Use Gauss quadrature
 /// @param degree Polynomial degree
+/// @tparam T Scalar type (float or double)
 template <typename T>
 dolfinx::fem::Form<T> create_laplacian_form2(
     std::shared_ptr<const dolfinx::fem::FunctionSpace<T>> V,
@@ -32,6 +33,7 @@ dolfinx::fem::Form<T> create_laplacian_form2(
 /// @param qmode Quadrature mode (0=colocated nq=p+1, 1=interpolated nq=p+2)
 /// @param use_gauss Use Gauss quadrature
 /// @param degree Polynomial degree
+/// @tparam T Scalar type (float or double)
 template <typename T>
 dolfinx::fem::Form<T> create_laplacian_form1(
     std::shared_ptr<const dolfinx::fem::FunctionSpace<T>> V,
