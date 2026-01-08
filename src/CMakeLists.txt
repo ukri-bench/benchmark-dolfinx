@@ -87,7 +87,7 @@ add_custom_command(
           ${CMAKE_CURRENT_SOURCE_DIR}/poisson64.py
   VERBATIM
   DEPENDS poisson64.py
-  COMMENT "Compile poisson.py [f64] using FFCx")
+  COMMENT "Compile poisson64.py [f64] using FFCx")
 
 add_custom_command(
   OUTPUT poisson32.c

@@ -99,18 +99,20 @@ Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   fem::DirichletBC<T> bc(1.3, bdofs, V);
 
   benchdolfinx::BenchmarkResults results;
-  if (platform == "gpu")
-  {
-    results = benchdolfinx::laplace_action_gpu<T>(a, L, bc, degree, qmode,
-                                                  kappa->value[0], nreps,
-                                                  use_gauss, matrix_comparison);
-  }
-  else if (platform == "cpu")
+  if (platform == "cpu")
   {
     results = benchdolfinx::laplace_action_cpu<T>(a, L, bc, degree, qmode,
                                                   kappa->value[0], nreps,
                                                   use_gauss, matrix_comparison);
   }
+#if defined(USE_CUDA) || defined(USE_HIP)
+  else if (platform == "gpu")
+  {
+    results = benchdolfinx::laplace_action_gpu<T>(a, L, bc, degree, qmode,
+                                                  kappa->value[0], nreps,
+                                                  use_gauss, matrix_comparison);
+  }
+#endif
   else
     throw std::runtime_error("Invalid platform: " + platform);
 
@@ -130,11 +132,16 @@ Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
 
 int main(int argc, char* argv[])
 {
+  std::string default_platform = "cpu";
+#if defined(USE_CUDA) || defined(USE_HIP)
+  default_platform = "gpu";
+#endif
+
   // Define command line options
   po::options_description desc("Options");
   desc.add_options()("help,h", "Print usage message")
       //
-      ("platform", po::value<std::string>()->default_value("gpu"),
+      ("platform", po::value<std::string>()->default_value(default_platform),
        "Compute platform (cpu or gpu)")
       //
       ("float", po::value<std::size_t>()->default_value(64),
@@ -231,6 +238,7 @@ int main(int argc, char* argv[])
       std::cout << benchdolfinx::get_device_information();
 #endif
       std::cout << "-----------------------------------\n";
+      std::cout << "Platform: " << platform << "\n";
       std::cout << "Polynomial degree : " << degree << "\n";
       std::cout << "Number of ranks : " << size << std::endl;
       std::cout << "Requested number of local DoFs : " << ndofs << std::endl;
