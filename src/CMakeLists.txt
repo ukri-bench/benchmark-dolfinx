@@ -82,18 +82,27 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # Compile UFL code
 add_custom_command(
-  OUTPUT poisson.c
+  OUTPUT poisson64.c
   COMMAND ffcx --scalar_type float64 --sum_factorization
-          ${CMAKE_CURRENT_SOURCE_DIR}/poisson.py
+          ${CMAKE_CURRENT_SOURCE_DIR}/poisson64.py
   VERBATIM
-  DEPENDS poisson.py
-  COMMENT "Compile poisson.py using FFCx")
+  DEPENDS poisson64.py
+  COMMENT "Compile poisson64.py [f64] using FFCx")
+
+add_custom_command(
+  OUTPUT poisson32.c
+  COMMAND ffcx --scalar_type float32 --sum_factorization
+          ${CMAKE_CURRENT_SOURCE_DIR}/poisson32.py
+  VERBATIM
+  DEPENDS poisson32.py
+  COMMENT "Compile poisson32.py [f32] using FFCx")
+
 
 if(amd)
   find_package(rocthrust REQUIRED CONFIG)
 endif()
 
-add_executable(${PROJECT_NAME} main.cpp forms.cpp laplacian_solver.cpp mesh.cpp util.cpp poisson.c)
+add_executable(${PROJECT_NAME} main.cpp forms.cpp laplacian_solver.cpp mesh.cpp util.cpp poisson64.c poisson32.c)
 
 # if(NOT amd AND NOT nvidia)
 # CPU-only source files

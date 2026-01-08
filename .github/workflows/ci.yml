@@ -70,6 +70,7 @@ jobs:
         shell: spack-bash {0}
         run: |
           spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git ./bench_pkgs
+          spack repo add --name fenics https://github.com/FEniCS/spack-fenics.git ./fenics # Needed for 0.10.0
           spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
           spack env create . spack.yml
 
@@ -93,7 +94,7 @@ jobs:
       - name: Build benchmark
         shell: spack-bash {0}
         run: |
-          spack -e . add bench-dolfinx@main ${{ matrix.backend.spack_opt }} ^fenics-dolfinx@git.${{ env.dolfinx_ref }}=main
+          spack -e . add bench-dolfinx@main ${{ matrix.backend.spack_opt }}
           spack -e . install -U -j 4 --use-buildcache auto
 
       - if: ${{ matrix.backend.device == 'cpu' }}

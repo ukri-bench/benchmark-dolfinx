@@ -33,11 +33,13 @@ namespace
 /// @param nreps Number of repetitions of ....
 /// @param use_gauss Use Gauss quadrature, rather than GLL
 /// @param matrix_comparison Verify computation against the action of an
+/// @param platform gpu or cpu
 /// assembled CSR Matrix.
 template <typename T>
 Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
                           double geom_perturb_fact, int degree, int qmode,
-                          int nreps, bool use_gauss, bool matrix_comparison)
+                          int nreps, bool use_gauss, bool matrix_comparison,
+                          std::string platform)
 {
   int rank(0), size(0);
   MPI_Comm_rank(comm, &rank);
@@ -67,9 +69,9 @@ Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   auto f = std::make_shared<fem::Function<T>>(V);
 
   // TODO: Handle float type in generated code
-  fem::Form<double> a = benchdolfinx::create_laplacian_form2(
+  fem::Form<T> a = benchdolfinx::create_laplacian_form2<T>(
       V, {{"c0", kappa}}, qmode, use_gauss, degree);
-  fem::Form<double> L = benchdolfinx::create_laplacian_form1(
+  fem::Form<T> L = benchdolfinx::create_laplacian_form1<T>(
       V, {{"w0", f}}, qmode, use_gauss, degree);
 
   spdlog::debug("Interpolate (rank {})", rank);
@@ -96,15 +98,23 @@ Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   auto bdofs = fem::locate_dofs_topological(*topology, *dofmap, fdim, facets);
   fem::DirichletBC<T> bc(1.3, bdofs, V);
 
+  benchdolfinx::BenchmarkResults results;
+  if (platform == "cpu")
+  {
+    results = benchdolfinx::laplace_action_cpu<T>(a, L, bc, degree, qmode,
+                                                  kappa->value[0], nreps,
+                                                  use_gauss, matrix_comparison);
+  }
 #if defined(USE_CUDA) || defined(USE_HIP)
-  auto results = benchdolfinx::laplace_action_gpu<T>(
-      a, L, bc, degree, qmode, kappa->value[0], nreps, use_gauss,
-      matrix_comparison);
-#else
-  auto results = benchdolfinx::laplace_action_cpu<T>(
-      a, L, bc, degree, qmode, kappa->value[0], nreps, use_gauss,
-      matrix_comparison);
+  else if (platform == "gpu")
+  {
+    results = benchdolfinx::laplace_action_gpu<T>(a, L, bc, degree, qmode,
+                                                  kappa->value[0], nreps,
+                                                  use_gauss, matrix_comparison);
+  }
 #endif
+  else
+    throw std::runtime_error("Invalid platform: " + platform);
 
   Json::Value output;
   output["ncells_global"] = mesh->topology()->index_map(tdim)->size_global();
@@ -122,9 +132,17 @@ Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
 
 int main(int argc, char* argv[])
 {
+  std::string default_platform = "cpu";
+#if defined(USE_CUDA) || defined(USE_HIP)
+  default_platform = "gpu";
+#endif
+
   // Define command line options
   po::options_description desc("Options");
   desc.add_options()("help,h", "Print usage message")
+      //
+      ("platform", po::value<std::string>()->default_value(default_platform),
+       "Compute platform (cpu or gpu)")
       //
       ("float", po::value<std::size_t>()->default_value(64),
        "Float size (bits). 32 or 64.")
@@ -183,6 +201,7 @@ int main(int argc, char* argv[])
     return 0;
   }
 
+  std::string platform = vm["platform"].as<std::string>();
   std::size_t float_size = vm["float"].as<std::size_t>();
   if (float_size != 32 and float_size != 64)
     throw std::runtime_error("Invalid float size. Must be 32 or 64.");
@@ -219,6 +238,7 @@ int main(int argc, char* argv[])
       std::cout << benchdolfinx::get_device_information();
 #endif
       std::cout << "-----------------------------------\n";
+      std::cout << "Platform: " << platform << "\n";
       std::cout << "Polynomial degree : " << degree << "\n";
       std::cout << "Number of ranks : " << size << std::endl;
       std::cout << "Requested number of local DoFs : " << ndofs << std::endl;
@@ -248,15 +268,15 @@ int main(int argc, char* argv[])
     // Run benchmark
     if (float_size == 32)
     {
-      throw std::runtime_error("Float32 not implemented yet.");
-      // run_benchmark<float>(comm, nx, geom_perturb_fact, degree, qmode, nreps,
-      //                use_gauss, matrix_comparison);
+      root["output"]
+          = run_benchmark<float>(comm, nx, geom_perturb_fact, degree, qmode,
+                                 nreps, use_gauss, matrix_comparison, platform);
     }
     else if (float_size == 64)
     {
-      root["output"]
-          = run_benchmark<double>(comm, nx, geom_perturb_fact, degree, qmode,
-                                  nreps, use_gauss, matrix_comparison);
+      root["output"] = run_benchmark<double>(comm, nx, geom_perturb_fact,
+                                             degree, qmode, nreps, use_gauss,
+                                             matrix_comparison, platform);
     }
     else
     {
