@@ -8,18 +8,20 @@
 #include "util.hpp"
 #include <array>
 #include <basix/finite-element.h>
+#include <boost/json.hpp>
 #include <boost/program_options.hpp>
 #include <dolfinx/fem/utils.h>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <iostream>
-#include <json/json.h>
+
 #include <memory>
 #include <mpi.h>
 
 using namespace dolfinx;
 namespace po = boost::program_options;
+namespace json = boost::json;
 
 namespace
 {
@@ -36,7 +38,7 @@ namespace
 /// @param platform gpu or cpu
 /// assembled CSR Matrix.
 template <typename T>
-Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
+json::value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
                           double geom_perturb_fact, int degree, int qmode,
                           int nreps, bool use_gauss, bool matrix_comparison,
                           std::string platform)
@@ -116,15 +118,15 @@ Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   else
     throw std::runtime_error("Invalid platform: " + platform);
 
-  Json::Value output;
-  output["ncells_global"] = mesh->topology()->index_map(tdim)->size_global();
-  output["ndofs_global"] = dofmap->index_map->size_global();
-  output["mat_free_time"] = results.mat_free_time;
-  output["u_norm"] = results.unorm;
-  output["y_norm"] = results.ynorm;
-  output["z_norm"] = results.znorm;
-  output["gdof_per_second"] = dofmap->index_map->size_global() * nreps
-                              / (1e9 * results.mat_free_time);
+  json::value output
+      = {{"ncells_global", mesh->topology()->index_map(tdim)->size_global()},
+         {"ndofs_global", dofmap->index_map->size_global()},
+         {"mat_free_time", results.mat_free_time},
+         {"u_norm", results.unorm},
+         {"y_norm", results.ynorm},
+         {"z_norm", results.znorm},
+         {"gdof_per_second", dofmap->index_map->size_global() * nreps
+                                 / (1e9 * results.mat_free_time)}};
 
   return output;
 }
@@ -251,32 +253,30 @@ int main(int argc, char* argv[])
       std::cout << std::flush;
     }
 
-    Json::Value root;
-
-    Json::Value& in_root = root["input"];
-    in_root["p"] = (Json::UInt64)degree;
-    in_root["mpi_size"] = size;
-    in_root["ndofs_local_requested"] = (Json::UInt64)ndofs;
-    in_root["nreps"] = (Json::UInt64)nreps;
-    in_root["scalar_size"] = (Json::UInt64)float_size;
-    in_root["use_gauss"] = use_gauss;
-    in_root["mat_comp"] = matrix_comparison;
+    json::value in_root = {{"p", degree},
+                           {"mpi_size", size},
+                           {"ndofs_local_requested", ndofs},
+                           {"nreps", nreps},
+                           {"scalar_size", float_size},
+                           {"use_gauss", use_gauss},
+                           {"mat_comp", matrix_comparison}};
 
     std::array<std::int64_t, 3> nx
         = benchdolfinx::compute_mesh_size(ndofs_global, degree);
 
     // Run benchmark
+    json::value out_root;
     if (float_size == 32)
     {
-      root["output"]
+      out_root
           = run_benchmark<float>(comm, nx, geom_perturb_fact, degree, qmode,
                                  nreps, use_gauss, matrix_comparison, platform);
     }
     else if (float_size == 64)
     {
-      root["output"] = run_benchmark<double>(comm, nx, geom_perturb_fact,
-                                             degree, qmode, nreps, use_gauss,
-                                             matrix_comparison, platform);
+      out_root = run_benchmark<double>(comm, nx, geom_perturb_fact, degree,
+                                       qmode, nreps, use_gauss,
+                                       matrix_comparison, platform);
     }
     else
     {
@@ -287,16 +287,15 @@ int main(int argc, char* argv[])
     // Report performance data
     if (rank == 0 and !json_filename.empty())
     {
-      Json::StreamWriterBuilder builder;
-      builder["indentation"] = "  ";
-      std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+      json::value root = {{"input", in_root}, {"output", out_root}};
+      std::string json_str = json::serialize(root);
 
       std::filesystem::path filename(json_filename);
       std::cout << "*** Writing output to:       " << filename << std::endl;
       std::cout << "*** Writing output to (abs): "
                 << std::filesystem::absolute(filename) << std::endl;
       std::ofstream strm(filename, std::ofstream::out);
-      writer->write(root, &strm);
+      strm << json_str << "\n";
     }
     else if (rank == 0)
     {
@@ -304,7 +303,7 @@ int main(int argc, char* argv[])
     }
 
     // Display timings
-    // dolfinx::list_timings(MPI_COMM_WORLD);
+    dolfinx::list_timings(MPI_COMM_WORLD);
   }
 
   MPI_Finalize();
