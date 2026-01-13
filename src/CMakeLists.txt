@@ -76,7 +76,6 @@ if(DEFINED ENV{BOOST_ROOT} OR DEFINED BOOST_ROOT)
   set(Boost_NO_SYSTEM_PATHS on)
 endif()
 find_package(Boost 1.70 REQUIRED program_options json)
-find_package(jsoncpp REQUIRED)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
