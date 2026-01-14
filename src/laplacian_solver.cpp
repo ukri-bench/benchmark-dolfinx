@@ -2,8 +2,10 @@
 // Garth N. Wells
 // SPDX-License-Identifier:    MIT
 
-#include "laplacian_solver.hpp"
+#include "cg.hpp"
+
 #include "laplacian.hpp"
+#include "laplacian_solver.hpp"
 #include <basix/quadrature.h>
 #include <dolfinx/la/MatrixCSR.h>
 
@@ -102,8 +104,6 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
   b.scatter_rev(std::plus<T>());
   bc.set(b.array(), std::nullopt);
 
-  // u.copy_from_host(b); // Copy data from host vector to device vector
-
   // Copy data from host vector to device vector. Copies only local data.
   thrust::copy_n(b.array().begin(), u.index_map()->size_local(),
                  u.array().begin());
@@ -113,6 +113,8 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
   u.scatter_fwd_end(get_unpack_fn<T>(512, 1));
 
   BenchmarkResults b_results = {0};
+
+  cg_solve(op, y, u);
 
   // Matrix free
   auto start = std::chrono::high_resolution_clock::now();
