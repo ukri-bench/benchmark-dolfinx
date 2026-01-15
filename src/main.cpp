@@ -36,12 +36,13 @@ namespace
 /// @param use_gauss Use Gauss quadrature, rather than GLL
 /// @param matrix_comparison Verify computation against the action of an
 /// @param platform gpu or cpu
+/// @param use_cg Use CG iterations
 /// assembled CSR Matrix.
 template <typename T>
 json::value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
                           double geom_perturb_fact, int degree, int qmode,
                           int nreps, bool use_gauss, bool matrix_comparison,
-                          std::string platform)
+                          std::string platform, bool use_cg)
 {
   int rank(0), size(0);
   MPI_Comm_rank(comm, &rank);
@@ -103,16 +104,16 @@ json::value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   benchdolfinx::BenchmarkResults results;
   if (platform == "cpu")
   {
-    results = benchdolfinx::laplace_action_cpu<T>(a, L, bc, degree, qmode,
-                                                  kappa->value[0], nreps,
-                                                  use_gauss, matrix_comparison);
+    results = benchdolfinx::laplace_action_cpu<T>(
+        a, L, bc, degree, qmode, kappa->value[0], nreps, use_gauss,
+        matrix_comparison, use_cg);
   }
 #if defined(USE_CUDA) || defined(USE_HIP)
   else if (platform == "gpu")
   {
-    results = benchdolfinx::laplace_action_gpu<T>(a, L, bc, degree, qmode,
-                                                  kappa->value[0], nreps,
-                                                  use_gauss, matrix_comparison);
+    results = benchdolfinx::laplace_action_gpu<T>(
+        a, L, bc, degree, qmode, kappa->value[0], nreps, use_gauss,
+        matrix_comparison, use_cg);
   }
 #endif
   else
@@ -158,6 +159,9 @@ int main(int argc, char* argv[])
       ("qmode", po::value<std::size_t>()->default_value(0),
        "Quadrature mode (0 or 1): qmode=0 has P+1 points in each direction,"
        "qmode=1 has P+2 points in each direction.")
+      //
+      ("cg", po::bool_switch()->default_value(false),
+       "Do CG iterations, rather than simple operator action")
       //
       ("nreps", po::value<std::size_t>()->default_value(1000),
        "Number of repetitions")
@@ -214,6 +218,7 @@ int main(int argc, char* argv[])
   bool matrix_comparison = vm["mat_comp"].as<bool>();
   double geom_perturb_fact = vm["geom_perturb_fact"].as<double>();
   bool use_gauss = vm["use_gauss"].as<bool>();
+  bool use_cg = vm["cg"].as<bool>();
   std::string json_filename = vm["json"].as<std::string>();
 
   // Quadrature mode (qmode=0: nq = P + 1, qmode=1: nq = P + 2)
@@ -259,7 +264,8 @@ int main(int argc, char* argv[])
                            {"nreps", nreps},
                            {"scalar_size", float_size},
                            {"use_gauss", use_gauss},
-                           {"mat_comp", matrix_comparison}};
+                           {"mat_comp", matrix_comparison},
+                           {"cg", use_cg}};
 
     std::array<std::int64_t, 3> nx
         = benchdolfinx::compute_mesh_size(ndofs_global, degree);
@@ -268,15 +274,15 @@ int main(int argc, char* argv[])
     json::value out_root;
     if (float_size == 32)
     {
-      out_root
-          = run_benchmark<float>(comm, nx, geom_perturb_fact, degree, qmode,
-                                 nreps, use_gauss, matrix_comparison, platform);
+      out_root = run_benchmark<float>(comm, nx, geom_perturb_fact, degree,
+                                      qmode, nreps, use_gauss,
+                                      matrix_comparison, platform, use_cg);
     }
     else if (float_size == 64)
     {
       out_root = run_benchmark<double>(comm, nx, geom_perturb_fact, degree,
                                        qmode, nreps, use_gauss,
-                                       matrix_comparison, platform);
+                                       matrix_comparison, platform, use_cg);
     }
     else
     {

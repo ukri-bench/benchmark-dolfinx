@@ -47,20 +47,24 @@ auto inner_product(const Vector& a, const Vector& b)
 
 } // namespace detail
 
-// Solve Ax = b
-template <typename Operator, typename Vector>
-int cg_solve(Operator& A, Vector& x, const Vector& b, bool verbose = true)
+/// Solve Ax = b using unpreconditioned CG
+/// @param A Operator (with apply method) computes y=A.x
+/// @param x Vector solution
+/// @param b Vector RHS
+/// @param max_iter Maximum number of iterations
+/// @param rtol Tolerance (default 0.0 will enforce max_iter iterations)
+template <typename Operator, typename Vector, typename S>
+int cg_solve(Operator& A, Vector& x, const Vector& b, int max_iter,
+             S rtol = 0.0)
 {
   using T = typename Vector::value_type;
+  static_assert(std::is_same<S, T>(), "Type mismatch");
 
   T xnorm = detail::inner_product(x, x);
   spdlog::info("CG: xnorm = {}", xnorm);
   T bnorm = detail::inner_product(b, b);
   spdlog::info("CG: bnorm = {}", bnorm);
 
-  T rtol = 1e-6;
-
-  int max_iter = 100;
   Vector r(x.index_map(), x.bs());
   Vector y(x.index_map(), x.bs());
   Vector p(x.index_map(), x.bs());
@@ -79,7 +83,6 @@ int cg_solve(Operator& A, Vector& x, const Vector& b, bool verbose = true)
   const T rtol2 = rtol * rtol;
 
   int k = 0;
-  auto start = std::chrono::high_resolution_clock::now();
   while (k < max_iter)
   {
     ++k;
@@ -103,13 +106,8 @@ int cg_solve(Operator& A, Vector& x, const Vector& b, bool verbose = true)
     const T beta = rnorm_new / rnorm;
     rnorm = rnorm_new;
 
-    if (verbose)
-    {
-      std::cout << "Iteration " << k << " residual " << std::sqrt(rnorm)
-                << std::endl;
-      std::cout << "alpha = " << alpha << "\n";
-      std::cout << "beta = " << beta << "\n";
-    }
+    SPDLOG_DEBUG("Iteration {}, residual {}, alpha={}, beta={}", k,
+                 std::sqrt(rnorm), alpha, beta);
 
     if (rnorm / rnorm0 < rtol2)
       break;
@@ -117,8 +115,5 @@ int cg_solve(Operator& A, Vector& x, const Vector& b, bool verbose = true)
     // Update p (p <- beta*p + M^-1(r))
     detail::axpy(p, beta, p, r);
   }
-  auto stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> duration = stop - start;
-  std::cout << "CG loop only time : " << duration.count() << std::endl;
   return k;
 }
