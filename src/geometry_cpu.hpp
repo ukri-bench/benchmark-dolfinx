@@ -11,7 +11,17 @@
 
 namespace benchdolfinx
 {
-/// @todo Document
+/// @brief Compute required geometry tensor at quadrature points on hexahedral
+/// mesh
+/// @param xgeom Geometry points of mesh
+/// @param G_entity Output symmetric 3x3 tensor (6 values per quadrature point)
+/// @param geometry_dofmap DofMap for xgeom on cells
+/// @param dphi Basis function gradients (phi_x, phi_y, phi_z) at quadrature
+/// points on reference cell
+/// @param weights Quadrature weights
+/// @param entities List of cells to compute
+/// @tparam T Scalar type
+/// @tparam Q numbre of quadrature points in each direction
 template <std::floating_point T, int Q>
 void geometry_computation_cpu(std::span<const T> xgeom, std::span<T> G_entity,
                               std::span<const std::int32_t> geometry_dofmap,
