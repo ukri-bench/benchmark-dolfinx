@@ -9,24 +9,31 @@
 #include <type_traits>
 #endif
 
+#include <algorithm>
+#include <numeric>
+
 namespace detail
 {
 template <typename S, typename Vector>
 void axpy(Vector& r, S alpha, const Vector& x, const Vector& y)
 {
   using T = typename Vector::value_type;
-#if defined(USE_CUDA) || defined(USE_HIP)
-  thrust::transform(thrust::device, x.array().begin(),
-                    x.array().begin() + x.index_map()->size_local(),
-                    y.array().begin(), r.array().begin(),
-                    [alpha] __host__ __device__(const T& vx, const T& vy)
-                    { return vx * alpha + vy; });
-#else
-  std::transform(x.array().begin(),
-                 x.array().begin() + x.index_map()->size_local(),
-                 y.array().begin(), r.array().begin(),
-                 [alpha](const T& vx, const T& vy) { return vx * alpha + vy; });
-#endif
+
+  if constexpr (std::is_same<typename Vector::container_type, std::vector<T>>())
+  {
+    std::transform(
+        x.array().begin(), x.array().begin() + x.index_map()->size_local(),
+        y.array().begin(), r.array().begin(),
+        [alpha](const T& vx, const T& vy) { return vx * alpha + vy; });
+  }
+  else
+  {
+    thrust::transform(thrust::device, x.array().begin(),
+                      x.array().begin() + x.index_map()->size_local(),
+                      y.array().begin(), r.array().begin(),
+                      [alpha] __host__ __device__(const T& vx, const T& vy)
+                      { return vx * alpha + vy; });
+  }
 }
 
 /// Compute the inner product of two vectors. The two vectors must have
@@ -45,15 +52,18 @@ auto inner_product(const Vector& a, const Vector& b)
     throw std::runtime_error("Incompatible vector sizes");
 
   T local = 0;
-#if defined(USE_CUDA) || defined(USE_HIP)
-  local = thrust::inner_product(thrust::device, a.array().begin(),
-                                a.array().begin() + local_size,
-                                b.array().begin(), T{0.0});
-#else // CPU
-  local = std::inner_product(a.array().begin(), a.array().begin() + local_size,
+  if constexpr (std::is_same<typename Vector::container_type, std::vector<T>>())
+  {
+    local
+        = std::inner_product(a.array().begin(), a.array().begin() + local_size,
                              b.array().begin(), T{0.0});
-#endif
-
+  }
+  else
+  {
+    local = thrust::inner_product(thrust::device, a.array().begin(),
+                                  a.array().begin() + local_size,
+                                  b.array().begin(), T{0.0});
+  }
   T result;
   MPI_Allreduce(&local, &result, 1, dolfinx::MPI::mpi_t<T>, MPI_SUM,
                 a.index_map()->comm());
@@ -73,7 +83,9 @@ int cg_solve(Operator& A, Vector& x, const Vector& b, int max_iter,
              S rtol = 0.0)
 {
   using T = typename Vector::value_type;
-  static_assert(std::is_same<S, T>(), "Type mismatch");
+  static_assert(std::is_same<S, T>(), "Type mismatch between rtol and Vector");
+  static_assert(std::is_same<typename Operator::value_type, T>(),
+                "Type mismatch between Vector and Operator");
 
   T xnorm = detail::inner_product(x, x);
   spdlog::info("CG: xnorm = {}", xnorm);
