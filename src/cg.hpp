@@ -28,11 +28,13 @@ void axpy(Vector& r, S alpha, const Vector& x, const Vector& y)
   }
   else
   {
+#if defined(USE_CUDA) || defined(USE_HIP)
     thrust::transform(thrust::device, x.array().begin(),
                       x.array().begin() + x.index_map()->size_local(),
                       y.array().begin(), r.array().begin(),
                       [alpha] __host__ __device__(const T& vx, const T& vy)
                       { return vx * alpha + vy; });
+#endif
   }
 }
 
@@ -60,9 +62,11 @@ auto inner_product(const Vector& a, const Vector& b)
   }
   else
   {
+#if defined(USE_CUDA) || defined(USE_HIP)
     local = thrust::inner_product(thrust::device, a.array().begin(),
                                   a.array().begin() + local_size,
                                   b.array().begin(), T{0.0});
+#endif
   }
   T result;
   MPI_Allreduce(&local, &result, 1, dolfinx::MPI::mpi_t<T>, MPI_SUM,
