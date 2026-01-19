@@ -2,10 +2,9 @@
 // Garth N. Wells
 // SPDX-License-Identifier:    MIT
 
-#include "cg.hpp"
-
-#include "laplacian.hpp"
 #include "laplacian_solver.hpp"
+#include "cg.hpp"
+#include "laplacian.hpp"
 #include <basix/quadrature.h>
 #include <dolfinx/la/MatrixCSR.h>
 
@@ -242,9 +241,6 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
     const dolfinx::fem::DirichletBC<T>& bc, int degree, int qmode, T kappa,
     int nreps, bool use_gauss, bool matrix_comparison, bool use_cg)
 {
-  if (use_cg)
-    throw std::runtime_error("CG not yet implemented for CPU");
-
   auto V = a.function_spaces()[0];
 
   // Input vector
@@ -279,8 +275,13 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
   BenchmarkResults b_results = {0};
   // Matrix free
   auto start = std::chrono::high_resolution_clock::now();
-  for (int i = 0; i < nreps; ++i)
-    op.apply(u, y);
+  if (use_cg)
+    cg_solve(op, y, u, nreps, T(0.0));
+  else
+  {
+    for (int i = 0; i < nreps; ++i)
+      op.apply(u, y);
+  }
   auto stop = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> duration = stop - start;
 
@@ -296,8 +297,10 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
     b_results.mat_free_time = duration.count();
 
     std::int64_t ndofs_global = V->dofmap()->index_map->size_global();
-    std::cout << "Mat-free Matvec time: " << duration.count() << std::endl;
-    std::cout << "Mat-free action Gdofs/s: "
+    std::string comp_type = use_cg ? "CG" : "Action";
+    std::cout << "Computation time (" << comp_type << "): " << duration.count()
+              << "s" << std::endl;
+    std::cout << "Computation rate (Gdofs/s): "
               << ndofs_global * nreps / (1e9 * duration.count()) << std::endl;
 
     std::cout << "Norm of u = " << unorm << std::endl;

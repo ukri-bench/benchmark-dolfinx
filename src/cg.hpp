@@ -1,10 +1,13 @@
 
 #include <dolfinx/common/MPI.h>
+
+#if defined(USE_CUDA) || defined(USE_HIP)
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 #include <thrust/inner_product.h>
 #include <thrust/transform_reduce.h>
 #include <type_traits>
+#endif
 
 namespace detail
 {
@@ -12,11 +15,18 @@ template <typename S, typename Vector>
 void axpy(Vector& r, S alpha, const Vector& x, const Vector& y)
 {
   using T = typename Vector::value_type;
+#if defined(USE_CUDA) || defined(USE_HIP)
   thrust::transform(thrust::device, x.array().begin(),
                     x.array().begin() + x.index_map()->size_local(),
                     y.array().begin(), r.array().begin(),
                     [alpha] __host__ __device__(const T& vx, const T& vy)
                     { return vx * alpha + vy; });
+#else
+  std::transform(x.array().begin(),
+                 x.array().begin() + x.index_map()->size_local(),
+                 y.array().begin(), r.array().begin(),
+                 [alpha](const T& vx, const T& vy) { return vx * alpha + vy; });
+#endif
 }
 
 /// Compute the inner product of two vectors. The two vectors must have
@@ -35,9 +45,14 @@ auto inner_product(const Vector& a, const Vector& b)
     throw std::runtime_error("Incompatible vector sizes");
 
   T local = 0;
+#if defined(USE_CUDA) || defined(USE_HIP)
   local = thrust::inner_product(thrust::device, a.array().begin(),
                                 a.array().begin() + local_size,
                                 b.array().begin(), T{0.0});
+#else // CPU
+  local = std::inner_product(a.array().begin(), a.array().begin() + local_size,
+                             b.array().begin(), T{0.0});
+#endif
 
   T result;
   MPI_Allreduce(&local, &result, 1, dolfinx::MPI::mpi_t<T>, MPI_SUM,

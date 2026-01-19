@@ -224,9 +224,6 @@ int main(int argc, char* argv[])
   if (use_cg and matrix_comparison)
     throw std::runtime_error("Cannot do matrix comparison with CG");
 
-  if (use_cg and platform == "cpu")
-    throw std::runtime_error("CG not yet supported on CPU");
-
   // Quadrature mode (qmode=0: nq = P + 1, qmode=1: nq = P + 2)
   std::size_t qmode = vm["qmode"].as<std::size_t>();
   if (qmode > 1)
