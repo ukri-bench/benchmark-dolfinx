@@ -1,3 +1,6 @@
+// Copyright(C) 2025-2026 Igor A. Baratta, Chris N. Richardson, Joseph P. Dean,
+// Garth N. Wells
+// SPDX-License-Identifier:    MIT
 
 #include <dolfinx/common/MPI.h>
 
