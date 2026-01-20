@@ -85,14 +85,19 @@ compute_diag_inv(dolfinx::la::MatrixCSR<T, thrust::device_vector<T>,
   thrust::device_vector<T> diag_inv(A.index_map(0)->size_local());
   for (int i = 0; i < static_cast<int>(diag_inv.size()); ++i)
   {
-    // Find diagonal entry on each row
-    thrust::copy_if(thrust::device,
-                    thrust::next(A.values().begin(), A.row_ptr()[i]),
-                    thrust::next(A.values().begin(), A.row_ptr()[i + 1]),
-                    thrust::next(A.cols().begin(), A.row_ptr()[i]),
-                    thrust::next(diag_inv.begin(), i),
-                    [=] __host__ __device__(std::int32_t col) -> bool
-                    { return (col == i); });
+    spdlog::info("Search on row {}", i);
+    std::int32_t row_i0 = A.row_ptr()[i];
+    std::int32_t row_i1 = A.row_ptr()[i + 1];
+
+    // Find diagonal column in row
+    auto it = thrust::find_if(thrust::device,
+                              thrust::next(A.cols().begin(), row_i0),
+                              thrust::next(A.cols().begin(), row_i1),
+                              [i] __host__ __device__(std::int32_t col) -> bool
+                              { return (col == i); });
+
+    int d = thrust::distance(A.cols().begin(), it);
+    diag_inv[i] = A.values()[d];
   }
 
   thrust::transform(thrust::device, diag_inv.begin(), diag_inv.end(),
