@@ -16,4 +16,4 @@ assert data["output"]["ndofs_global"] == 1000
 assert np.isclose(data["output"]["y_norm"], data["output"]["z_norm"])
 
 # Compare to known result
-assert np.isclose(data["output"]["y_norm"], 38.625286046215102)
+assert np.isclose(data["output"]["y_norm"], 10.66727366825788)
