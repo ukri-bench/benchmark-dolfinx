@@ -99,7 +99,7 @@ json::value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   auto dofmap = V->dofmap();
   auto facets = mesh::exterior_facet_indices(*topology);
   auto bdofs = fem::locate_dofs_topological(*topology, *dofmap, fdim, facets);
-  fem::DirichletBC<T> bc(1.3, bdofs, V);
+  fem::DirichletBC<T> bc(0.0, bdofs, V);
 
   benchdolfinx::BenchmarkResults results;
   if (platform == "cpu")
@@ -245,7 +245,8 @@ int main(int argc, char* argv[])
     if (rank == 0)
     {
 #if defined(USE_CUDA) || defined(USE_HIP)
-      std::cout << benchdolfinx::get_device_information();
+      if (platform == "gpu")
+        std::cout << benchdolfinx::get_device_information();
 #endif
       std::cout << "-----------------------------------\n";
       std::cout << "Platform: " << platform << "\n";

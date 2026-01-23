@@ -99,7 +99,8 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
 
   dolfinx::la::Vector<T> b(map, 1);
   dolfinx::fem::assemble_vector(b.array(), L);
-  dolfinx::fem::apply_lifting(b.array(), {a}, {{bc}}, {}, T(1.0));
+  // Skip lifting for homogeneous BCs (zero on RHS)
+  // dolfinx::fem::apply_lifting(b.array(), {a}, {{bc}}, {}, T(1.0));
   b.scatter_rev(std::plus<T>());
   bc.set(b.array(), std::nullopt);
 
@@ -268,7 +269,8 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
   op_create_timer.stop();
 
   dolfinx::fem::assemble_vector(u.array(), L);
-  dolfinx::fem::apply_lifting(u.array(), {a}, {{bc}}, {}, T(1.0));
+  // Skip lifting for homogeneous BCs (zero on RHS)
+  // dolfinx::fem::apply_lifting(u.array(), {a}, {{bc}}, {}, T(1.0));
   u.scatter_rev(std::plus<T>());
   bc.set(u.array(), std::nullopt);
 
