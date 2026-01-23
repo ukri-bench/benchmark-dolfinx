@@ -39,6 +39,7 @@ endif()
 if(amd)
   # autodetect = native MI250X = gfx90a MI300X = gfx942 Radeon7900 = gfx1100
   set(CMAKE_HIP_ARCHITECTURES ${HIP_ARCH})
+  set(AMDGPU_TARGETS ${HIP_ARCH})
   enable_language(HIP)
 elseif(nvidia)
   # See
@@ -61,7 +62,7 @@ set(CMAKE_HIP_FLAGS "${CMAKE_HIP_FLAGS} -std=c++20 -Wall -O3 -ffast-math -DNDEBU
 
 if(DEFINED ENV{CRAYPE_VERSION})
   message("Detected CrayPE - adding MPI flags")
-  set(CMAKE_HIP_FLAGS "${CMAKE_HIP_FLAGS} -O3 -ffast-math -I/opt/cray/pe/mpich/8.1.27/ofi/gnu/9.1/include")
+  set(CMAKE_HIP_FLAGS "${CMAKE_HIP_FLAGS} -O3 -ffast-math -I/opt/cray/pe/mpich/8.1.32/ofi/gnu/12.3/include")
 endif()
 
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++20 -O3 -Wall -DNDEBUG --extended-lambda --expt-relaxed-constexpr")

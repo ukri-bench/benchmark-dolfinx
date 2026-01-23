@@ -156,7 +156,7 @@ int main(int argc, char* argv[])
       ("ndofs_global", po::value<std::size_t>()->default_value(0),
        "Number of global degrees-of-freedom")
       //
-      ("qmode", po::value<std::size_t>()->default_value(0),
+      ("qmode", po::value<std::size_t>()->default_value(1),
        "Quadrature mode (0 or 1): qmode=0 has P+1 points in each direction,"
        "qmode=1 has P+2 points in each direction.")
       //
@@ -268,6 +268,7 @@ int main(int argc, char* argv[])
                            {"scalar_size", float_size},
                            {"use_gauss", use_gauss},
                            {"mat_comp", matrix_comparison},
+                           {"qmode", qmode},
                            {"cg", use_cg}};
 
     std::array<std::int64_t, 3> nx
