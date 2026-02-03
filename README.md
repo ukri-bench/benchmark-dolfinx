@@ -88,48 +88,50 @@ bench_dolfinx -h
 
 ### Correctness tests
 
-TODO
+Compare against the same computation by assembling a matrix:
+
+`bench_dolfinx --mat_comp --ndofs_global=10000 --degree=3`
+
+This test can be used to verify the matrix-free GPU algorithm is
+giving the same results as an assembled matrix. Because the matrix is
+assembled on CPU, it can be very slow for large problems and high
+polynomial degree. Recommended settings are 10000 global dofs, and
+degree 3. Results should be the same in parallel with `mpirun`.
+The console output should report `Norm of error` with a small (machine
+precision) number e.g. for float64 about `1e-15`.
 
 ### Performance tests
 
-TODO
-
-### Suggested performance test configuration
-
-
-### Figures of merit
-
-TODO
-
-
-### Old text
-
-The GPU performance is presented as the number of GigaDOFs processed per
-second: e.g. `Mat-free action Gdofs/s: 3.88691`
-
-The norms of the input and output vectors are also provided, which can
-be checked against the matrix (CSR) implementation be using the
-`--mat_comp` option. In this case the norm of the error should be around
-machine precision, i.e. about 1e-15 for `float64`.
-
-### OLD: Recommended test configuration
-
-Suggested options for running the test are listed below.
-
-Single-GPU basic test for correctness (small problem)
-```bash
-bench_dolfinx --float=64 --degree=5 --perturb_geom_fact=0.1 --mat_comp --ndofs=5000
-```
+The following tests are recommended. A problem size of at least 10M
+dofs is needed to overcome the GPU launch latency. Problem size
+per-GPU can be increased until the memory limit is reached. The number
+of repetitions defaults to 1000.
 
 Single-GPU performance test (10M dofs)
 ```bash
-bench_dolfinx --float=64 --degree=6 --ndofs=10000000 --qmode=1 --use_gauss
+bench_dolfinx --float=64 --degree=6 --ndofs=10000000
 ```
 
-Multi-GPU performance test (40M dofs)
+Multi-GPU performance test (10M dofs per GPU)
 ```bash
-mpirun -n 4 bench_dolfinx --float=64  --degree=6 --ndofs=10000000 --qmode=1 --use_gauss
+mpirun -n 4 bench_dolfinx --float=64  --degree=6 --ndofs=10000000
 ```
+
+Adding the `--cg` flag will also test additional `axpy` and global reduce
+on every iteration. The `--float=32` flag will test at 32-bit
+precision. Changing the `--degree` will affect the balance of
+computation and communication (e.g. degree 6 is more computationally
+efficient, but results in more inter-GPU data transfer on each iteration).
+
+### Figures of merit
+
+The main *Figure of Merit* (FoM) is the computational throughput in
+GDoF/s. The throughput represents the amount of useful computation
+that is done by the operator (or Conjugate Gradient) algorithm, and is
+reported for the whole system. Thus, to get the throughput per GPU,
+divide by the number of GPUs used. It is printed at the end of each
+run, and can also be saved in a JSON file by adding the `--json
+filename.json` flag.
 
 ## License
 
