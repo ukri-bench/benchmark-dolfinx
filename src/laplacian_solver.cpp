@@ -3,6 +3,7 @@
 // SPDX-License-Identifier:    MIT
 
 #include "laplacian_solver.hpp"
+#include "cg.hpp"
 #include "laplacian.hpp"
 #include <basix/quadrature.h>
 #include <dolfinx/la/MatrixCSR.h>
@@ -65,7 +66,7 @@ template <typename T>
 BenchmarkResults benchdolfinx::laplace_action_gpu(
     const dolfinx::fem::Form<T>& a, const dolfinx::fem::Form<T>& L,
     const dolfinx::fem::DirichletBC<T>& bc, int degree, int qmode, T kappa,
-    int nreps, bool use_gauss, bool matrix_comparison)
+    int nreps, bool use_gauss, bool matrix_comparison, bool use_cg)
 {
   auto V = a.function_spaces()[0];
 
@@ -98,11 +99,10 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
 
   dolfinx::la::Vector<T> b(map, 1);
   dolfinx::fem::assemble_vector(b.array(), L);
-  dolfinx::fem::apply_lifting(b.array(), {a}, {{bc}}, {}, T(1.0));
+  // Skip lifting for homogeneous BCs (zero on RHS)
+  // dolfinx::fem::apply_lifting(b.array(), {a}, {{bc}}, {}, T(1.0));
   b.scatter_rev(std::plus<T>());
   bc.set(b.array(), std::nullopt);
-
-  // u.copy_from_host(b); // Copy data from host vector to device vector
 
   // Copy data from host vector to device vector. Copies only local data.
   thrust::copy_n(b.array().begin(), u.index_map()->size_local(),
@@ -116,8 +116,13 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
 
   // Matrix free
   auto start = std::chrono::high_resolution_clock::now();
-  for (int i = 0; i < nreps; ++i)
-    op.apply(u, y);
+  if (use_cg)
+    cg_solve(op, y, u, nreps, T(0.0));
+  else
+  {
+    for (int i = 0; i < nreps; ++i)
+      op.apply(u, y);
+  }
   auto stop = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> duration = stop - start;
 
@@ -132,8 +137,10 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
   {
     std::int64_t ndofs_global = V->dofmap()->index_map->size_global();
     b_results.mat_free_time = duration.count();
-    std::cout << "Mat-free Matvec time: " << duration.count() << std::endl;
-    std::cout << "Mat-free action Gdofs/s: "
+    std::string comp_type = use_cg ? "CG" : "Action";
+    std::cout << "Computation time (" << comp_type << "): " << duration.count()
+              << "s" << std::endl;
+    std::cout << "Computation rate (Gdofs/s): "
               << ndofs_global * nreps / (1e9 * duration.count()) << std::endl;
 
     std::cout << "Norm of u = " << unorm << std::endl;
@@ -142,7 +149,6 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
 
   if (matrix_comparison)
   {
-
     // Assemble on CPU and copy to GPU
     std::unique_ptr<benchdolfinx::MatrixOperator<T>> mat_op;
     {
@@ -219,14 +225,14 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
 template benchdolfinx::BenchmarkResults
 benchdolfinx::laplace_action_gpu<double>(
     const dolfinx::fem::Form<double>&, const dolfinx::fem::Form<double>&,
-    const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool,
+    const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool, bool,
     bool);
 
-// template benchdolfinx::BenchmarkResults
-// benchdolfinx::laplace_action_gpu<float>(
-//     const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
-//     const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool,
-//     bool);
+template benchdolfinx::BenchmarkResults
+benchdolfinx::laplace_action_gpu<float>(const dolfinx::fem::Form<float>&,
+                                        const dolfinx::fem::Form<float>&,
+                                        const dolfinx::fem::DirichletBC<float>&,
+                                        int, int, float, int, bool, bool, bool);
 /// @endcond
 #endif
 //----------------------------------------------------------------------------
@@ -234,7 +240,7 @@ template <typename T>
 BenchmarkResults benchdolfinx::laplace_action_cpu(
     const dolfinx::fem::Form<T>& a, const dolfinx::fem::Form<T>& L,
     const dolfinx::fem::DirichletBC<T>& bc, int degree, int qmode, T kappa,
-    int nreps, bool use_gauss, bool matrix_comparison)
+    int nreps, bool use_gauss, bool matrix_comparison, bool use_cg)
 {
   auto V = a.function_spaces()[0];
 
@@ -263,15 +269,21 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
   op_create_timer.stop();
 
   dolfinx::fem::assemble_vector(u.array(), L);
-  dolfinx::fem::apply_lifting(u.array(), {a}, {{bc}}, {}, T(1.0));
+  // Skip lifting for homogeneous BCs (zero on RHS)
+  // dolfinx::fem::apply_lifting(u.array(), {a}, {{bc}}, {}, T(1.0));
   u.scatter_rev(std::plus<T>());
   bc.set(u.array(), std::nullopt);
 
   BenchmarkResults b_results = {0};
   // Matrix free
   auto start = std::chrono::high_resolution_clock::now();
-  for (int i = 0; i < nreps; ++i)
-    op.apply(u, y);
+  if (use_cg)
+    cg_solve(op, y, u, nreps, T(0.0));
+  else
+  {
+    for (int i = 0; i < nreps; ++i)
+      op.apply(u, y);
+  }
   auto stop = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> duration = stop - start;
 
@@ -287,8 +299,10 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
     b_results.mat_free_time = duration.count();
 
     std::int64_t ndofs_global = V->dofmap()->index_map->size_global();
-    std::cout << "Mat-free Matvec time: " << duration.count() << std::endl;
-    std::cout << "Mat-free action Gdofs/s: "
+    std::string comp_type = use_cg ? "CG" : "Action";
+    std::cout << "Computation time (" << comp_type << "): " << duration.count()
+              << "s" << std::endl;
+    std::cout << "Computation rate (Gdofs/s): "
               << ndofs_global * nreps / (1e9 * duration.count()) << std::endl;
 
     std::cout << "Norm of u = " << unorm << std::endl;
@@ -349,12 +363,12 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
 template benchdolfinx::BenchmarkResults
 benchdolfinx::laplace_action_cpu<double>(
     const dolfinx::fem::Form<double>&, const dolfinx::fem::Form<double>&,
-    const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool,
+    const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool, bool,
     bool);
 
-// template benchdolfinx::BenchmarkResults
-// benchdolfinx::laplace_action_cpu<float>(
-//     const dolfinx::fem::Form<float>&, const dolfinx::fem::Form<float>&,
-//     const dolfinx::fem::DirichletBC<float>&, int, int, float, int, bool,
-//     bool);
+template benchdolfinx::BenchmarkResults
+benchdolfinx::laplace_action_cpu<float>(const dolfinx::fem::Form<float>&,
+                                        const dolfinx::fem::Form<float>&,
+                                        const dolfinx::fem::DirichletBC<float>&,
+                                        int, int, float, int, bool, bool, bool);
 /// @endcond

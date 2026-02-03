@@ -57,16 +57,17 @@ options:
 
 ```bash
 spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
+spack repo add --name fenics https://github.com/FEniCS/spack-fenics.git fenics
 spack info bench-dolfinx
 ```
 
-Options are used tp specify CPU and GPU (AMD or CUDA) builds. The
+Options are used to specify CPU and GPU (AMD or CUDA) builds, e.g. `+cuda cuda_arch=80` or `+rocm amdgpu_target=gfx90a`. The
 benchmark builds an executable `bench_dolfinx`.
 
 ### CMake
 
 The benchmark depends on the library
-[DOLFINx](https://github.com/fenics/dolfinx) and can be built using
+[DOLFINx](https://github.com/fenics/dolfinx) v0.10.0 and can be built using
 CMake. See the benchmark Spack package
 [file](spack/packages/bench-dolfinx/package.py) and the Spack
 dependencies for a comprehensive list of dependencies.

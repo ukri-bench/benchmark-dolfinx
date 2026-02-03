@@ -39,6 +39,7 @@ endif()
 if(amd)
   # autodetect = native MI250X = gfx90a MI300X = gfx942 Radeon7900 = gfx1100
   set(CMAKE_HIP_ARCHITECTURES ${HIP_ARCH})
+  set(AMDGPU_TARGETS ${HIP_ARCH})
   enable_language(HIP)
 elseif(nvidia)
   # See
@@ -61,7 +62,7 @@ set(CMAKE_HIP_FLAGS "${CMAKE_HIP_FLAGS} -std=c++20 -Wall -O3 -ffast-math -DNDEBU
 
 if(DEFINED ENV{CRAYPE_VERSION})
   message("Detected CrayPE - adding MPI flags")
-  set(CMAKE_HIP_FLAGS "${CMAKE_HIP_FLAGS} -O3 -ffast-math -I/opt/cray/pe/mpich/8.1.27/ofi/gnu/9.1/include")
+  set(CMAKE_HIP_FLAGS "${CMAKE_HIP_FLAGS} -O3 -ffast-math -I/opt/cray/pe/mpich/8.1.32/ofi/gnu/12.3/include")
 endif()
 
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++20 -O3 -Wall -DNDEBUG --extended-lambda --expt-relaxed-constexpr")
@@ -75,25 +76,33 @@ find_package(DOLFINX REQUIRED)
 if(DEFINED ENV{BOOST_ROOT} OR DEFINED BOOST_ROOT)
   set(Boost_NO_SYSTEM_PATHS on)
 endif()
-find_package(Boost 1.70 REQUIRED program_options)
-find_package(jsoncpp REQUIRED)
+find_package(Boost 1.70 REQUIRED program_options json)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # Compile UFL code
 add_custom_command(
-  OUTPUT poisson.c
+  OUTPUT poisson64.c
   COMMAND ffcx --scalar_type float64 --sum_factorization
-          ${CMAKE_CURRENT_SOURCE_DIR}/poisson.py
+          ${CMAKE_CURRENT_SOURCE_DIR}/poisson64.py
   VERBATIM
-  DEPENDS poisson.py
-  COMMENT "Compile poisson.py using FFCx")
+  DEPENDS poisson64.py
+  COMMENT "Compile poisson64.py [f64] using FFCx")
+
+add_custom_command(
+  OUTPUT poisson32.c
+  COMMAND ffcx --scalar_type float32 --sum_factorization
+          ${CMAKE_CURRENT_SOURCE_DIR}/poisson32.py
+  VERBATIM
+  DEPENDS poisson32.py
+  COMMENT "Compile poisson32.py [f32] using FFCx")
+
 
 if(amd)
   find_package(rocthrust REQUIRED CONFIG)
 endif()
 
-add_executable(${PROJECT_NAME} main.cpp forms.cpp laplacian_solver.cpp mesh.cpp util.cpp poisson.c)
+add_executable(${PROJECT_NAME} main.cpp forms.cpp laplacian_solver.cpp mesh.cpp util.cpp poisson64.c poisson32.c)
 
 # if(NOT amd AND NOT nvidia)
 # CPU-only source files
@@ -101,7 +110,7 @@ add_executable(${PROJECT_NAME} main.cpp forms.cpp laplacian_solver.cpp mesh.cpp 
 # endif()
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
-target_link_libraries(${PROJECT_NAME} dolfinx Basix::basix Boost::program_options jsoncpp_lib)
+target_link_libraries(${PROJECT_NAME} dolfinx Basix::basix Boost::program_options Boost::json)
 
 if(amd)
   target_link_libraries(${PROJECT_NAME} roc::rocthrust)

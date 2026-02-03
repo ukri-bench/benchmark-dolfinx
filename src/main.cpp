@@ -8,18 +8,20 @@
 #include "util.hpp"
 #include <array>
 #include <basix/finite-element.h>
+#include <boost/json.hpp>
 #include <boost/program_options.hpp>
 #include <dolfinx/fem/utils.h>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <iostream>
-#include <json/json.h>
+
 #include <memory>
 #include <mpi.h>
 
 using namespace dolfinx;
 namespace po = boost::program_options;
+namespace json = boost::json;
 
 namespace
 {
@@ -33,11 +35,14 @@ namespace
 /// @param nreps Number of repetitions of ....
 /// @param use_gauss Use Gauss quadrature, rather than GLL
 /// @param matrix_comparison Verify computation against the action of an
+/// @param platform gpu or cpu
+/// @param use_cg Use CG iterations
 /// assembled CSR Matrix.
 template <typename T>
-Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
+json::value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
                           double geom_perturb_fact, int degree, int qmode,
-                          int nreps, bool use_gauss, bool matrix_comparison)
+                          int nreps, bool use_gauss, bool matrix_comparison,
+                          std::string platform, bool use_cg)
 {
   int rank(0), size(0);
   MPI_Comm_rank(comm, &rank);
@@ -67,9 +72,9 @@ Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   auto f = std::make_shared<fem::Function<T>>(V);
 
   // TODO: Handle float type in generated code
-  fem::Form<double> a = benchdolfinx::create_laplacian_form2(
+  fem::Form<T> a = benchdolfinx::create_laplacian_form2<T>(
       V, {{"c0", kappa}}, qmode, use_gauss, degree);
-  fem::Form<double> L = benchdolfinx::create_laplacian_form1(
+  fem::Form<T> L = benchdolfinx::create_laplacian_form1<T>(
       V, {{"w0", f}}, qmode, use_gauss, degree);
 
   spdlog::debug("Interpolate (rank {})", rank);
@@ -94,27 +99,35 @@ Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   auto dofmap = V->dofmap();
   auto facets = mesh::exterior_facet_indices(*topology);
   auto bdofs = fem::locate_dofs_topological(*topology, *dofmap, fdim, facets);
-  fem::DirichletBC<T> bc(1.3, bdofs, V);
+  fem::DirichletBC<T> bc(0.0, bdofs, V);
 
+  benchdolfinx::BenchmarkResults results;
+  if (platform == "cpu")
+  {
+    results = benchdolfinx::laplace_action_cpu<T>(
+        a, L, bc, degree, qmode, kappa->value[0], nreps, use_gauss,
+        matrix_comparison, use_cg);
+  }
 #if defined(USE_CUDA) || defined(USE_HIP)
-  auto results = benchdolfinx::laplace_action_gpu<T>(
-      a, L, bc, degree, qmode, kappa->value[0], nreps, use_gauss,
-      matrix_comparison);
-#else
-  auto results = benchdolfinx::laplace_action_cpu<T>(
-      a, L, bc, degree, qmode, kappa->value[0], nreps, use_gauss,
-      matrix_comparison);
+  else if (platform == "gpu")
+  {
+    results = benchdolfinx::laplace_action_gpu<T>(
+        a, L, bc, degree, qmode, kappa->value[0], nreps, use_gauss,
+        matrix_comparison, use_cg);
+  }
 #endif
+  else
+    throw std::runtime_error("Invalid platform: " + platform);
 
-  Json::Value output;
-  output["ncells_global"] = mesh->topology()->index_map(tdim)->size_global();
-  output["ndofs_global"] = dofmap->index_map->size_global();
-  output["mat_free_time"] = results.mat_free_time;
-  output["u_norm"] = results.unorm;
-  output["y_norm"] = results.ynorm;
-  output["z_norm"] = results.znorm;
-  output["gdof_per_second"] = dofmap->index_map->size_global() * nreps
-                              / (1e9 * results.mat_free_time);
+  json::value output
+      = {{"ncells_global", mesh->topology()->index_map(tdim)->size_global()},
+         {"ndofs_global", dofmap->index_map->size_global()},
+         {"mat_free_time", results.mat_free_time},
+         {"u_norm", results.unorm},
+         {"y_norm", results.ynorm},
+         {"z_norm", results.znorm},
+         {"gdof_per_second", dofmap->index_map->size_global() * nreps
+                                 / (1e9 * results.mat_free_time)}};
 
   return output;
 }
@@ -122,9 +135,17 @@ Json::Value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
 
 int main(int argc, char* argv[])
 {
+  std::string default_platform = "cpu";
+#if defined(USE_CUDA) || defined(USE_HIP)
+  default_platform = "gpu";
+#endif
+
   // Define command line options
   po::options_description desc("Options");
   desc.add_options()("help,h", "Print usage message")
+      //
+      ("platform", po::value<std::string>()->default_value(default_platform),
+       "Compute platform (cpu or gpu)")
       //
       ("float", po::value<std::size_t>()->default_value(64),
        "Float size (bits). 32 or 64.")
@@ -135,9 +156,12 @@ int main(int argc, char* argv[])
       ("ndofs_global", po::value<std::size_t>()->default_value(0),
        "Number of global degrees-of-freedom")
       //
-      ("qmode", po::value<std::size_t>()->default_value(0),
+      ("qmode", po::value<std::size_t>()->default_value(1),
        "Quadrature mode (0 or 1): qmode=0 has P+1 points in each direction,"
        "qmode=1 has P+2 points in each direction.")
+      //
+      ("cg", po::bool_switch()->default_value(false),
+       "Do CG iterations, rather than simple operator action")
       //
       ("nreps", po::value<std::size_t>()->default_value(1000),
        "Number of repetitions")
@@ -183,6 +207,7 @@ int main(int argc, char* argv[])
     return 0;
   }
 
+  std::string platform = vm["platform"].as<std::string>();
   std::size_t float_size = vm["float"].as<std::size_t>();
   if (float_size != 32 and float_size != 64)
     throw std::runtime_error("Invalid float size. Must be 32 or 64.");
@@ -193,7 +218,11 @@ int main(int argc, char* argv[])
   bool matrix_comparison = vm["mat_comp"].as<bool>();
   double geom_perturb_fact = vm["geom_perturb_fact"].as<double>();
   bool use_gauss = vm["use_gauss"].as<bool>();
+  bool use_cg = vm["cg"].as<bool>();
   std::string json_filename = vm["json"].as<std::string>();
+
+  if (use_cg and matrix_comparison)
+    throw std::runtime_error("Cannot do matrix comparison with CG");
 
   // Quadrature mode (qmode=0: nq = P + 1, qmode=1: nq = P + 2)
   std::size_t qmode = vm["qmode"].as<std::size_t>();
@@ -216,9 +245,11 @@ int main(int argc, char* argv[])
     if (rank == 0)
     {
 #if defined(USE_CUDA) || defined(USE_HIP)
-      std::cout << benchdolfinx::get_device_information();
+      if (platform == "gpu")
+        std::cout << benchdolfinx::get_device_information();
 #endif
       std::cout << "-----------------------------------\n";
+      std::cout << "Platform: " << platform << "\n";
       std::cout << "Polynomial degree : " << degree << "\n";
       std::cout << "Number of ranks : " << size << std::endl;
       std::cout << "Requested number of local DoFs : " << ndofs << std::endl;
@@ -231,32 +262,32 @@ int main(int argc, char* argv[])
       std::cout << std::flush;
     }
 
-    Json::Value root;
-
-    Json::Value& in_root = root["input"];
-    in_root["p"] = (Json::UInt64)degree;
-    in_root["mpi_size"] = size;
-    in_root["ndofs_local_requested"] = (Json::UInt64)ndofs;
-    in_root["nreps"] = (Json::UInt64)nreps;
-    in_root["scalar_size"] = (Json::UInt64)float_size;
-    in_root["use_gauss"] = use_gauss;
-    in_root["mat_comp"] = matrix_comparison;
+    json::value in_root = {{"p", degree},
+                           {"mpi_size", size},
+                           {"ndofs_local_requested", ndofs},
+                           {"nreps", nreps},
+                           {"scalar_size", float_size},
+                           {"use_gauss", use_gauss},
+                           {"mat_comp", matrix_comparison},
+                           {"qmode", qmode},
+                           {"cg", use_cg}};
 
     std::array<std::int64_t, 3> nx
         = benchdolfinx::compute_mesh_size(ndofs_global, degree);
 
     // Run benchmark
+    json::value out_root;
     if (float_size == 32)
     {
-      throw std::runtime_error("Float32 not implemented yet.");
-      // run_benchmark<float>(comm, nx, geom_perturb_fact, degree, qmode, nreps,
-      //                use_gauss, matrix_comparison);
+      out_root = run_benchmark<float>(comm, nx, geom_perturb_fact, degree,
+                                      qmode, nreps, use_gauss,
+                                      matrix_comparison, platform, use_cg);
     }
     else if (float_size == 64)
     {
-      root["output"]
-          = run_benchmark<double>(comm, nx, geom_perturb_fact, degree, qmode,
-                                  nreps, use_gauss, matrix_comparison);
+      out_root = run_benchmark<double>(comm, nx, geom_perturb_fact, degree,
+                                       qmode, nreps, use_gauss,
+                                       matrix_comparison, platform, use_cg);
     }
     else
     {
@@ -267,16 +298,15 @@ int main(int argc, char* argv[])
     // Report performance data
     if (rank == 0 and !json_filename.empty())
     {
-      Json::StreamWriterBuilder builder;
-      builder["indentation"] = "  ";
-      std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+      json::value root = {{"input", in_root}, {"output", out_root}};
+      std::string json_str = json::serialize(root);
 
       std::filesystem::path filename(json_filename);
       std::cout << "*** Writing output to:       " << filename << std::endl;
       std::cout << "*** Writing output to (abs): "
                 << std::filesystem::absolute(filename) << std::endl;
       std::ofstream strm(filename, std::ofstream::out);
-      writer->write(root, &strm);
+      strm << json_str << "\n";
     }
     else if (rank == 0)
     {
@@ -284,7 +314,7 @@ int main(int argc, char* argv[])
     }
 
     // Display timings
-    // dolfinx::list_timings(MPI_COMM_WORLD);
+    dolfinx::list_timings(MPI_COMM_WORLD);
   }
 
   MPI_Finalize();

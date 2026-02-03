@@ -118,30 +118,31 @@ std::array<std::int64_t, 3>
 benchdolfinx::compute_mesh_size(std::int64_t ndofs_global, int degree)
 {
   double nx_approx = (std::pow(ndofs_global, 1. / 3.) - 1) / degree;
-  std::int64_t n0 = static_cast<std::int64_t>(nx_approx);
+  spdlog::info("nx_approx={}", nx_approx);
+  std::int64_t n0 = static_cast<std::int64_t>(nx_approx + 0.5);
   std::array<std::int64_t, 3> nx = {n0, n0, n0};
 
   // Try to improve fit to ndofs +/- 5 in each direction
-  if (n0 > 5)
+  std::int64_t best_misfit
+      = (n0 * degree + 1) * (n0 * degree + 1) * (n0 * degree + 1)
+        - ndofs_global;
+  best_misfit = std::abs(best_misfit);
+  for (std::int64_t nx0 = std::max(std::int64_t{1}, n0 - 5); nx0 < n0 + 6;
+       ++nx0)
   {
-    std::int64_t best_misfit
-        = (n0 * degree + 1) * (n0 * degree + 1) * (n0 * degree + 1)
-          - ndofs_global;
-    best_misfit = std::abs(best_misfit);
-    for (std::int64_t nx0 = n0 - 5; nx0 < n0 + 6; ++nx0)
+    for (std::int64_t ny0 = std::max(std::int64_t{1}, n0 - 5); ny0 < n0 + 6;
+         ++ny0)
     {
-      for (std::int64_t ny0 = n0 - 5; ny0 < n0 + 6; ++ny0)
+      for (std::int64_t nz0 = std::max(std::int64_t{1}, n0 - 5); nz0 < n0 + 6;
+           ++nz0)
       {
-        for (std::int64_t nz0 = n0 - 5; nz0 < n0 + 6; ++nz0)
+        std::int64_t misfit
+            = (nx0 * degree + 1) * (ny0 * degree + 1) * (nz0 * degree + 1)
+              - ndofs_global;
+        if (std::abs(misfit) < best_misfit)
         {
-          std::int64_t misfit
-              = (nx0 * degree + 1) * (ny0 * degree + 1) * (nz0 * degree + 1)
-                - ndofs_global;
-          if (std::abs(misfit) < best_misfit)
-          {
-            best_misfit = std::abs(misfit);
-            nx = {nx0, ny0, nz0};
-          }
+          best_misfit = std::abs(misfit);
+          nx = {nx0, ny0, nz0};
         }
       }
     }
