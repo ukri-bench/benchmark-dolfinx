@@ -253,7 +253,7 @@ __launch_bounds__(Q * Q * Q) __global__ void stiffness_operator_gpu(
   // TODO: Add some maths
 
   // Apply geometric transformation to data at quadrature point
-  const int gid = block_id * cube_nq * 6 + thread_id;
+  const std::int64_t gid = static_cast<std::int64_t>(block_id) * cube_nq * 6 + thread_id;
   const T G0 = non_temp_load(&G_entity[gid + cube_nq * 0]);
   const T G1 = non_temp_load(&G_entity[gid + cube_nq * 1]);
   const T G2 = non_temp_load(&G_entity[gid + cube_nq * 2]);
