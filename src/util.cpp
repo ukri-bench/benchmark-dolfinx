@@ -29,7 +29,7 @@ std::string benchdolfinx::get_device_information()
   cudaDeviceProp props;
   status = cudaGetDeviceProperties(&props, 0);
   if (status != cudaSuccess)
-    throw std::runtime_error("Error getting device properties");
+     throw std::runtime_error("Error getting device properties");
   s << "Device: " << props.name << ": " << props.major << "." << props.minor
     << std::endl;
 #endif
