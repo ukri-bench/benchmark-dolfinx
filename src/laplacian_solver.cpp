@@ -154,7 +154,7 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
     {
 
       if (a.rank() != 2)
-        throw std::runtime_error("Form should have rank be 2.");
+        throw std::runtime_error("Form should have rank 2.");
 
       auto V = a.function_spaces()[0];
       dolfinx::la::SparsityPattern pattern
