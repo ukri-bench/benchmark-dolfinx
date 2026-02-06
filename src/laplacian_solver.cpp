@@ -110,7 +110,7 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
 
   u.scatter_fwd_begin(get_pack_fn<T>(512),
                       [](auto&& x) { return x.data().get(); });
-  u.scatter_fwd_end(get_unpack_fn<T>(512, 1));
+  u.scatter_fwd_end(get_unpack_fn<T>(512, u.index_map()->num_ghosts()/512 + 1));
 
   BenchmarkResults b_results = {0};
 
@@ -154,7 +154,7 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
     {
 
       if (a.rank() != 2)
-        throw std::runtime_error("Form should have rank be 2.");
+        throw std::runtime_error("Form should have rank 2.");
 
       auto V = a.function_spaces()[0];
       dolfinx::la::SparsityPattern pattern
