@@ -110,7 +110,7 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
 
   u.scatter_fwd_begin(get_pack_fn<T>(512),
                       [](auto&& x) { return x.data().get(); });
-  u.scatter_fwd_end(get_unpack_fn<T>(512, 1));
+  u.scatter_fwd_end(get_unpack_fn<T>(512, u.index_map()->num_ghosts()/512 + 1));
 
   BenchmarkResults b_results = {0};
 
