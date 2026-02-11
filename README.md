@@ -76,14 +76,29 @@ benchmark-specific CMake options are available:
 * `-DHIP_ARCH=[target]` builds using HIP for the specific GPU architecture `[target]`
 * `-DCUDA_ARCH=[target]` builds using CUDA for the specific GPU architecture `[target]`
 
-## Command line options
+## Running the benchmarks
+
+### Selecting a GPU device and binding to CPU NUMA regions
+
+The `bench_dolfinx` code is designed to run on one CPU MPI rank per
+GPU device. In order to correctly map devices to cores, it is
+usually necessary to include a GPU binding script between `mpirun`
+and `bench_dolfinx`. There is an example of [how to do this on
+LUMI-G](https://docs.lumi-supercomputer.eu/runjobs/scheduled-jobs/distribution-binding/#gpu-binding)
+for ROCm and
+[CSD3](https://docs.hpc.cam.ac.uk/hpc/user-guide/a100.html) for
+CUDA. It is also important to bind the CPU cores to the correct NUMA
+regions, as also described in these links. Additionally, MPI must
+have GPU support enabled (e.g. `export MPICH_GPU_SUPPORT_ENABLED=1`
+for Cray-MPICH).
+
+
+### Command line options
 
 The program lists the available options with the `-h` option.
 ```bash
 bench_dolfinx -h
 ```
-
-## Benchmarks
 
 ### Correctness tests
 
