@@ -109,7 +109,7 @@ __global__ void geometry_computation_gpu(const T* xgeom, T* G_entity,
 
     T detJ = J[0][0] * K[0][0] - J[0][1] * K[1][0] + J[0][2] * K[2][0];
 
-    std::size_t offset = (c * nq * 6 + iq);
+    std::int64_t offset = (static_cast<std::int64_t>(c) * nq * 6 + iq);
     G_entity[offset]
         = (K[0][0] * K[0][0] + K[0][1] * K[0][1] + K[0][2] * K[0][2])
           * weights[iq] / detJ;
