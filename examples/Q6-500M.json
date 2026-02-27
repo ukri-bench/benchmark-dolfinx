@@ -1,0 +1,1 @@
+{"input":{"p":6,"mpi_size":64,"ndofs_local_requested":500000000,"nreps":1000,"scalar_size":64,"use_gauss":false,"mat_comp":false,"qmode":1,"cg":true},"output":{"ncells_global":148022664,"ndofs_global":32003126875,"mat_free_time":1.13750875722E2,"u_norm":1.2374127877503986E-3,"y_norm":1.8165424655486666E4,"z_norm":0E0,"gdof_per_second":2.813440043592599E2}}

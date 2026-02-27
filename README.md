@@ -76,6 +76,17 @@ benchmark-specific CMake options are available:
 * `-DHIP_ARCH=[target]` builds using HIP for the specific GPU architecture `[target]`
 * `-DCUDA_ARCH=[target]` builds using CUDA for the specific GPU architecture `[target]`
 
+### Potential compilation issues
+
+- The dependency `basix` requires BLAS libraries. On Cray systems using `cray-libsci` these need to be specified to `cmake`.
+This is encoded in the spack recipe at [https://github.com/FEniCS/spack-fenics/blob/e8b5e9fdd299889b4cb6209559de04b9289c20ab/spack_repo/fenics/packages/fenics_basix/package.py].
+
+- The version of `mdspan.hpp` distributed in `basix` v0.10.0 is not compatible with CUDA 13. A patch is available at [https://github.com/FEniCS/spack-fenics/blob/07b9fd0dfd3d878c383ed8cba9e2a10fa52b478a/spack_repo/fenics/packages/fenics_basix/mdspan.patch], which should be applied if using CUDA 13.0 or higher.
+
+- A C++20 compiler capable of handling `std::format` is required. On some systems, it is necessary to explicitly pass this to `nvcc` or `hipcc` through a command line argument, e.g. `--gcc-toolchain=/opt/rh/gcc-toolset-13/root/usr`.
+
+- On Cray systems it may be necessary to explicity give the MPI path in the `CMakeLists.txt`.
+
 ## Running the benchmarks
 
 ### Selecting a GPU device and binding to CPU NUMA regions
@@ -92,6 +103,35 @@ regions, as also described in these links. Additionally, MPI must
 have GPU support enabled (e.g. `export MPICH_GPU_SUPPORT_ENABLED=1`
 for Cray-MPICH).
 
+### Running on a HPC system
+
+The benchmark will often be run on a HPC system using a batch queueing system, such as SLURM.
+A typical submission script is shown below:
+
+```
+#!/bin/bash
+#SBATCH -p partition
+#SBATCH --nodes=16
+#SBATCH --gpus=64
+#SBATCH --exclusive
+#SBATCH --job-name=benchmark
+#SBATCH --ntasks-per-node=4
+#SBATCH --hint=nomultithread
+#SBATCH --time=00:20:00
+
+source /project/spack/share/spack/setup-env.sh
+spack env activate bench10
+module load libfabric/1.22.0
+
+# Check correctness compared to matrix
+srun -N ${SLURM_NNODES} -n ${SLURM_NTASKS} ./select_gpu ./bench_dolfinx --nreps=1 --mat_comp --ndofs_global=100000 --degree=3 --json mat_comp-${SLURM_NNODES}.json
+
+# Run Q3 problem with 300M dofs/device
+srun --mem-bind=local --cpu-bind=map_cpu:0,72,144,216 -N ${SLURM_NNODES} -n ${SLURM_NTASKS} ./select_gpu ./bench_dolfinx --ndofs=300000000 --degree=3 --cg --json Q3-300M.json
+# Run Q6 problem with 500M dofs/device
+srun --mem-bind=local --cpu-bind=map_cpu:0,72,144,216 -N ${SLURM_NNODES} -n ${SLURM_NTASKS} ./select_gpu ./bench_dolfinx --ndofs=500000000 --degree=6 --cg --json Q6-500M.json
+```
+See [examples] for example input and output files.
 
 ### Command line options
 
