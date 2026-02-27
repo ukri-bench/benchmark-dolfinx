@@ -1,0 +1,165 @@
+Num devices: 1
+Device: NVIDIA GH200 120GB: 9.0
+  Global memory:   97280 Mb
+  Shared memory:   48 kb
+  Constant memory: 0 Mb
+  Block registers: 65536
+
+  Warp size:         32
+  Threads per block: 1024
+  Max block dimensions: [ 1024, 1024, 64 ]
+  Max grid dimensions:  [ 2147483647, 65535, 65535 ]
+-----------------------------------
+Platform: gpu
+Polynomial degree : 3
+Number of ranks : 64
+Requested number of local DoFs : 1562
+Number of repetitions : 1
+Scalar Type: 64
+Use Gauss-Jacobi: 0
+Compare to matrix: 1
+-----------------------------------
+Computation time (Action): 0.0402024s
+Computation rate (Gdofs/s): 0.00248861
+Norm of u = 0.689577
+Norm of y = 0.141503
+Norm of u = 0.689577
+Norm of z = 0.141503
+Norm of error = 2.98401e-16
+Relative norm of error = 2.1088e-15
+*** Writing output to:       "mat_comp-16.json"
+*** Writing output to (abs): "/lus/lfs1aip2/projects/u6cb/cnr12/benchmark-dolfinx/src/build/mat_comp-16.json"
+
+[MPI_MAX] Summary of timings (s)                                            |  reps       avg       tot
+-------------------------------------------------------------------------------------------------------
+% Assemble CPU MatrixCSR                                                    |     1  0.020428  0.020428
+% CSR Matvec                                                                |     1  0.000309  0.000309
+% Copy to GPU MatrixCSR                                                     |     1  0.069928  0.069928
+% Create CPU MatrixCSR                                                      |     1  0.003925  0.003925
+% MatrixOperator application                                                |     1  0.000305  0.000305
+Build BoxMesh (hexahedra)                                                   |     1  0.106987  0.106987
+Build dofmap data                                                           |     3  0.001523  0.004568
+Compute connectivity 2-0                                                    |     1  0.000004  0.000004
+Compute dof reordering map                                                  |     3  0.000010  0.000031
+Compute entities of dim = 1                                                 |     1  0.011454  0.011454
+Compute entities of dim = 2                                                 |     1  0.003852  0.003852
+Compute entity permutations                                                 |     1  0.000111  0.000111
+Compute graph partition (ParMETIS)                                          |     1  0.041343  0.041343
+Compute local part of mesh dual graph (mixed)                               |     3  0.000063  0.000190
+Compute local-to-local map                                                  |     2  0.000009  0.000019
+Compute non-local part of mesh dual graph                                   |     1  0.025026  0.025026
+Compute-local-to-global links for global/local adjacency list               |     2  0.000004  0.000009
+Distribute fixed-degree adjacency list to destination ranks                 |     2  0.000486  0.000972
+Distribute row-wise data (scalable)                                         |     2  0.000681  0.001363
+GPS: create_level_structure                                                 |     4  0.000002  0.000009
+Gibbs-Poole-Stockmeyer ordering                                             |     2  0.000043  0.000086
+Init dofmap from element dofmap                                             |     3  0.000035  0.000105
+ParMETIS: call ParMETIS_V3_PartKway                                         |     1  0.040429  0.040429
+SparsityPattern::finalize                                                   |     1  0.005883  0.005883
+Topology: create                                                            |     2  0.010208  0.020416
+Topology: determine shared index ownership                                  |     2  0.000874  0.001747
+Topology: determine vertex ownership groups (owned, undetermined, unowned)  |     2  0.000012  0.000024
+~setup phase MatrixOperator                                                 |     1  0.068492  0.068492
+
+Num devices: 1
+Device: NVIDIA GH200 120GB: 9.0
+  Global memory:   97280 Mb
+  Shared memory:   48 kb
+  Constant memory: 0 Mb
+  Block registers: 65536
+
+  Warp size:         32
+  Threads per block: 1024
+  Max block dimensions: [ 1024, 1024, 64 ]
+  Max grid dimensions:  [ 2147483647, 65535, 65535 ]
+-----------------------------------
+Platform: gpu
+Polynomial degree : 3
+Number of ranks : 64
+Requested number of local DoFs : 300000000
+Number of repetitions : 1000
+Scalar Type: 64
+Use Gauss-Jacobi: 0
+Compare to matrix: 0
+-----------------------------------
+Computation time (CG): 74.5703s
+Computation rate (Gdofs/s): 257.544
+Norm of u = 0.00152693
+Norm of y = 14466.1
+*** Writing output to:       "Q3-300M.json"
+*** Writing output to (abs): "/lus/lfs1aip2/projects/u6cb/cnr12/benchmark-dolfinx/src/build/Q3-300M.json"
+
+[MPI_MAX] Summary of timings (s)                                            |  reps        avg        tot
+---------------------------------------------------------------------------------------------------------
+Build BoxMesh (hexahedra)                                                   |     1  65.503761  65.503761
+Build dofmap data                                                           |     3   5.927605  17.782816
+Compute connectivity 2-0                                                    |     1   0.209189   0.209189
+Compute dof reordering map                                                  |     3   0.376338   1.129015
+Compute entities of dim = 1                                                 |     1  36.603383  36.603383
+Compute entities of dim = 2                                                 |     1  23.989537  23.989537
+Compute entity permutations                                                 |     1   2.644028   2.644028
+Compute graph partition (ParMETIS)                                          |     1  17.463516  17.463516
+Compute local part of mesh dual graph (mixed)                               |     3  12.222678  36.668033
+Compute local-to-local map                                                  |     2   1.928311   3.856623
+Compute non-local part of mesh dual graph                                   |     1   1.059853   1.059853
+Compute-local-to-global links for global/local adjacency list               |     2   0.246162   0.492323
+Distribute fixed-degree adjacency list to destination ranks                 |     2   1.625103   3.250206
+Distribute row-wise data (scalable)                                         |     2   0.622442   1.244883
+GPS: create_level_structure                                                 |     7   0.370010   4.435000
+Gibbs-Poole-Stockmeyer ordering                                             |     2   3.382629   6.765259
+Init dofmap from element dofmap                                             |     3   1.989276   5.967828
+ParMETIS: call ParMETIS_V3_PartKway                                         |     1  17.382769  17.382769
+Topology: create                                                            |     2  29.844074  59.688148
+Topology: determine shared index ownership                                  |     2   7.888358  15.776715
+Topology: determine vertex ownership groups (owned, undetermined, unowned)  |     2   1.499149   2.998298
+Num devices: 1
+Device: NVIDIA GH200 120GB: 9.0
+  Global memory:   97280 Mb
+  Shared memory:   48 kb
+  Constant memory: 0 Mb
+  Block registers: 65536
+
+  Warp size:         32
+  Threads per block: 1024
+  Max block dimensions: [ 1024, 1024, 64 ]
+  Max grid dimensions:  [ 2147483647, 65535, 65535 ]
+-----------------------------------
+Platform: gpu
+Polynomial degree : 6
+Number of ranks : 64
+Requested number of local DoFs : 500000000
+Number of repetitions : 1000
+Scalar Type: 64
+Use Gauss-Jacobi: 0
+Compare to matrix: 0
+-----------------------------------
+Computation time (CG): 113.751s
+Computation rate (Gdofs/s): 281.344
+Norm of u = 0.00123741
+Norm of y = 18165.4
+*** Writing output to:       "Q6-500M.json"
+*** Writing output to (abs): "/lus/lfs1aip2/projects/u6cb/cnr12/benchmark-dolfinx/src/build/Q6-500M.json"
+
+[MPI_MAX] Summary of timings (s)                                            |  reps        avg        tot
+---------------------------------------------------------------------------------------------------------
+Build BoxMesh (hexahedra)                                                   |     1  11.002283  11.002283
+Build dofmap data                                                           |     3   9.197518  27.592555
+Compute connectivity 2-0                                                    |     1   0.042925   0.042925
+Compute dof reordering map                                                  |     3   0.455360   1.366079
+Compute entities of dim = 1                                                 |     1   8.985533   8.985533
+Compute entities of dim = 2                                                 |     1   5.323408   5.323408
+Compute entity permutations                                                 |     1   0.646009   0.646009
+Compute graph partition (ParMETIS)                                          |     1   2.468840   2.468840
+Compute local part of mesh dual graph (mixed)                               |     3   2.547673   7.643020
+Compute local-to-local map                                                  |     2   0.299909   0.599817
+Compute non-local part of mesh dual graph                                   |     1   0.300733   0.300733
+Compute-local-to-global links for global/local adjacency list               |     2   0.051966   0.103932
+Distribute fixed-degree adjacency list to destination ranks                 |     2   0.313119   0.626238
+Distribute row-wise data (scalable)                                         |     2   0.089112   0.178225
+GPS: create_level_structure                                                 |     5   0.057066   0.685414
+Gibbs-Poole-Stockmeyer ordering                                             |     2   0.533519   1.067038
+Init dofmap from element dofmap                                             |     3   1.168817   3.506451
+ParMETIS: call ParMETIS_V3_PartKway                                         |     1   2.451704   2.451704
+Topology: create                                                            |     2   5.213963  10.427926
+Topology: determine shared index ownership                                  |     2   1.826910   3.653821
+Topology: determine vertex ownership groups (owned, undetermined, unowned)  |     2   0.330186   0.660372

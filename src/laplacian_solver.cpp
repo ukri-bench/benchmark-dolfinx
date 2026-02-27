@@ -110,7 +110,8 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
 
   u.scatter_fwd_begin(get_pack_fn<T>(512),
                       [](auto&& x) { return x.data().get(); });
-  u.scatter_fwd_end(get_unpack_fn<T>(512, u.index_map()->num_ghosts()/512 + 1));
+  u.scatter_fwd_end(
+      get_unpack_fn<T>(512, u.index_map()->num_ghosts() / 512 + 1));
 
   BenchmarkResults b_results = {0};
 
@@ -161,7 +162,7 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
           = dolfinx::fem::create_sparsity_pattern(a);
       pattern.finalize();
 
-      std::cout << "NNZ = " << pattern.num_nonzeros() << "\n";
+      // std::cout << "NNZ = " << pattern.num_nonzeros() << "\n";
 
       // Note: currently using CPU assembly, the 32-bit limit for row_ptr is
       // unlikely to be reached as creating such a large matrix is prohibitively
