@@ -103,6 +103,35 @@ regions, as also described in these links. Additionally, MPI must
 have GPU support enabled (e.g. `export MPICH_GPU_SUPPORT_ENABLED=1`
 for Cray-MPICH).
 
+### Running on a HPC system
+
+The benchmark will often be run on a HPC system using a batch queueing system, such as SLURM.
+A typical submission script is shown below:
+
+```
+#!/bin/bash
+#SBATCH -p partition
+#SBATCH --nodes=16
+#SBATCH --gpus=64
+#SBATCH --exclusive
+#SBATCH --job-name=benchmark
+#SBATCH --ntasks-per-node=4
+#SBATCH --hint=nomultithread
+#SBATCH --time=00:20:00
+
+source /project/spack/share/spack/setup-env.sh
+spack env activate bench10
+module load libfabric/1.22.0
+
+# Check correctness compared to matrix
+srun -N ${SLURM_NNODES} -n ${SLURM_NTASKS} ./select_gpu ./bench_dolfinx --nreps=1 --mat_comp --ndofs_global=100000 --degree=3 --json mat_comp-${SLURM_NNODES}.json
+srun -N 1 -n 1 ./select_gpu ./bench_dolfinx --nreps=1 --mat_comp --ndofs_global=100000 --degree=3 --json mat_comp-single.json
+
+# Run Q3 problem with 300M dofs/device
+srun --mem-bind=local --cpu-bind=map_cpu:0,72,144,216 -N ${SLURM_NNODES} -n ${SLURM_NTASKS} ./select_gpu ./bench_dolfinx --ndofs=300000000 --degree=3 --cg --json Q3-300M.json
+# Run Q6 problem with 500M dofs/device
+srun --mem-bind=local --cpu-bind=map_cpu:0,72,144,216 -N ${SLURM_NNODES} -n ${SLURM_NTASKS} ./select_gpu ./bench_dolfinx --ndofs=500000000 --degree=6 --cg --json Q6-500M.json
+```
 
 ### Command line options
 
