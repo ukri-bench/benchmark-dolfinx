@@ -131,7 +131,7 @@ srun --mem-bind=local --cpu-bind=map_cpu:0,72,144,216 -N ${SLURM_NNODES} -n ${SL
 # Run Q6 problem with 500M dofs/device
 srun --mem-bind=local --cpu-bind=map_cpu:0,72,144,216 -N ${SLURM_NNODES} -n ${SLURM_NTASKS} ./select_gpu ./bench_dolfinx --ndofs=500000000 --degree=6 --cg --json Q6-500M.json
 ```
-See [examples] for example input and output files.
+See [examples](examples/example.md) for example input and output files.
 
 ### Command line options
 
