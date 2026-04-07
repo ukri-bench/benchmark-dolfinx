@@ -89,7 +89,7 @@ __device__ __forceinline__ int ijk(int i, int j, int k)
 /// single entity. The block size is (P+1, P+1, P+1) and the shared
 /// memory 2 * (P+1)^3 * sizeof(T).
 template <typename T, int P, int Q>
-__launch_bounds__(Q * Q * Q) __global__ void stiffness_operator_gpu(
+__launch_bounds__(Q* Q* Q) __global__ void stiffness_operator_gpu(
     const T* __restrict__ u, const T* __restrict__ entity_constants,
     T* __restrict__ b, const T* __restrict__ G_entity,
     const T* __restrict__ phi0_const, const T* __restrict__ dphi1_const,
@@ -253,7 +253,8 @@ __launch_bounds__(Q * Q * Q) __global__ void stiffness_operator_gpu(
   // TODO: Add some maths
 
   // Apply geometric transformation to data at quadrature point
-  const std::int64_t gid = static_cast<std::int64_t>(block_id) * cube_nq * 6 + thread_id;
+  const std::int64_t gid
+      = static_cast<std::int64_t>(block_id) * cube_nq * 6 + thread_id;
   const T G0 = non_temp_load(&G_entity[gid + cube_nq * 0]);
   const T G1 = non_temp_load(&G_entity[gid + cube_nq * 1]);
   const T G2 = non_temp_load(&G_entity[gid + cube_nq * 2]);
