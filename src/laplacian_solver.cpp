@@ -195,8 +195,15 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
     thrust::fill(z.array().begin(), z.array().end(), 0);
 
     dolfinx::common::Timer mtimer("% CSR Matvec");
-    for (int i = 0; i < nreps; ++i)
-      mat_op->apply(u, z);
+
+    if (use_cg)
+      cg_solve(*mat_op, z, u, nreps, T(0.0));
+    else
+    {
+      for (int i = 0; i < nreps; ++i)
+        mat_op->apply(u, z);
+    }
+
     mtimer.stop();
     mtimer.flush();
 
