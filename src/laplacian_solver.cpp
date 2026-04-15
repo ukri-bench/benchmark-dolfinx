@@ -324,17 +324,25 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
 
     dolfinx::la::SparsityPattern sp = dolfinx::fem::create_sparsity_pattern(a);
     sp.finalize();
+
     dolfinx::la::MatrixCSR<T> mat_op(sp);
     dolfinx::fem::assemble_matrix(mat_op.mat_add_values(), a, {bc});
     mat_op.scatter_rev();
     dolfinx::fem::set_diagonal<T>(mat_op.mat_set_values(), *V, {bc}, 1.0);
 
     dolfinx::common::Timer mtimer("% CSR Matvec");
-    for (int i = 0; i < nreps; ++i)
+    if (use_cg)
     {
-      std::fill(z.array().begin(), z.array().end(), 0);
-
-      mat_op.mult(u, z);
+      cg_solve<dolfinx::la::MatrixCSR<T>, dolfinx::la::Vector<T>, T, true>(
+          mat_op, z, u, nreps, T(0.0));
+    }
+    else
+    {
+      for (int i = 0; i < nreps; ++i)
+      {
+        std::fill(z.array().begin(), z.array().end(), 0);
+        mat_op.mult(u, z);
+      }
     }
     mtimer.stop();
 
