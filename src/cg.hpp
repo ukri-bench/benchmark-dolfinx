@@ -85,7 +85,7 @@ auto inner_product(const Vector& a, const Vector& b)
 /// @param b Vector RHS
 /// @param max_iter Maximum number of iterations
 /// @param rtol Tolerance (default 0.0 will enforce max_iter iterations)
-template <typename Operator, typename Vector, typename S, bool UseMult = false>
+template <typename Operator, typename Vector, typename S>
 int cg_solve(Operator& A, Vector& x, const Vector& b, int max_iter,
              S rtol = 0.0)
 {
@@ -104,13 +104,7 @@ int cg_solve(Operator& A, Vector& x, const Vector& b, int max_iter,
   Vector p(x.index_map(), x.bs());
 
   // Compute initial residual r0 = b - Ax0
-  if constexpr (UseMult)
-  {
-    std::fill(y.array().begin(), y.array().end(), 0);
-    A.mult(x, y);
-  }
-  else
-    A.apply(x, y);
+  A.apply(x, y);
   detail::axpy(r, -1, y, b);
   detail::axpy(p, 0.0, r, r);
 
@@ -129,13 +123,7 @@ int cg_solve(Operator& A, Vector& x, const Vector& b, int max_iter,
 
     // MatVec
     // y = A.p;
-    if constexpr (UseMult)
-    {
-      std::fill(y.array().begin(), y.array().end(), 0);
-      A.mult(p, y);
-    }
-    else
-      A.apply(p, y);
+    A.apply(p, y);
 
     // Calculate alpha = r.r/p.y
     const T alpha = rnorm / detail::inner_product(p, y);
