@@ -243,6 +243,24 @@ benchdolfinx::laplace_action_gpu<float>(const dolfinx::fem::Form<float>&,
                                         int, int, float, int, bool, bool, bool);
 /// @endcond
 #endif
+
+template <typename T>
+class CPUMatrixOperator
+{
+public:
+  using value_type = T;
+
+  CPUMatrixOperator(std::shared_ptr<dolfinx::la::MatrixCSR<T>> A) : _A(A) {}
+
+  void apply(dolfinx::la::Vector<T>& x, dolfinx::la::Vector<T>& y)
+  {
+    std::fill(y.array().begin(), y.array().end(), 0);
+    _A->mult(x, y);
+  }
+
+  std::shared_ptr<dolfinx::la::MatrixCSR<T>> _A;
+};
+
 //----------------------------------------------------------------------------
 template <typename T>
 BenchmarkResults benchdolfinx::laplace_action_cpu(
@@ -324,17 +342,22 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
 
     dolfinx::la::SparsityPattern sp = dolfinx::fem::create_sparsity_pattern(a);
     sp.finalize();
-    dolfinx::la::MatrixCSR<T> mat_op(sp);
-    dolfinx::fem::assemble_matrix(mat_op.mat_add_values(), a, {bc});
-    mat_op.scatter_rev();
-    dolfinx::fem::set_diagonal<T>(mat_op.mat_set_values(), *V, {bc}, 1.0);
+
+    auto mat_op = std::make_shared<dolfinx::la::MatrixCSR<T>>(sp);
+    dolfinx::fem::assemble_matrix(mat_op->mat_add_values(), a, {bc});
+    mat_op->scatter_rev();
+    dolfinx::fem::set_diagonal<T>(mat_op->mat_set_values(), *V, {bc}, 1.0);
+    CPUMatrixOperator<T> cpu_mat_op(mat_op);
 
     dolfinx::common::Timer mtimer("% CSR Matvec");
-    for (int i = 0; i < nreps; ++i)
+    if (use_cg)
     {
-      std::fill(z.array().begin(), z.array().end(), 0);
-
-      mat_op.mult(u, z);
+      cg_solve(cpu_mat_op, z, u, nreps, T(0.0));
+    }
+    else
+    {
+      for (int i = 0; i < nreps; ++i)
+        cpu_mat_op.apply(u, z);
     }
     mtimer.stop();
 
