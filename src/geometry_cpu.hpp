@@ -88,7 +88,9 @@ void geometry_computation_cpu(std::span<const T> xgeom, std::span<T> G_entity,
 
       T detJ = J[0][0] * K[0][0] - J[0][1] * K[1][0] + J[0][2] * K[2][0];
 
-      int offset = (c * nq * 6 + iq);
+      std::int64_t offset
+          = static_cast<std::int64_t>(c) * static_cast<std::int64_t>(nq * 6)
+            + static_cast<std::int64_t>(iq);
       G_entity[offset]
           = (K[0][0] * K[0][0] + K[0][1] * K[0][1] + K[0][2] * K[0][2])
             * weights[iq] / detJ;
