@@ -50,9 +50,9 @@ static __global__ void pack_gpu(const int N,
 /// @note Overwrites values if multiple are received with the same index, should
 /// only be used for forward scatter to ghost region.
 template <typename T>
-static __global__ void unpack_gpu(const int N,
-                                  const std::int32_t* __restrict__ indices,
-                                  const T* __restrict__ in, T* __restrict__ out)
+static __global__ void unpack_insert_gpu(const int N,
+                                         const std::int32_t* __restrict__ indices,
+                                         const T* __restrict__ in, T* __restrict__ out)
 {
   int gid = blockIdx.x * blockDim.x + threadIdx.x;
   if (gid < N)
@@ -123,31 +123,61 @@ auto get_pack_fn(int block_size)
 ///
 /// out[idx[i]] = in[i]
 template <typename T>
-auto get_unpack_fn(int block_size, int num_blocks)
+auto get_unpack_insert_fn(int block_size)
 {
   return
-      [num_blocks, block_size](
+      [block_size](
           typename thrust::device_vector<std::int32_t>::const_iterator
               idx_first,
           typename thrust::device_vector<std::int32_t>::const_iterator idx_last,
           typename thrust::device_vector<T>::const_iterator in_first,
           typename thrust::device_vector<T>::iterator out_first)
   {
-    dim3 dim_block(block_size);
-    dim3 dim_grid(num_blocks);
-    spdlog::debug("scatter_fwd_end step 2");
     if (std::size_t d = thrust::distance(idx_first, idx_last); d > 0)
     {
+      int num_blocks = (d + block_size - 1) / block_size;
+      dim3 dim_block(block_size);
+      dim3 dim_grid(num_blocks);
       const int32_t* idx_ptr = thrust::raw_pointer_cast(&idx_first[0]);
       const T* in_ptr = thrust::raw_pointer_cast(&in_first[0]);
       T* out_ptr = thrust::raw_pointer_cast(&out_first[0]);
-      benchdolfinx::impl::unpack_gpu<T>
+      benchdolfinx::impl::unpack_insert_gpu<T>
           <<<dim_grid, dim_block, 0, 0>>>(d, idx_ptr, in_ptr, out_ptr);
       device_synchronize();
     }
   };
 };
 
+/// @brief
+///
+/// out[idx[i]] += in[i]
+template <typename T>
+auto get_unpack_add_fn(int block_size)
+{
+  return
+      [block_size](
+          typename thrust::device_vector<std::int32_t>::const_iterator
+              idx_first,
+          typename thrust::device_vector<std::int32_t>::const_iterator idx_last,
+          typename thrust::device_vector<T>::const_iterator in_first,
+          typename thrust::device_vector<T>::iterator out_first)
+  {
+    if (std::size_t d = thrust::distance(idx_first, idx_last); d > 0)
+    {
+      int num_blocks = (d + block_size - 1) / block_size;
+      dim3 dim_block(block_size);
+      dim3 dim_grid(num_blocks);
+      const int32_t* idx_ptr = thrust::raw_pointer_cast(&idx_first[0]);
+      const T* in_ptr = thrust::raw_pointer_cast(&in_first[0]);
+      T* out_ptr = thrust::raw_pointer_cast(&out_first[0]);
+      benchdolfinx::impl::unpack_add_gpu<T>
+          <<<dim_grid, dim_block, 0, 0>>>(d, idx_ptr, in_ptr, out_ptr);
+      device_synchronize();
+    }
+  };
+};
+
+  
 /// @brief Compute the inner product of two vectors.
 ///
 /// The two vectors must have the same parallel layout.

@@ -191,7 +191,7 @@ public:
           num_rows, _A.values().data().get(), _A.row_ptr().data().get(),
           _A.off_diag_offset().data().get(), _A.cols().data().get(), _x, _y);
       check_device_last_error();
-      x.scatter_fwd_end(get_unpack_fn<T>(512, 1));
+      x.scatter_fwd_end(get_unpack_insert_fn<T>(512));
 
       impl::spmvT_impl<T><<<grid_size, block_size, 0, 0>>>(
           num_rows, _A.values().data().get(), _A.off_diag_offset().data().get(),
@@ -209,7 +209,7 @@ public:
           num_rows, _A.values().data().get(), _A.row_ptr().data().get(),
           _A.off_diag_offset().data().get(), _A.cols().data().get(), _x, _y);
       check_device_last_error();
-      x.scatter_fwd_end(get_unpack_fn<T>(512, 1));
+      x.scatter_fwd_end(get_unpack_insert_fn<T>(512));
 
       impl::spmv_impl<T><<<grid_size, block_size, 0, 0>>>(
           num_rows, _A.values().data().get(), _A.off_diag_offset().data().get(),
