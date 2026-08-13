@@ -66,7 +66,7 @@ template <typename T>
 BenchmarkResults benchdolfinx::laplace_action_gpu(
     const dolfinx::fem::Form<T>& a, const dolfinx::fem::Form<T>& L,
     const dolfinx::fem::DirichletBC<T>& bc, int degree, int qmode, T kappa,
-    int nreps, bool use_gauss, bool matrix_comparison, bool use_cg)
+    int nreps, bool use_gauss, bool matrix_comparison, bool use_cg, bool ghost_update)
 {
   auto V = a.function_spaces()[0];
 
@@ -93,7 +93,7 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
       = use_gauss ? basix::quadrature::type::gauss_jacobi
                   : basix::quadrature::type::gll;
 
-  MatFreeLaplacianGPU<T> op(*V, bc, degree, qmode, kappa, quad_type);
+  MatFreeLaplacianGPU<T> op(*V, bc, degree, qmode, kappa, quad_type, ghost_update);
 
   op_create_timer.stop();
 
@@ -233,13 +233,13 @@ template benchdolfinx::BenchmarkResults
 benchdolfinx::laplace_action_gpu<double>(
     const dolfinx::fem::Form<double>&, const dolfinx::fem::Form<double>&,
     const dolfinx::fem::DirichletBC<double>&, int, int, double, int, bool, bool,
-    bool);
+    bool, bool);
 
 template benchdolfinx::BenchmarkResults
 benchdolfinx::laplace_action_gpu<float>(const dolfinx::fem::Form<float>&,
                                         const dolfinx::fem::Form<float>&,
                                         const dolfinx::fem::DirichletBC<float>&,
-                                        int, int, float, int, bool, bool, bool);
+                                        int, int, float, int, bool, bool, bool, bool);
 /// @endcond
 #endif
 

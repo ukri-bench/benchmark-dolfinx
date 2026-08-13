@@ -29,7 +29,7 @@ BenchmarkResults laplace_action_gpu(const dolfinx::fem::Form<T>& a,
                                     const dolfinx::fem::DirichletBC<T>& bc,
                                     int degree, int qmode, T kappa, int nreps,
                                     bool use_gauss, bool matrix_comparison,
-                                    bool use_cg);
+                                    bool use_cg, bool ghost_update);
 #endif
 
 /// @brief Compute action of Laplacian on CPU

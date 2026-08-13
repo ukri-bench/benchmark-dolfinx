@@ -99,9 +99,10 @@ public:
   /// @param qmode Quadrature mode (0 or 1)
   /// @param constant Coefficient value, used on all cells
   /// @param quad_type Quadrature type (GLL or Gauss)
+  /// @param ghost_update Perform a reverse scatter after each operator action
   MatFreeLaplacianGPU(const dolfinx::fem::FunctionSpace<T>& V,
                       const dolfinx::fem::DirichletBC<T>& bc, int degree,
-                      int qmode, T constant, basix::quadrature::type quad_type)
+                      int qmode, T constant, basix::quadrature::type quad_type, bool ghost_update)
       : _degree(degree), _cell_constants(impl::num_cells(*V.mesh()), constant),
         _cell_dofmap(V.dofmap()->map().data_handle(),
                      V.dofmap()->map().data_handle()
@@ -111,7 +112,8 @@ public:
         _geometry_dofmap(V.mesh()->geometry().dofmap().data_handle(),
                          V.mesh()->geometry().dofmap().data_handle()
                              + V.mesh()->geometry().dofmap().size()),
-        _bc_marker(impl::build_bc_markers(bc))
+        _bc_marker(impl::build_bc_markers(bc)),
+        _ghost_update(ghost_update)
   {
     {
       auto [lcells, bcells] = benchdolfinx::compute_boundary_cells(
@@ -343,8 +345,16 @@ private:
 
       check_device_last_error();
     }
-
     device_synchronize();
+
+    if (_ghost_update)
+    {  
+      out.scatter_rev_begin(get_pack_fn<T>(512),
+                         [](auto&& x) { return x.data().get(); });
+      out.scatter_rev_end(get_unpack_add_fn<T>(512));
+      device_synchronize();
+    }
+
     spdlog::debug("impl_operator done bcells");
   }
 
@@ -421,6 +431,8 @@ private:
   thrust::device_vector<T> _dphi_geometry;
 
   thrust::device_vector<std::int8_t> _bc_marker;
+
+  bool _ghost_update;
 
   // On device storage for geometry quadrature weights
   thrust::device_vector<T> _g_weights;
@@ -745,7 +757,7 @@ private:
   std::vector<T> _dphi_geometry;
 
   std::vector<std::int8_t> _bc_marker;
-
+  
   // On device storage for geometry quadrature weights
   std::vector<T> _g_weights;
 
@@ -754,7 +766,7 @@ private:
 
   // Interpolation is the identity
   bool _is_identity;
-
+  
   // Lists of cells which are local (lcells) and boundary (bcells)
 
   // Exclusively owned cells (not not share dofs with other processes)

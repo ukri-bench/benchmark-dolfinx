@@ -26,7 +26,7 @@ namespace
 template <std::floating_point T>
 dolfinx::mesh::Mesh<T>
 ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
-                 dolfinx::fem::CoordinateElement<T> coord_element)
+                 dolfinx::fem::CoordinateElement<T> coord_element, bool ghost_layer)
 {
   constexpr int tdim = 3;
   constexpr int gdim = 3;
@@ -60,7 +60,7 @@ ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
   spdlog::info("cell_to_dests= {}, ncells = {}", cell_to_dests.size(), ncells);
 
   auto partitioner
-      = [cell_to_dests,
+    = [cell_to_dests, ghost_layer,
          ncells](MPI_Comm comm, int nparts,
                  const std::vector<dolfinx::mesh::CellType>& cell_types,
                  const std::vector<std::span<const std::int64_t>>& cells)
@@ -71,9 +71,12 @@ ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
     for (std::size_t c = 0; c < ncells; ++c)
     {
       dests.push_back(rank);
-      if (auto it = cell_to_dests.find(c); it != cell_to_dests.end())
-        dests.insert(dests.end(), it->second.begin(), it->second.end());
-
+      if (ghost_layer)
+      {
+        if (auto it = cell_to_dests.find(c); it != cell_to_dests.end())
+          dests.insert(dests.end(), it->second.begin(), it->second.end());
+      }
+      
       // Ghost to other processes
       offsets.push_back(dests.size());
     }
@@ -190,7 +193,7 @@ benchdolfinx::compute_boundary_cells(const dolfinx::mesh::Topology& topology,
 template <std::floating_point T>
 dolfinx::mesh::Mesh<T> benchdolfinx::create_mesh(MPI_Comm comm,
                                                  std::array<std::int64_t, 3> n,
-                                                 T geom_perturb_fact)
+                                                 T geom_perturb_fact, bool ghost_layer)
 {
   dolfinx::mesh::Mesh<T> mesh0 = dolfinx::mesh::create_box<T>(
       comm, {{{0, 0, 0}, {1, 1, 1}}}, {n[0], n[1], n[2]},
@@ -214,17 +217,17 @@ dolfinx::mesh::Mesh<T> benchdolfinx::create_mesh(MPI_Comm comm,
           basix::element::dpc_variant::unset, false));
   dolfinx::fem::CoordinateElement<T> celement(element);
 
-  return ghost_layer_mesh(mesh0, celement);
+  return ghost_layer_mesh(mesh0, celement, ghost_layer);
 }
 //----------------------------------------------------------------------------
 // Explicit instantiation for double and float
 /// @cond
 template dolfinx::mesh::Mesh<double>
 benchdolfinx::create_mesh<double>(MPI_Comm comm, std::array<std::int64_t, 3> n,
-                                  double geom_perturb_fact);
+                                  double geom_perturb_fact, bool);
 template dolfinx::mesh::Mesh<float>
 benchdolfinx::create_mesh<float>(MPI_Comm comm, std::array<std::int64_t, 3> n,
-                                 float geom_perturb_fact);
+                                 float geom_perturb_fact, bool);
 
 /// @endcond
 //----------------------------------------------------------------------------

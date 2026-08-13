@@ -49,10 +49,11 @@ std::array<std::int64_t, 3> compute_mesh_size(std::int64_t ndofs_global,
 /// @param comm MPI Communicator
 /// @param n Number of cells in each direction
 /// @param geom_perturb_fact Random perturbation to the geometry by this factor
+/// @param ghost_layer Create a single layer of ghost cells, avoiding need to update solution after operator
 /// @return A mesh
 template <std::floating_point T>
 dolfinx::mesh::Mesh<T> create_mesh(MPI_Comm comm, std::array<std::int64_t, 3> n,
-                                   T geom_perturb_fact);
+                                   T geom_perturb_fact, bool ghost_layer);
 
 /// @brief Compute cell index partitions based on sharing.
 ///

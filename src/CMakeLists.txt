@@ -51,14 +51,10 @@ elseif(nvidia)
 endif()
 
 set(CMAKE_CXX_FLAGS "-O3 -ffast-math ${CMAKE_CXX_FLAGS} -DNDEBUG -Wall")
-set(CMAKE_C_FLAGS "-O3 -ffast-math ${CMAKE_C_FLAGS} -DNDEBUG -Wall")
+set(CMAKE_C_FLAGS "-O3 -ffast-math ${CMAKE_C_FLAGS} -fPIC -DNDEBUG -Wall")
 
-if(CMAKE_HIP_COMPILER_VERSION GREATER_EQUAL 18)
-  # See
-  # https://rocm.docs.amd.com/projects/llvm-project/en/docs-6.2.1/LLVM/clang/html/ReleaseNotes.html#c-specific-potentially-breaking-changes
-  set(CMAKE_HIP_FLAGS "${CMAKE_HIP_FLAGS} -fclang-abi-compat=17")
-endif()
-set(CMAKE_HIP_FLAGS "${CMAKE_HIP_FLAGS} -std=c++20 -Wall -O3 -ffast-math -DNDEBUG -munsafe-fp-atomics")
+set(CMAKE_HIP_FLAGS "${CMAKE_HIP_FLAGS} -fclang-abi-compat=17")
+set(CMAKE_HIP_FLAGS "${CMAKE_HIP_FLAGS} --gcc-toolchain=/software/zenith/spack/opt-2026-07-01/linux-x86_64_v4/gcc-15.3.0-etcbbi6z7gv4ois26zuvqienfcausiac -fPIC -std=c++20 -Wall -O3 -ffast-math -DNDEBUG -munsafe-fp-atomics")
 
 if(DEFINED ENV{CRAYPE_VERSION})
   message("Detected CrayPE - adding MPI flags")

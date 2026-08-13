@@ -42,17 +42,19 @@ template <typename T>
 json::value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
                           double geom_perturb_fact, int degree, int qmode,
                           int nreps, bool use_gauss, bool matrix_comparison,
-                          std::string platform, bool use_cg)
+                          std::string platform, bool use_cg, bool ghost_layer)
 {
   int rank(0), size(0);
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &size);
 
+  bool ghost_update = !ghost_layer;
+  
   // Create mesh
   spdlog::info("Mesh cells in each direction: {} x {} x {}", nx[0], nx[1],
                nx[2]);
   auto mesh = std::make_shared<mesh::Mesh<T>>(
-      benchdolfinx::create_mesh<T>(comm, nx, geom_perturb_fact));
+                                              benchdolfinx::create_mesh<T>(comm, nx, geom_perturb_fact, ghost_layer));
 
   // Finite element for higher-order discretisation
   auto element = basix::create_tp_element<T>(
@@ -113,7 +115,7 @@ json::value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
   {
     results = benchdolfinx::laplace_action_gpu<T>(
         a, L, bc, degree, qmode, kappa->value[0], nreps, use_gauss,
-        matrix_comparison, use_cg);
+        matrix_comparison, use_cg, ghost_update);
   }
 #endif
   else
@@ -162,6 +164,8 @@ int main(int argc, char* argv[])
       //
       ("cg", po::bool_switch()->default_value(false),
        "Do CG iterations, rather than simple operator action")
+      //
+      ("ghost", po::bool_switch()->default_value(false), "Ghost layer")
       //
       ("nreps", po::value<std::size_t>()->default_value(1000),
        "Number of repetitions")
@@ -219,6 +223,7 @@ int main(int argc, char* argv[])
   double geom_perturb_fact = vm["geom_perturb_fact"].as<double>();
   bool use_gauss = vm["use_gauss"].as<bool>();
   bool use_cg = vm["cg"].as<bool>();
+  bool ghost_layer = vm["ghost"].as<bool>();
   std::string json_filename = vm["json"].as<std::string>();
 
   // Quadrature mode (qmode=0: nq = P + 1, qmode=1: nq = P + 2)
@@ -253,6 +258,7 @@ int main(int argc, char* argv[])
       std::cout << "Number of repetitions : " << nreps << std::endl;
       std::cout << "Scalar Type: " << float_size << std::endl;
       std::cout << "Use Gauss-Jacobi: " << use_gauss << std::endl;
+      std::cout << "Use ghost layer: " << ghost_layer << std::endl;
       std::cout << "Compare to matrix: " << matrix_comparison << std::endl;
       std::cout << "-----------------------------------" << std::endl;
       ;
@@ -278,13 +284,13 @@ int main(int argc, char* argv[])
     {
       out_root = run_benchmark<float>(comm, nx, geom_perturb_fact, degree,
                                       qmode, nreps, use_gauss,
-                                      matrix_comparison, platform, use_cg);
+                                      matrix_comparison, platform, use_cg, ghost_layer);
     }
     else if (float_size == 64)
     {
       out_root = run_benchmark<double>(comm, nx, geom_perturb_fact, degree,
                                        qmode, nreps, use_gauss,
-                                       matrix_comparison, platform, use_cg);
+                                       matrix_comparison, platform, use_cg, ghost_layer);
     }
     else
     {
