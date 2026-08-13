@@ -2,19 +2,19 @@
 # Garth N. Wells
 # SPDX-License-Identifier:    MIT
 
+import basix
+from basix.ufl import blocked_element, wrap_element
 from ufl import (
     Coefficient,
     Constant,
     FunctionSpace,
-    Mesh,
     Measure,
+    Mesh,
     TestFunction,
     TrialFunction,
     grad,
     inner,
 )
-import basix
-from basix.ufl import blocked_element, wrap_element
 
 q_map_gll = {1: 1, 2: 3, 3: 4, 4: 6, 5: 8, 6: 10, 7: 12, 8: 14}
 q_map_gl = {1: 2, 2: 4, 3: 6, 4: 8, 5: 10, 6: 12, 7: 14, 8: 16}

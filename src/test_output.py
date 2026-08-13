@@ -1,13 +1,13 @@
 import json
 import pprint
-import numpy as np
 import sys
+
+import numpy as np
 
 filename = sys.argv[1]
 
-f = open(filename, "r")
-data = json.load(f)
-f.close()
+with open(filename, "r") as f:
+    data = json.load(f)
 
 pprint.pprint(data)
 

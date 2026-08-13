@@ -117,6 +117,6 @@ jobs:
       - name: Push packages and update index
         shell: spack-bash {0}
         run: |
-          spack -e . buildcache push --only dependencies --with-build-dependencies \
+          spack -e . buildcache push --only package \
             --base-image ubuntu:24.04 --update-index local-buildcache
         if: ${{ !cancelled() }}

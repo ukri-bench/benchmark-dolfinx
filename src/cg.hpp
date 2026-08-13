@@ -132,8 +132,7 @@ int cg_solve(Operator& A, Vector& x, const Vector& b, int max_iter,
 #if defined(USE_CUDA) || defined(USE_HIP)
       p.scatter_fwd_begin(benchdolfinx::get_pack_fn<T>(512),
                           [](auto&& x) { return x.data().get(); });
-      p.scatter_fwd_end(benchdolfinx::get_unpack_fn<T>(
-          512, p.index_map()->num_ghosts() / 512 + 1));
+      p.scatter_fwd_end(benchdolfinx::get_unpack_insert_fn<T>(512));
 #endif
     }
 
