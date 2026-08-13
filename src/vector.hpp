@@ -50,9 +50,9 @@ static __global__ void pack_gpu(const int N,
 /// @note Overwrites values if multiple are received with the same index, should
 /// only be used for forward scatter to ghost region.
 template <typename T>
-static __global__ void unpack_insert_gpu(const int N,
-                                         const std::int32_t* __restrict__ indices,
-                                         const T* __restrict__ in, T* __restrict__ out)
+static __global__ void
+unpack_insert_gpu(const int N, const std::int32_t* __restrict__ indices,
+                  const T* __restrict__ in, T* __restrict__ out)
 {
   int gid = blockIdx.x * blockDim.x + threadIdx.x;
   if (gid < N)
@@ -177,7 +177,6 @@ auto get_unpack_add_fn(int block_size)
   };
 };
 
-  
 /// @brief Compute the inner product of two vectors.
 ///
 /// The two vectors must have the same parallel layout.
