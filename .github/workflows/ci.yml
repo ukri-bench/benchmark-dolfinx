@@ -107,7 +107,9 @@ jobs:
             https://github.com/ukri-bench/spack-packages.git "${RUNNER_TEMP}/spack-packages"
           spack repo add "${RUNNER_TEMP}/spack-packages/spack_pkgs/spack_repo/ukri_bench"
           spack env create ci .github/spack/ci-env.yaml
-          spack -e ci add bench-dolfinx
+          # The recipe's default version is the DOLFINx 0.10 release; build
+          # against the dependencies of main
+          spack -e ci add bench-dolfinx@main
           spack -e ci concretize -j "$(nproc)"
 
       - name: Install dependencies

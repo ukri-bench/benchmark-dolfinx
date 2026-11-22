@@ -81,6 +81,12 @@ benchmark-specific CMake options are available:
 - The dependency `basix` requires BLAS libraries. On Cray systems using `cray-libsci` these need to be specified to `cmake`.
 This is encoded in the spack recipe at [https://github.com/FEniCS/spack-fenics/blob/main/spack_repo/fenics/packages/fenics_basix/package.py].
 
+- nvcc 13 aborts with an internal error when compiling the DOLFINx 0.11
+  header `dolfinx/mesh/EntityMap.h`. When building manually with CUDA, apply
+  the
+  [patch](https://github.com/ukri-bench/spack-packages/blob/main/spack_pkgs/spack_repo/ukri_bench/packages/bench_dolfinx/dolfinx-0.11-entitymap-nvcc.patch)
+  to DOLFINx. The Spack package applies this patch automatically.
+
 - A C++20 compiler capable of handling `std::format` is required. On some systems, it is necessary to explicitly pass this to `nvcc` or `hipcc` through a command line argument, e.g. `--gcc-toolchain=/opt/rh/gcc-toolset-13/root/usr`.
 
 - On Cray systems it may be necessary to explicity give the MPI path in the `CMakeLists.txt`.
