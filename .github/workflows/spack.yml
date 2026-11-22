@@ -49,7 +49,7 @@ jobs:
           runtime: ${{ matrix.backend.device }}
 
       - name: Set up Spack
-        uses: ukri-bench/spack-packages/.github/actions/setup-spack@spack-versions-file
+        uses: ./.github/actions/setup-spack
 
       - if: ${{ matrix.backend.device != 'rocm' }}
         name: Get Spack config

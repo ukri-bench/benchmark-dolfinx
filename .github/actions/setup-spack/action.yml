@@ -1,0 +1,21 @@
+name: Set up Spack
+description: >-
+  Install the Spack release and spack/spack-packages commit pinned in
+  .github/spack/versions.env, and export SPACK_VERSION and
+  SPACK_PACKAGES_COMMIT for later steps.
+
+runs:
+  using: composite
+  steps:
+    - name: Load Spack versions
+      id: versions
+      shell: sh
+      run: |
+        grep -E '^[A-Z_]+=' "${GITHUB_ACTION_PATH}/../../spack/versions.env" \
+          | tee -a "${GITHUB_ENV}" >> "${GITHUB_OUTPUT}"
+
+    - name: Set up Spack
+      uses: spack/setup-spack@16b756799ede8b28951287f89bcd3fdb32ec1ca3 # v3.0.0
+      with:
+        spack_ref: ${{ steps.versions.outputs.SPACK_VERSION }}
+        packages_ref: ${{ steps.versions.outputs.SPACK_PACKAGES_COMMIT }}

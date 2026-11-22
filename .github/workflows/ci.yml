@@ -3,10 +3,10 @@ name: Benchmark build and run
 # Builds the benchmark for CPU, CUDA and ROCm in Ubuntu 26.04 containers and
 # runs the CPU build.
 #
-# Dependencies are installed with Spack using the setup-spack action, Spack
-# environment and bench-dolfinx recipe from ukri-bench/spack-packages, so they
-# have the same hashes as that repository's builds and come from its build
-# cache. The Spack and spack-packages versions are pinned there.
+# Dependencies are installed with Spack using the same setup as
+# ukri-bench/spack-packages, so they come from its build cache. Keep
+# .github/spack/versions.env and .github/spack/ci-env.yaml the same as in that
+# repository, or the dependency hashes change and are rebuilt.
 #
 # GitHub-hosted runners have no GPUs, so the GPU builds only compile: they need
 # the CUDA/ROCm compilers but no drivers, and build against the same (CPU)
@@ -88,12 +88,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Spack
-        uses: ukri-bench/spack-packages/.github/actions/setup-spack@spack-versions-file
+        uses: ./.github/actions/setup-spack
 
       - name: Create Spack environment
         run: |
-          spack repo add "${UKRI_BENCH_REPO}"
-          spack env create ci "${UKRI_BENCH_CI_ENV}"
+          spack repo add --name ukri_bench https://github.com/ukri-bench/spack-packages.git
+          spack env create ci .github/spack/ci-env.yaml
           spack -e ci add bench-dolfinx
           spack -e ci concretize -j "$(nproc)"
 
