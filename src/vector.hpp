@@ -223,7 +223,8 @@ auto squared_norm(const U& a)
 /// @param type Norm type (supported types are \f$L^2\f$ and
 /// \f$L^\infty\f$).
 template <typename U>
-auto norm(const U& a, dolfinx::la::Norm type = dolfinx::la::Norm::l2)
+typename U::value_type norm(const U& a,
+                            dolfinx::la::Norm type = dolfinx::la::Norm::l2)
 {
   switch (type)
   {
