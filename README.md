@@ -51,18 +51,34 @@ The benchmark can be built using Spack or manually using CMake.
 
 ### Spack
 
-A Spack package is provided in the repository
-https://github.com/ukri-bench/spack-packages. To view the package
-options:
+A Spack package, `bench-dolfinx`, is provided in the repository
+https://github.com/ukri-bench/spack-packages. Spack v1.0 or later is
+required. To add the repository and view the package variants:
 
 ```bash
-spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git bench_pkgs
-spack repo add --name fenics https://github.com/FEniCS/spack-fenics.git fenics
+spack repo add https://github.com/ukri-bench/spack-packages.git
 spack info bench-dolfinx
 ```
 
-Options are used to specify CPU and GPU (AMD or CUDA) builds, e.g. `+cuda cuda_arch=80` or `+rocm amdgpu_target=gfx90a`. The
-benchmark builds an executable `bench_dolfinx`.
+The default is a CPU build. GPU builds use `+cuda` or `+rocm` (not
+both) and require the target GPU architecture:
+
+```bash
+spack install bench-dolfinx
+spack install bench-dolfinx +cuda cuda_arch=80
+spack install bench-dolfinx +rocm amdgpu_target=gfx90a
+```
+
+The benchmark builds an executable `bench_dolfinx`. To install it in a
+Spack environment, which puts `bench_dolfinx` on the `PATH` when the
+environment is activated:
+
+```bash
+spack env create bench
+spack -e bench add bench-dolfinx +cuda cuda_arch=80
+spack -e bench install
+spack env activate bench
+```
 
 ### CMake
 
@@ -78,14 +94,21 @@ benchmark-specific CMake options are available:
 
 ### Potential compilation issues
 
-- The dependency `basix` requires BLAS libraries. On Cray systems using `cray-libsci` these need to be specified to `cmake`.
-This is encoded in the spack recipe at [https://github.com/FEniCS/spack-fenics/blob/main/spack_repo/fenics/packages/fenics_basix/package.py].
+- The dependency `basix` requires BLAS libraries. On Cray systems using
+  `cray-libsci` these need to be specified to `cmake`. The `fenics-basix`
+  recipe in [spack-fenics](https://github.com/FEniCS/spack-fenics) does
+  this; when building with Spack on Cray systems, add it with `spack repo
+  add https://github.com/FEniCS/spack-fenics.git`.
 
-- The version of `mdspan.hpp` distributed in `basix` v0.10.0 is not compatible with CUDA 13. A patch is available at [https://github.com/FEniCS/spack-fenics/blob/main/spack_repo/fenics/packages/fenics_basix/mdspan.patch], which should be applied if using CUDA 13.0 or higher.
+- The version of `mdspan.hpp` distributed in `basix` v0.10.0 is not
+  compatible with CUDA 13. When building manually with CUDA 13.0 or higher,
+  apply the
+  [patch](https://github.com/spack/spack-packages/blob/develop/repos/spack_repo/builtin/packages/fenics_basix/mdspan.patch)
+  to Basix. Spack applies this patch automatically.
 
 - A C++20 compiler capable of handling `std::format` is required. On some systems, it is necessary to explicitly pass this to `nvcc` or `hipcc` through a command line argument, e.g. `--gcc-toolchain=/opt/rh/gcc-toolset-13/root/usr`.
 
-- On Cray systems it may be necessary to explicity give the MPI path in the `CMakeLists.txt`.
+- On Cray systems it may be necessary to explicitly give the MPI path in the `CMakeLists.txt`.
 
 ## Running the benchmarks
 
@@ -106,7 +129,9 @@ for Cray-MPICH).
 ### Running on a HPC system
 
 The benchmark will often be run on a HPC system using a batch queueing system, such as SLURM.
-A typical submission script is shown below:
+A typical submission script is shown below. It uses the Spack environment
+`bench` (see [Spack](#spack)) and a GPU binding script `select_gpu` (see
+above):
 
 ```
 #!/bin/bash
@@ -120,16 +145,16 @@ A typical submission script is shown below:
 #SBATCH --time=00:20:00
 
 source /project/spack/share/spack/setup-env.sh
-spack env activate bench10
+spack env activate bench
 module load libfabric/1.22.0
 
 # Check correctness compared to matrix
-srun -N ${SLURM_NNODES} -n ${SLURM_NTASKS} ./select_gpu ./bench_dolfinx --nreps=1 --mat_comp --ndofs_global=100000 --degree=3 --json mat_comp-${SLURM_NNODES}.json
+srun -N ${SLURM_NNODES} -n ${SLURM_NTASKS} ./select_gpu bench_dolfinx --nreps=1 --mat_comp --ndofs_global=100000 --degree=3 --json mat_comp-${SLURM_NNODES}.json
 
 # Run Q3 problem with 300M dofs/device
-srun --mem-bind=local --cpu-bind=map_cpu:0,72,144,216 -N ${SLURM_NNODES} -n ${SLURM_NTASKS} ./select_gpu ./bench_dolfinx --ndofs=300000000 --degree=3 --cg --json Q3-300M.json
+srun --mem-bind=local --cpu-bind=map_cpu:0,72,144,216 -N ${SLURM_NNODES} -n ${SLURM_NTASKS} ./select_gpu bench_dolfinx --ndofs=300000000 --degree=3 --cg --json Q3-300M.json
 # Run Q6 problem with 500M dofs/device
-srun --mem-bind=local --cpu-bind=map_cpu:0,72,144,216 -N ${SLURM_NNODES} -n ${SLURM_NTASKS} ./select_gpu ./bench_dolfinx --ndofs=500000000 --degree=6 --cg --json Q6-500M.json
+srun --mem-bind=local --cpu-bind=map_cpu:0,72,144,216 -N ${SLURM_NNODES} -n ${SLURM_NTASKS} ./select_gpu bench_dolfinx --ndofs=500000000 --degree=6 --cg --json Q6-500M.json
 ```
 
 See [examples](examples/example.md) for example input and output files.
