@@ -1,7 +1,7 @@
 # DOLFINx benchmark
 
-[![Spack build and run](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/spack.yml/badge.svg)](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/spack.yml)
-[![Test benchmark](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/ci.yml/badge.svg)](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/ci.yml)
+[![Benchmark build and run](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/ci.yml/badge.svg?event=merge_group)](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/ci.yml?query=event%3Amerge_group)
+[![Lint](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/lint.yml/badge.svg?event=merge_group)](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/lint.yml?query=event%3Amerge_group)
 
 This benchmark tests the performance of an unstructured grid finite
 element solver. It solves the Poisson equation on a mesh of hexahedral
