@@ -67,7 +67,7 @@ benchmark builds an executable `bench_dolfinx`.
 ### CMake
 
 The benchmark depends on the library
-[DOLFINx](https://github.com/fenics/dolfinx) v0.10.0 and can be built using
+[DOLFINx](https://github.com/fenics/dolfinx) v0.11 and can be built using
 CMake. See the benchmark Spack package
 [file](https://github.com/ukri-bench/spack-packages/blob/main/spack_pkgs/spack_repo/ukri_bench/packages/bench_dolfinx/package.py) and the Spack dependencies for a comprehensive list of dependencies.
 
@@ -80,8 +80,6 @@ benchmark-specific CMake options are available:
 
 - The dependency `basix` requires BLAS libraries. On Cray systems using `cray-libsci` these need to be specified to `cmake`.
 This is encoded in the spack recipe at [https://github.com/FEniCS/spack-fenics/blob/main/spack_repo/fenics/packages/fenics_basix/package.py].
-
-- The version of `mdspan.hpp` distributed in `basix` v0.10.0 is not compatible with CUDA 13. A patch is available at [https://github.com/FEniCS/spack-fenics/blob/main/spack_repo/fenics/packages/fenics_basix/mdspan.patch], which should be applied if using CUDA 13.0 or higher.
 
 - A C++20 compiler capable of handling `std::format` is required. On some systems, it is necessary to explicitly pass this to `nvcc` or `hipcc` through a command line argument, e.g. `--gcc-toolchain=/opt/rh/gcc-toolset-13/root/usr`.
 
