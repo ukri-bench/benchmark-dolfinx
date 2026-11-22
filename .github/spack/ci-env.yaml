@@ -1,0 +1,34 @@
+# Spack environment for the CPU build in .github/workflows/ci.yml.
+#
+# Copy of .github/spack/ci-env.yaml in ukri-bench/spack-packages. Keep the two
+# identical (and SPACK_VERSION/SPACK_PACKAGES_COMMIT in ci.yml in sync with
+# that repository's build-package.yml) so dependencies concretize to the same
+# hashes and are taken from the shared build cache.
+spack:
+  view: /opt/view
+  config:
+    install_tree:
+      root: /opt/spack
+      # Padding lets cached binaries be relocated to longer install paths
+      padded_length: 128
+    build_stage:
+      - /opt/spack-stage
+
+  concretizer:
+    unify: true
+    reuse: false
+
+  packages:
+    all:
+      # Generic target so binaries are reusable across runner CPU models
+      require:
+        - target=x86_64_v3
+
+  mirrors:
+    ukri-bench-buildcache:
+      url: oci://ghcr.io/ukri-bench/spack-packages-buildcache
+      binary: true
+      signed: false
+      access_pair:
+        id_variable: GITHUB_USER
+        secret_variable: GITHUB_TOKEN

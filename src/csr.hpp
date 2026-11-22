@@ -8,6 +8,7 @@
 #include "vector.hpp"
 #include <dolfinx/la/MatrixCSR.h>
 #include <limits>
+#include <thrust/count.h>
 #include <thrust/device_vector.h>
 
 namespace benchdolfinx::impl
@@ -76,29 +77,57 @@ __global__ void spmvT_impl(int N, const T* values,
   }
 }
 
+/// @brief Extract the diagonal of a CSR matrix, one thread per row.
+///
+/// Rows without a stored diagonal entry get 0.
+///
+/// @param[in] N Number of rows
+/// @param[in] values Matrix values
+/// @param[in] row_ptr Row offsets into `cols` and `values`
+/// @param[in] cols Local column indices
+/// @param[out] diag Diagonal entries (length `N`)
+template <typename T>
+__global__ void diag_impl(int N, const T* values, const std::int32_t* row_ptr,
+                          const std::int32_t* cols, T* diag)
+{
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < N)
+  {
+    T d = 0;
+    for (std::int32_t j = row_ptr[i]; j < row_ptr[i + 1]; ++j)
+    {
+      if (cols[j] == i)
+      {
+        d = values[j];
+        break;
+      }
+    }
+    diag[i] = d;
+  }
+}
+
+/// @brief Compute the inverse of the diagonal of a CSR matrix.
+/// @throws std::runtime_error if a diagonal entry is zero or missing
 template <typename T>
 thrust::device_vector<T>
 compute_diag_inv(dolfinx::la::MatrixCSR<T, thrust::device_vector<T>,
                                         thrust::device_vector<std::int32_t>,
                                         thrust::device_vector<std::int32_t>>& A)
 {
-  thrust::device_vector<T> diag_inv(A.index_map(0)->size_local());
-  for (int i = 0; i < static_cast<int>(diag_inv.size()); ++i)
-  {
-    spdlog::info("Search on row {}", i);
-    std::int32_t row_i0 = A.row_ptr()[i];
-    std::int32_t row_i1 = A.row_ptr()[i + 1];
+  int num_rows = A.index_map(0)->size_local();
+  thrust::device_vector<T> diag_inv(num_rows);
+  if (num_rows == 0)
+    return diag_inv;
 
-    // Find diagonal column in row
-    auto it = thrust::find_if(thrust::device,
-                              thrust::next(A.cols().begin(), row_i0),
-                              thrust::next(A.cols().begin(), row_i1),
-                              [i] __host__ __device__(std::int32_t col) -> bool
-                              { return (col == i); });
+  dim3 block_size(256);
+  dim3 grid_size((num_rows + block_size.x - 1) / block_size.x);
+  diag_impl<T><<<grid_size, block_size, 0, 0>>>(
+      num_rows, A.values().data().get(), A.row_ptr().data().get(),
+      A.cols().data().get(), diag_inv.data().get());
+  check_device_last_error();
 
-    int d = thrust::distance(A.cols().begin(), it);
-    diag_inv[i] = A.values()[d];
-  }
+  if (thrust::count(thrust::device, diag_inv.begin(), diag_inv.end(), T(0)) > 0)
+    throw std::runtime_error("Matrix has a zero or missing diagonal entry");
 
   thrust::transform(thrust::device, diag_inv.begin(), diag_inv.end(),
                     diag_inv.begin(),

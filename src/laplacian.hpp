@@ -474,6 +474,9 @@ public:
                              + V.mesh()->geometry().dofmap().size()),
         _bc_marker(impl::build_bc_markers(bc))
   {
+    if (qmode != 0)
+      throw std::runtime_error("MatFreeLaplacianCPU supports qmode=0 only");
+
     {
       auto [lcells, bcells] = benchdolfinx::compute_boundary_cells(
           *V.mesh()->topology(), *V.dofmap());

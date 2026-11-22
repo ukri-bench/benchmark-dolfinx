@@ -156,9 +156,10 @@ int main(int argc, char* argv[])
       ("ndofs_global", po::value<std::size_t>()->default_value(0),
        "Number of global degrees-of-freedom")
       //
-      ("qmode", po::value<std::size_t>()->default_value(1),
-       "Quadrature mode (0 or 1): qmode=0 has P+1 points in each direction,"
-       "qmode=1 has P+2 points in each direction.")
+      ("qmode", po::value<std::size_t>(),
+       "Quadrature mode (0 or 1): qmode=0 has P+1 points in each direction, "
+       "qmode=1 has P+2 points in each direction. The CPU platform supports "
+       "qmode=0 only. Default: 0 for cpu, 1 for gpu.")
       //
       ("cg", po::bool_switch()->default_value(false),
        "Do CG iterations, rather than simple operator action")
@@ -222,9 +223,13 @@ int main(int argc, char* argv[])
   std::string json_filename = vm["json"].as<std::string>();
 
   // Quadrature mode (qmode=0: nq = P + 1, qmode=1: nq = P + 2)
-  std::size_t qmode = vm["qmode"].as<std::size_t>();
+  std::size_t qmode = platform == "cpu" ? 0 : 1;
+  if (vm.count("qmode"))
+    qmode = vm["qmode"].as<std::size_t>();
   if (qmode > 1)
     throw std::runtime_error("Invalid qmode.");
+  if (platform == "cpu" and qmode != 0)
+    throw std::runtime_error("The cpu platform supports qmode=0 only.");
 
   init_logging(argc, argv);
   MPI_Init(&argc, &argv);

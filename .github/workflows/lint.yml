@@ -30,7 +30,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install linting tools
-        run: pip install clang-format ruff
+        run: pip install clang-format==22.1.8 ruff
       - name: ruff Python checks
         run: |
           ruff check .
