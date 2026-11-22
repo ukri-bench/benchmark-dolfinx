@@ -100,7 +100,12 @@ jobs:
 
       - name: Create Spack environment
         run: |
-          spack repo add --name ukri_bench https://github.com/ukri-bench/spack-packages.git
+          # TEMPORARY: use the DOLFINx 0.11 recipe from ukri-bench/spack-packages#13.
+          # Restore the line below once that PR is merged.
+          # spack repo add --name ukri_bench https://github.com/ukri-bench/spack-packages.git
+          git clone --depth 1 --branch bump-dolfinx-0.11 \
+            https://github.com/ukri-bench/spack-packages.git "${RUNNER_TEMP}/spack-packages"
+          spack repo add "${RUNNER_TEMP}/spack-packages/spack_pkgs/spack_repo/ukri_bench"
           spack env create ci .github/spack/ci-env.yaml
           spack -e ci add bench-dolfinx
           spack -e ci concretize -j "$(nproc)"
