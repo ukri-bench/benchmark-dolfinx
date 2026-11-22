@@ -1,9 +1,9 @@
 # Spack environment for the CPU build in .github/workflows/ci.yml.
 #
 # Copy of .github/spack/ci-env.yaml in ukri-bench/spack-packages. Keep the two
-# identical (and .github/spack/versions.env the same as in that repository) so
-# dependencies concretize to the same hashes and are taken from the shared
-# build cache.
+# identical (and SPACK_VERSION/SPACK_PACKAGES_COMMIT in ci.yml the same as in
+# that repository) so dependencies concretize to the same hashes and are taken
+# from the shared build cache.
 spack:
   view: /opt/view
   config:

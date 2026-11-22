@@ -19,6 +19,10 @@ on:
   workflow_dispatch:
 
 env:
+  # Spack release and spack/spack-packages commit. Keep the same as in
+  # ukri-bench/spack-packages and ci.yml
+  SPACK_VERSION: v1.2.2
+  SPACK_PACKAGES_COMMIT: 731577eee0004659abb29a12e42d4c52a48e7285
   GITHUB_USER: ${{ github.actor }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -49,7 +53,10 @@ jobs:
           runtime: ${{ matrix.backend.device }}
 
       - name: Set up Spack
-        uses: ./.github/actions/setup-spack
+        uses: spack/setup-spack@16b756799ede8b28951287f89bcd3fdb32ec1ca3 # v3.0.0
+        with:
+          spack_ref: ${{ env.SPACK_VERSION }}
+          packages_ref: ${{ env.SPACK_PACKAGES_COMMIT }}
 
       - if: ${{ matrix.backend.device != 'rocm' }}
         name: Get Spack config

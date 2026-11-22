@@ -5,8 +5,8 @@ name: Benchmark build and run
 #
 # Dependencies are installed with Spack using the same setup as
 # ukri-bench/spack-packages, so they come from its build cache. Keep
-# .github/spack/versions.env and .github/spack/ci-env.yaml the same as in that
-# repository, or the dependency hashes change and are rebuilt.
+# SPACK_VERSION, SPACK_PACKAGES_COMMIT and .github/spack/ci-env.yaml the same
+# as in that repository, or the dependency hashes change and are rebuilt.
 #
 # GitHub-hosted runners have no GPUs, so the GPU builds only compile: they need
 # the CUDA/ROCm compilers but no drivers, and build against the same (CPU)
@@ -27,6 +27,11 @@ permissions:
   packages: read # pull from the shared build cache
 
 env:
+  # Spack release and spack/spack-packages commit. Keep the same as in
+  # ukri-bench/spack-packages and spack.yml, so dependencies come from the
+  # shared build cache
+  SPACK_VERSION: v1.2.2
+  SPACK_PACKAGES_COMMIT: 731577eee0004659abb29a12e42d4c52a48e7285
   # Credentials for the build cache
   GITHUB_USER: ${{ github.actor }}
   GITHUB_TOKEN: ${{ github.token }}
@@ -88,7 +93,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Spack
-        uses: ./.github/actions/setup-spack
+        uses: spack/setup-spack@16b756799ede8b28951287f89bcd3fdb32ec1ca3 # v3.0.0
+        with:
+          spack_ref: ${{ env.SPACK_VERSION }}
+          packages_ref: ${{ env.SPACK_PACKAGES_COMMIT }}
 
       - name: Create Spack environment
         run: |
