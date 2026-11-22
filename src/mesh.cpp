@@ -12,8 +12,10 @@
 #include <dolfinx/mesh/generation.h>
 #include <dolfinx/mesh/utils.h>
 #include <map>
+#include <optional>
 #include <random>
 #include <span>
+#include <stdexcept>
 
 namespace
 {
@@ -87,23 +89,26 @@ ghost_layer_mesh(dolfinx::mesh::Mesh<T>& mesh,
   auto dofmap = mesh.geometry().dofmap();
   auto imap = mesh.geometry().index_map();
   std::vector<std::int32_t> permuted_dofmap;
-  std::vector<int> perm = basix::tp_dof_ordering(
+  std::optional<std::vector<int>> perm = basix::tp_dof_ordering(
       basix::element::family::P,
       dolfinx::mesh::cell_type_to_basix_type(coord_element.cell_shape()),
       coord_element.degree(), coord_element.variant(),
       basix::element::dpc_variant::unset, false);
+  if (!perm)
+    throw std::runtime_error(
+        "Coordinate element has no tensor-product ordering");
   for (std::size_t c = 0; c < dofmap.extent(0); ++c)
   {
     auto cell_dofs = std::submdspan(dofmap, c, std::full_extent);
     for (std::size_t i = 0; i < dofmap.extent(1); ++i)
-      permuted_dofmap.push_back(cell_dofs(perm[i]));
+      permuted_dofmap.push_back(cell_dofs((*perm)[i]));
   }
   std::vector<std::int64_t> permuted_dofmap_global(permuted_dofmap.size());
   imap->local_to_global(permuted_dofmap, permuted_dofmap_global);
 
   auto new_mesh = dolfinx::mesh::create_mesh(
       mesh.comm(), mesh.comm(), std::span(permuted_dofmap_global),
-      coord_element, mesh.comm(), x, xshape, partitioner);
+      coord_element, mesh.comm(), x, xshape, partitioner, 2);
 
   spdlog::info("** NEW MESH num_ghosts_cells = {}",
                new_mesh.topology()->index_map(tdim)->num_ghosts());
