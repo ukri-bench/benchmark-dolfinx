@@ -7,6 +7,7 @@
 #include "util.hpp"
 #include "vector.hpp"
 #include <dolfinx/la/MatrixCSR.h>
+#include <iterator>
 #include <limits>
 #include <thrust/device_vector.h>
 
@@ -90,13 +91,13 @@ compute_diag_inv(dolfinx::la::MatrixCSR<T, thrust::device_vector<T>,
     std::int32_t row_i1 = A.row_ptr()[i + 1];
 
     // Find diagonal column in row
-    auto it = thrust::find_if(thrust::device,
-                              thrust::next(A.cols().begin(), row_i0),
-                              thrust::next(A.cols().begin(), row_i1),
-                              [i] __host__ __device__(std::int32_t col) -> bool
-                              { return (col == i); });
+    auto it
+        = thrust::find_if(thrust::device, std::next(A.cols().begin(), row_i0),
+                          std::next(A.cols().begin(), row_i1),
+                          [i] __host__ __device__(std::int32_t col) -> bool
+                          { return (col == i); });
 
-    int d = thrust::distance(A.cols().begin(), it);
+    int d = std::distance(A.cols().begin(), it);
     diag_inv[i] = A.values()[d];
   }
 

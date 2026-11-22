@@ -10,6 +10,7 @@
 #include <dolfinx/la/Vector.h>
 #include <dolfinx/la/dolfinx_la.h>
 #include <iostream>
+#include <iterator>
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 #include <thrust/extrema.h>
@@ -103,7 +104,7 @@ auto get_pack_fn(int block_size)
           typename thrust::device_vector<T>::const_iterator in_first,
           typename thrust::device_vector<T>::iterator out_first)
   {
-    if (std::size_t d = thrust::distance(idx_first, idx_last); d > 0)
+    if (std::size_t d = std::distance(idx_first, idx_last); d > 0)
     {
       int num_blocks = (d + block_size - 1) / block_size;
       dim3 dim_block(block_size);
@@ -133,7 +134,7 @@ auto get_unpack_insert_fn(int block_size)
           typename thrust::device_vector<T>::const_iterator in_first,
           typename thrust::device_vector<T>::iterator out_first)
   {
-    if (std::size_t d = thrust::distance(idx_first, idx_last); d > 0)
+    if (std::size_t d = std::distance(idx_first, idx_last); d > 0)
     {
       int num_blocks = (d + block_size - 1) / block_size;
       dim3 dim_block(block_size);
@@ -162,7 +163,7 @@ auto get_unpack_add_fn(int block_size)
           typename thrust::device_vector<T>::const_iterator in_first,
           typename thrust::device_vector<T>::iterator out_first)
   {
-    if (std::size_t d = thrust::distance(idx_first, idx_last); d > 0)
+    if (std::size_t d = std::distance(idx_first, idx_last); d > 0)
     {
       int num_blocks = (d + block_size - 1) / block_size;
       dim3 dim_block(block_size);
@@ -234,7 +235,7 @@ auto norm(const U& a, dolfinx::la::Norm type = dolfinx::la::Norm::l2)
     const std::int32_t size_local = a.bs() * a.index_map()->size_local();
     auto max_pos
         = thrust::max_element(thrust::device, a.array().begin(),
-                              thrust::next(a.array().begin(), size_local));
+                              std::next(a.array().begin(), size_local));
     auto local_linf = std::abs(*max_pos);
     decltype(local_linf) linf = 0;
     MPI_Allreduce(&local_linf, &linf, 1, dolfinx::MPI::mpi_t<decltype(linf)>,
@@ -259,12 +260,11 @@ void axpy(U& r, S alpha, const U& x, const U& y)
 {
   spdlog::debug("AXPY start");
   using T = typename U::value_type;
-  thrust::transform(
-      thrust::device, x.array().begin(),
-      thrust::next(x.array().begin(), x.index_map()->size_local()),
-      y.array().begin(), r.array().begin(),
-      [alpha] __host__ __device__(const T& vx, const T& vy)
-      { return vx * alpha + vy; });
+  thrust::transform(thrust::device, x.array().begin(),
+                    std::next(x.array().begin(), x.index_map()->size_local()),
+                    y.array().begin(), r.array().begin(),
+                    [alpha] __host__ __device__(const T& vx, const T& vy)
+                    { return vx * alpha + vy; });
   spdlog::debug("AXPY end");
 }
 
@@ -305,11 +305,10 @@ void pointwise_mult(U& w, const U& x, const U& y)
   spdlog::debug("pointwise_mult start");
 
   using T = typename U::value_type;
-  thrust::transform(
-      thrust::device, x.array().begin(),
-      thrust::next(x.array().begin(), x.index_map()->size_local()),
-      y.array().begin(), w.array().begin(),
-      [] __host__ __device__(T xi, T yi) { return xi * yi; });
+  thrust::transform(thrust::device, x.array().begin(),
+                    std::next(x.array().begin(), x.index_map()->size_local()),
+                    y.array().begin(), w.array().begin(),
+                    [] __host__ __device__(T xi, T yi) { return xi * yi; });
   spdlog::debug("pointwise_mult end");
 }
 

@@ -1,122 +1,138 @@
 name: Benchmark build and run
 
-# Builds the branch benchmark code against Spack-installed dependencies
-# for CPU and GPU versions. Runs the CPU version of the branch
-# benchmark.
+# Builds the benchmark for CPU, CUDA and ROCm in Ubuntu 26.04 containers and
+# runs the CPU build.
+#
+# Dependencies are installed with Spack using the same setup as
+# ukri-bench/spack-packages, so they come from its build cache. Keep
+# SPACK_VERSION, SPACK_PACKAGES_COMMIT and .github/spack/ci-env.yaml in sync
+# with that repository, or the dependency hashes change and are rebuilt.
+#
+# GitHub-hosted runners have no GPUs, so the GPU builds only compile: they need
+# the CUDA/ROCm compilers but no drivers, and build against the same (CPU)
+# dependencies as the CPU build.
 
 on:
-  # Uncomment the below 'push' to trigger on push
   push:
-    branches:
-      - "**"
+    branches: ["**"]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
   merge_group:
-    branches:
-      - main
-  # schedule:
-  #   # '*' is a special character in YAML, so string must be quoted
-  #   - cron: "0 2 * * THU"
+    branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  packages: read # pull from the shared build cache
+
 env:
+  # Keep in sync with ukri-bench/spack-packages .github/workflows/build-package.yml
+  SPACK_VERSION: v1.2.2
+  SPACK_PACKAGES_COMMIT: 731577eee0004659abb29a12e42d4c52a48e7285
+  # Credentials for the build cache
   GITHUB_USER: ${{ github.actor }}
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_TOKEN: ${{ github.token }}
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
-    permissions:
-      packages: write
-
-    env:
-      dolfinx_ref: main
-      # bench_dolfinx_ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+    name: Build (${{ matrix.device }})
+    runs-on: ubuntu-26.04
+    container: ubuntu:26.04
+    timeout-minutes: 360
     strategy:
+      fail-fast: false
       matrix:
-        backend:
-          [
-            { device: cpu,  spack_opt: "~cuda~rocm", cmake_opt: "" },
-            { device: rocm, spack_opt: "++rocm amdgpu_target=gfx90a ^openmpi+rocm amdgpu_target=gfx90a", cmake_opt: -DHIP_ARCH=gfx90a },
-            { device: cuda, spack_opt: "++cuda cuda_arch=75 ^openmpi", cmake_opt: -DCUDA_ARCH=75 },
-          ]
+        include:
+          - device: cpu
+            cmake_opt: ""
+          - device: cuda
+            cmake_opt: -DCUDA_ARCH=75 -DCMAKE_CUDA_COMPILER=/usr/local/cuda-13.5/bin/nvcc
+          - device: rocm
+            cmake_opt: >-
+              -DHIP_ARCH=gfx90a
+              -DCMAKE_HIP_COMPILER=/opt/rocm/core-10.2/lib/llvm/bin/clang++
+              -DCMAKE_PREFIX_PATH=/opt/rocm/core-10.2
+    env:
+      OMPI_ALLOW_RUN_AS_ROOT: 1
+      OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+      PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
 
     steps:
-      - uses: actions/checkout@v5
+      - name: Install Spack requirements
+        run: |
+          apt-get -y update
+          apt-get install -y --no-install-recommends file bzip2 ca-certificates curl g++ gcc gfortran git gzip \
+            lsb-release patch python3 python3-numpy tar unzip xz-utils zstd
 
-      - if: ${{ matrix.backend.device != 'cpu' }}
-        name: Install GPU compiler/driver
-        uses: ukri-bench/spack-configs/actions/install-gpu-driver@main
-        with:
-          runtime: ${{ matrix.backend.device }}
+      - if: matrix.device == 'cuda'
+        name: Install CUDA compiler
+        run: |
+          curl -fsSLO https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2604/x86_64/cuda-keyring_1.1-1_all.deb
+          dpkg -i cuda-keyring_1.1-1_all.deb
+          apt-get -y update
+          apt-get install -y --no-install-recommends cuda-nvcc-13-5
+
+      - if: matrix.device == 'rocm'
+        name: Install ROCm compiler and rocThrust
+        run: |
+          mkdir -p /etc/apt/keyrings
+          curl -fsSL -o /etc/apt/keyrings/amdrocm.asc https://stable.repo.amd.com/rocm/gpg/packages.gpg
+          echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/amdrocm.asc] https://stable.repo.amd.com/rocm/core/packages/ubuntu2604 stable main" \
+            > /etc/apt/sources.list.d/rocm.list
+          apt-get -y update
+          apt-get install -y --no-install-recommends amdrocm-ccl-dev10.2
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Spack
-        uses: spack/setup-spack@v2
+        uses: spack/setup-spack@16b756799ede8b28951287f89bcd3fdb32ec1ca3 # v3.0.0
         with:
-          ref: develop     # Spack version (examples: develop, releases/v0.23)
-          color: true      # Force color output (SPACK_COLOR=always)
-          path: spack-src  # Where to clone Spack
+          spack_ref: ${{ env.SPACK_VERSION }}
+          packages_ref: ${{ env.SPACK_PACKAGES_COMMIT }}
 
-      - if: ${{ matrix.backend.device != 'rocm' }}
-        name: Get Spack config
+      - name: Create Spack environment
         run: |
-          wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack.yml
-      - if: ${{ matrix.backend.device == 'rocm' }}
-        name: Get Spack config
-        run: |
-          wget -O spack.yml https://raw.githubusercontent.com/ukri-bench/spack-configs/refs/heads/main/configs/gh-actions/spack-rocm.yml
+          spack repo add --name ukri_bench https://github.com/ukri-bench/spack-packages.git
+          spack env create ci .github/spack/ci-env.yaml
+          spack -e ci add bench-dolfinx
+          spack -e ci concretize -j "$(nproc)"
 
-      - name: Add ukri-bench Spack repository and create environment
-        shell: spack-bash {0}
+      - name: Install dependencies
         run: |
-          spack repo add --name bench_pkgs https://github.com/ukri-bench/spack-packages.git ./bench_pkgs
-          spack repo add --name fenics https://github.com/FEniCS/spack-fenics.git ./fenics # Needed for 0.10.0
-          spack mirror add --unsigned --type binary --oci-username-variable GITHUB_USER --oci-password-variable GITHUB_TOKEN local-buildcache oci://ghcr.io/ukri-bench/spack-buildcache
-          spack env create . spack.yml
-
-      - if: ${{ matrix.backend.device == 'rocm' }}
-        name: Find compilers (ROCm)
-        shell: spack-bash {0}
-        run: |
-          spack -e . compiler find
-          spack -e . config get packages
-      - if: ${{ matrix.backend.device == 'cuda' }}
-        name: Find compilers (CUDA)
-        shell: spack-bash {0}
-        run: |
-          spack -e . external find -p /usr/local/cuda --all --not-buildable
-          spack -e . config get packages
-
-      - name: Point Spack to benchmark code
-        shell: spack-bash {0}
-        run: spack -e . develop --path . --no-clone bench-dolfinx@main
+          spack -e ci install -j "$(nproc)" --only dependencies --use-buildcache auto
+          # --only dependencies skips build-only dependencies (CMake, FFCx) of
+          # the benchmark itself, which are needed to build it
+          build_deps=$(spack -e ci python -c 'import spack.environment as ev; print(" ".join("/" + d.dag_hash() for r in ev.active_environment().concrete_roots() for d in r.dependencies(deptype="build")))')
+          if [ -n "${build_deps}" ]; then
+            # shellcheck disable=SC2086
+            spack -e ci install -j "$(nproc)" --no-add --use-buildcache auto ${build_deps}
+          fi
+          spack -e ci build-env --dump build_env.sh bench-dolfinx
 
       - name: Build benchmark
-        shell: spack-bash {0}
         run: |
-          spack -e . add bench-dolfinx@main ${{ matrix.backend.spack_opt }}
-          spack -e . install -U -j 4 --use-buildcache auto
+          source ./build_env.sh
+          cmake ${{ matrix.cmake_opt }} -B build -S src/
+          cmake --build build --parallel "$(nproc)"
 
-      - if: ${{ matrix.backend.device == 'cpu' }}
-        name: Run benchmark (CPU)
-        shell: spack-bash {0}
+      - if: matrix.device == 'cpu'
+        name: Run benchmark
         run: |
-          spack env activate .
-          bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
-          mpirun -n 2 bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
+          source ./build_env.sh
+          build/bench_dolfinx --ndofs=1000 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json a.json
+          mpirun -n 2 build/bench_dolfinx --ndofs=500 --degree=3 --qmode=0 --nreps=1 --mat_comp --float=64 --json b.json
 
-      - if: ${{ matrix.backend.device == 'cpu' }}
-        name: Post-process
-        shell: spack-bash {0}
+      - if: matrix.device == 'cpu'
+        name: Check output
         run: |
-          spack env activate .
-          spack load py-numpy
-          python src/test_output.py a.json
-          python src/test_output.py b.json
-
-      - name: Push packages and update index
-        shell: spack-bash {0}
-        run: |
-          spack -e . buildcache push --only package \
-            --base-image ubuntu:24.04 --update-index local-buildcache
-        if: ${{ !cancelled() }}
+          python3 src/test_output.py a.json
+          python3 src/test_output.py b.json
