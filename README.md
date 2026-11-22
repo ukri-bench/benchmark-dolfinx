@@ -84,7 +84,7 @@ This is encoded in the spack recipe at [https://github.com/FEniCS/spack-fenics/b
 - nvcc 13 aborts with an internal error when compiling the DOLFINx 0.11
   header `dolfinx/mesh/EntityMap.h`. When building manually with CUDA, apply
   the
-  [patch](https://github.com/ukri-bench/spack-packages/blob/main/spack_pkgs/spack_repo/ukri_bench/packages/bench_dolfinx/dolfinx-0.11-entitymap-nvcc.patch)
+  [patch](https://github.com/ukri-bench/spack-packages/blob/main/spack_pkgs/spack_repo/ukri_bench/packages/fenics_dolfinx/0.11-entitymap-nvcc.patch)
   to DOLFINx. The Spack package applies this patch automatically.
 
 - A C++20 compiler capable of handling `std::format` is required. On some systems, it is necessary to explicitly pass this to `nvcc` or `hipcc` through a command line argument, e.g. `--gcc-toolchain=/opt/rh/gcc-toolset-13/root/usr`.
