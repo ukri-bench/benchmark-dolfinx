@@ -13,7 +13,6 @@
 #include <iterator>
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
-#include <thrust/extrema.h>
 #include <thrust/fill.h>
 #include <thrust/host_vector.h>
 #include <thrust/inner_product.h>
@@ -224,7 +223,8 @@ auto squared_norm(const U& a)
 /// @param type Norm type (supported types are \f$L^2\f$ and
 /// \f$L^\infty\f$).
 template <typename U>
-auto norm(const U& a, dolfinx::la::Norm type = dolfinx::la::Norm::l2)
+typename U::value_type norm(const U& a,
+                            dolfinx::la::Norm type = dolfinx::la::Norm::l2)
 {
   switch (type)
   {
@@ -232,12 +232,14 @@ auto norm(const U& a, dolfinx::la::Norm type = dolfinx::la::Norm::l2)
     return std::sqrt(benchdolfinx::squared_norm(a));
   case dolfinx::la::Norm::linf:
   {
+    using T = typename U::value_type;
     const std::int32_t size_local = a.bs() * a.index_map()->size_local();
-    auto max_pos
-        = thrust::max_element(thrust::device, a.array().begin(),
-                              std::next(a.array().begin(), size_local));
-    auto local_linf = std::abs(*max_pos);
-    decltype(local_linf) linf = 0;
+    T local_linf = thrust::transform_reduce(
+        thrust::device, a.array().begin(),
+        std::next(a.array().begin(), size_local),
+        [] __host__ __device__(T x) -> T { return x < 0 ? -x : x; }, T(0),
+        [] __host__ __device__(T x, T y) -> T { return x > y ? x : y; });
+    T linf = 0;
     MPI_Allreduce(&local_linf, &linf, 1, dolfinx::MPI::mpi_t<decltype(linf)>,
                   MPI_MAX, a.index_map()->comm());
     return linf;
