@@ -61,25 +61,6 @@ unpack_insert_gpu(const int N, const std::int32_t* __restrict__ indices,
   }
 }
 
-/// @brief unpack data after MPI all-to-all operation
-/// @tparam T Scalar data type
-/// @param N Number of entries in indices
-/// @param indices Indices of output data to be unpacked into
-/// @param in Input data "ghost" region
-/// @param out Output data "owned" values
-/// @note Accumulates values if multiple are received with the same index,
-/// should be used for reverse scatter to owned region.
-template <typename T>
-static __global__ void
-unpack_add_gpu(std::int32_t N, const int32_t* __restrict__ indices,
-               const T* __restrict__ in, T* __restrict__ out)
-{
-  int gid = blockIdx.x * blockDim.x + threadIdx.x;
-  if (gid < N)
-  {
-    atomicAdd(&out[indices[gid]], in[gid]);
-  }
-}
 } // namespace benchdolfinx::impl
 
 namespace benchdolfinx
@@ -119,7 +100,7 @@ auto get_pack_fn(int block_size)
   };
 };
 
-/// @brief
+/// @brief Get the unpack (insert) function for a vector type.
 ///
 /// out[idx[i]] = in[i]
 template <typename T>
@@ -142,35 +123,6 @@ auto get_unpack_insert_fn(int block_size)
       const T* in_ptr = thrust::raw_pointer_cast(&in_first[0]);
       T* out_ptr = thrust::raw_pointer_cast(&out_first[0]);
       benchdolfinx::impl::unpack_insert_gpu<T>
-          <<<dim_grid, dim_block, 0, 0>>>(d, idx_ptr, in_ptr, out_ptr);
-      device_synchronize();
-    }
-  };
-};
-
-/// @brief
-///
-/// out[idx[i]] += in[i]
-template <typename T>
-auto get_unpack_add_fn(int block_size)
-{
-  return
-      [block_size](
-          typename thrust::device_vector<std::int32_t>::const_iterator
-              idx_first,
-          typename thrust::device_vector<std::int32_t>::const_iterator idx_last,
-          typename thrust::device_vector<T>::const_iterator in_first,
-          typename thrust::device_vector<T>::iterator out_first)
-  {
-    if (std::size_t d = std::distance(idx_first, idx_last); d > 0)
-    {
-      int num_blocks = (d + block_size - 1) / block_size;
-      dim3 dim_block(block_size);
-      dim3 dim_grid(num_blocks);
-      const int32_t* idx_ptr = thrust::raw_pointer_cast(&idx_first[0]);
-      const T* in_ptr = thrust::raw_pointer_cast(&in_first[0]);
-      T* out_ptr = thrust::raw_pointer_cast(&out_first[0]);
-      benchdolfinx::impl::unpack_add_gpu<T>
           <<<dim_grid, dim_block, 0, 0>>>(d, idx_ptr, in_ptr, out_ptr);
       device_synchronize();
     }
@@ -270,51 +222,7 @@ void axpy(U& r, S alpha, const U& x, const U& y)
   spdlog::debug("AXPY end");
 }
 
-/// @brief Scale vector by alpha.
-/// @param [in,out] r Result
-/// @param alpha
-template <typename U, typename S>
-void scale(U& r, S alpha)
-{
-  using T = typename U::value_type;
-  thrust::for_each(thrust::device, r.array().begin(), r.array().end(),
-                   [alpha] __host__ __device__(T & v) { v *= alpha; });
-}
-
-/// @brief Copy Vector b into Vector a.
-///
-/// @param [in,out] a
-/// @param [in] b
-/// @note Only copies the owned part of the Vector, no ghosts
-/// @note a must be the same size as b
-template <typename U>
-void copy(U& a, const U& b)
-{
-  std::int32_t local_size = a.bs() * a.index_map()->size_local();
-  thrust::copy_n(thrust::device, b.begin(), local_size, a.begin());
-}
-
-/// @brief Compute pointwise vector multiplication w[i] = x[i] * y[i].
-///
-/// @param [in,out] w
-/// @param [in] x
-/// @param [in] y
-/// @note w, x, and y must all be the same size
-/// @note Only computes on the owned part of the Vector, no ghosts
-template <typename U>
-void pointwise_mult(U& w, const U& x, const U& y)
-{
-  spdlog::debug("pointwise_mult start");
-
-  using T = typename U::value_type;
-  thrust::transform(thrust::device, x.array().begin(),
-                    std::next(x.array().begin(), x.index_map()->size_local()),
-                    y.array().begin(), w.array().begin(),
-                    [] __host__ __device__(T xi, T yi) { return xi * yi; });
-  spdlog::debug("pointwise_mult end");
-}
-
-/// TODO
+/// @brief Set all entries (owned and ghost) of a vector to `v`.
 template <typename U, typename T>
 void set_value(U& x, T v)
 {

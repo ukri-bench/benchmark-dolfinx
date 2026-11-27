@@ -79,50 +79,6 @@ double timed_run(Operator& op, Vector& u, Vector& y, int nreps, bool use_cg,
 #include "vector.hpp"
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
-#include <thrust/sequence.h>
-
-namespace
-{
-/// @brief pack data before MPI (neighbor) all-to-all operation
-/// @tparam T Scalar data type
-/// @param N Number of entries in indices
-/// @param indices Indices of input data to be packed
-/// @param in Input data to be sent: from owned region, for forward scatter, or
-/// from ghost region for reverse scatter.
-/// @param out Output data packed into blocks for each receiving MPI process
-template <typename T>
-static __global__ void pack(const int N,
-                            const std::int32_t* __restrict__ indices,
-                            const T* __restrict__ in, T* __restrict__ out)
-{
-  int gid = blockIdx.x * blockDim.x + threadIdx.x;
-  if (gid < N)
-  {
-    out[gid] = in[indices[gid]];
-  }
-}
-
-/// @brief unpack data after MPI all-to-all operation
-/// @tparam T Scalar data type
-/// @param N Number of entries in indices
-/// @param indices Indices of output data to be unpacked into
-/// @param in Input data packed in blocks received from each MPI process
-/// @param out Output data: to ghost region if forward scatter, or to owned
-/// region for reverse scatter.
-/// @note Overwrites values if multiple are received with the same index, should
-/// only be used for forward scatter to ghost region.
-template <typename T>
-static __global__ void unpack(const int N,
-                              const std::int32_t* __restrict__ indices,
-                              const T* __restrict__ in, T* __restrict__ out)
-{
-  int gid = blockIdx.x * blockDim.x + threadIdx.x;
-  if (gid < N)
-  {
-    out[indices[gid]] = in[gid];
-  }
-}
-} // namespace
 
 //----------------------------------------------------------------------------
 template <typename T>
@@ -408,14 +364,7 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
     T znorm = dolfinx::la::norm(z);
     // Compute error
     dolfinx::la::Vector<T> e(map, 1);
-
-    auto axpy = [](auto&& r, auto alpha, auto&& x, auto&& y)
-    {
-      std::ranges::transform(x.array(), y.array(), r.array().begin(),
-                             [alpha](auto x, auto y) { return alpha * x + y; });
-    };
-
-    axpy(e, T{-1}, y, z);
+    detail::axpy(e, T{-1}, y, z);
     T enorm = dolfinx::la::norm(e);
 
     b_results.znorm = znorm;
