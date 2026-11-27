@@ -23,15 +23,15 @@ if(NOT CUDA_ARCH STREQUAL "none")
   set(nvidia ON)
 endif()
 
-if(nvidia)
-  message(STATUS "Compiling for NVIDIA GPUs with arch ${CUDA_ARCH}")
-elseif(amd)
-  message(STATUS "Compiling for AMD GPUs with target ${HIP_ARCH}")
-elseif(nvidia AND amd)
+if(nvidia AND amd)
   message(
     FATAL_ERROR
       "You cannot select both AMD and NVIDIA GPU builds. Only set either CUDA_ARCH or HIP_ARCH."
   )
+elseif(nvidia)
+  message(STATUS "Compiling for NVIDIA GPUs with arch ${CUDA_ARCH}")
+elseif(amd)
+  message(STATUS "Compiling for AMD GPUs with target ${HIP_ARCH}")
 else()
   message(STATUS "No GPU arch selected. Building for CPU.")
 endif()

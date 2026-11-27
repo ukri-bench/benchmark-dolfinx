@@ -78,7 +78,8 @@ void stiffness_operator_cpu(const T* __restrict__ u,
   {
     int entity_index = entities[c];
     // Copy input dofs for this cell
-    const std::int32_t* dofs = entity_dofmap + entity_index * cube_nd;
+    const std::int32_t* dofs
+        = entity_dofmap + static_cast<std::int64_t>(entity_index) * cube_nd;
     for (int ix = 0; ix < nd; ++ix)
       for (int iy = 0; iy < nd; ++iy)
         for (int iz = 0; iz < nd; ++iz)
@@ -93,7 +94,8 @@ void stiffness_operator_cpu(const T* __restrict__ u,
             local_dofs[ix][iy][iz] = u[dof];
         }
 
-    T coeff = entity_constants[c];
+    // Constants are stored by cell index
+    T coeff = entity_constants[entity_index];
 
     T scratch1[nq][nq][nq];
     T scratch2[nq][nq][nq];
@@ -104,7 +106,9 @@ void stiffness_operator_cpu(const T* __restrict__ u,
       for (int iy = 0; iy < nq; ++iy)
         for (int iz = 0; iz < nq; ++iz)
         {
-          const T* G = G_entity + c * cube_nq * 6 + ix * nq * nq + iy * nq + iz;
+          // Geometry data is stored by position in `entities`
+          const T* G = G_entity + static_cast<std::int64_t>(c) * cube_nq * 6
+                       + ix * nq * nq + iy * nq + iz;
           const T G0 = G[0];
           const T G1 = G[cube_nq];
           const T G2 = G[2 * cube_nq];
