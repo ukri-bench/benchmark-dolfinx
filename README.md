@@ -108,7 +108,10 @@ benchmark-specific CMake options are available:
 
 - A C++20 compiler capable of handling `std::format` is required. On some systems, it is necessary to explicitly pass this to `nvcc` or `hipcc` through a command line argument, e.g. `--gcc-toolchain=/opt/rh/gcc-toolset-13/root/usr`.
 
-- On Cray systems it may be necessary to explicitly give the MPI path in the `CMakeLists.txt`.
+- On Cray systems the HIP and CUDA compilers do not get the MPI include
+  path from the Cray compiler wrappers. For GPU builds, CMake adds
+  `$CRAY_MPICH_DIR/include` (set by the `cray-mpich` module) when
+  `CRAY_MPICH_DIR` is defined.
 
 ## Running the benchmarks
 

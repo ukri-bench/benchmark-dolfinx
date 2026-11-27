@@ -5,10 +5,73 @@
 #include "laplacian_solver.hpp"
 #include "cg.hpp"
 #include "laplacian.hpp"
+#include <algorithm>
 #include <basix/quadrature.h>
+#include <chrono>
 #include <dolfinx/la/MatrixCSR.h>
+#include <mpi.h>
+#include <type_traits>
+#include <vector>
+
+#if defined(USE_CUDA) || defined(USE_HIP)
+#include <thrust/fill.h>
+#endif
 
 using namespace benchdolfinx;
+
+namespace
+{
+/// @brief Set all entries (owned and ghost) of a host or device vector
+/// to zero.
+template <typename Vector>
+void zero(Vector& x)
+{
+  using T = typename Vector::value_type;
+  if constexpr (std::is_same_v<typename Vector::container_type, std::vector<T>>)
+    std::ranges::fill(x.array(), T{0});
+  else
+  {
+#if defined(USE_CUDA) || defined(USE_HIP)
+    thrust::fill(x.array().begin(), x.array().end(), T{0});
+#endif
+  }
+}
+
+/// @brief Run the timed part of the benchmark: `nreps` applications
+/// of `op` to `u` (result in `y`), or `nreps` CG iterations for `op y
+/// = u` starting from `y = 0`.
+///
+/// One untimed application of `op` is done first, so that one-off
+/// costs (e.g. GPU kernel loading, MPI connection setup) are not
+/// timed. All ranks start the timed region together.
+///
+/// @note Collective MPI operation.
+/// @return Wall time of the slowest rank (seconds), on all ranks.
+template <typename Operator, typename Vector>
+double timed_run(Operator& op, Vector& u, Vector& y, int nreps, bool use_cg,
+                 MPI_Comm comm)
+{
+  // Warm-up. y is the CG initial guess, so reset it afterwards.
+  op.apply(u, y);
+  zero(y);
+
+  MPI_Barrier(comm);
+  auto start = std::chrono::steady_clock::now();
+  if (use_cg)
+    cg_solve(op, y, u, nreps, typename Vector::value_type(0.0));
+  else
+  {
+    for (int i = 0; i < nreps; ++i)
+      op.apply(u, y);
+  }
+  auto stop = std::chrono::steady_clock::now();
+
+  double t = std::chrono::duration<double>(stop - start).count();
+  double t_max = 0;
+  MPI_Allreduce(&t, &t_max, 1, MPI_DOUBLE, MPI_MAX, comm);
+  return t_max;
+}
+} // namespace
 
 #if defined(USE_CUDA) || defined(USE_HIP)
 
@@ -16,50 +79,6 @@ using namespace benchdolfinx;
 #include "vector.hpp"
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
-#include <thrust/sequence.h>
-
-namespace
-{
-/// @brief pack data before MPI (neighbor) all-to-all operation
-/// @tparam T Scalar data type
-/// @param N Number of entries in indices
-/// @param indices Indices of input data to be packed
-/// @param in Input data to be sent: from owned region, for forward scatter, or
-/// from ghost region for reverse scatter.
-/// @param out Output data packed into blocks for each receiving MPI process
-template <typename T>
-static __global__ void pack(const int N,
-                            const std::int32_t* __restrict__ indices,
-                            const T* __restrict__ in, T* __restrict__ out)
-{
-  int gid = blockIdx.x * blockDim.x + threadIdx.x;
-  if (gid < N)
-  {
-    out[gid] = in[indices[gid]];
-  }
-}
-
-/// @brief unpack data after MPI all-to-all operation
-/// @tparam T Scalar data type
-/// @param N Number of entries in indices
-/// @param indices Indices of output data to be unpacked into
-/// @param in Input data packed in blocks received from each MPI process
-/// @param out Output data: to ghost region if forward scatter, or to owned
-/// region for reverse scatter.
-/// @note Overwrites values if multiple are received with the same index, should
-/// only be used for forward scatter to ghost region.
-template <typename T>
-static __global__ void unpack(const int N,
-                              const std::int32_t* __restrict__ indices,
-                              const T* __restrict__ in, T* __restrict__ out)
-{
-  int gid = blockIdx.x * blockDim.x + threadIdx.x;
-  if (gid < N)
-  {
-    out[indices[gid]] = in[gid];
-  }
-}
-} // namespace
 
 //----------------------------------------------------------------------------
 template <typename T>
@@ -115,16 +134,8 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
   BenchmarkResults b_results = {0};
 
   // Matrix free
-  auto start = std::chrono::high_resolution_clock::now();
-  if (use_cg)
-    cg_solve(op, y, u, nreps, T(0.0));
-  else
-  {
-    for (int i = 0; i < nreps; ++i)
-      op.apply(u, y);
-  }
-  auto stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> duration = stop - start;
+  double duration = timed_run(op, u, y, nreps, use_cg, V->mesh()->comm());
+  b_results.mat_free_time = duration;
 
   T unorm = benchdolfinx::norm(u);
   T ynorm = benchdolfinx::norm(y);
@@ -136,12 +147,11 @@ BenchmarkResults benchdolfinx::laplace_action_gpu(
   if (rank == 0)
   {
     std::int64_t ndofs_global = V->dofmap()->index_map->size_global();
-    b_results.mat_free_time = duration.count();
     std::string comp_type = use_cg ? "CG" : "Action";
-    std::cout << "Computation time (" << comp_type << "): " << duration.count()
-              << "s" << std::endl;
+    std::cout << "Computation time (" << comp_type << "): " << duration << "s"
+              << std::endl;
     std::cout << "Computation rate (Gdofs/s): "
-              << ndofs_global * nreps / (1e9 * duration.count()) << std::endl;
+              << ndofs_global * nreps / (1e9 * duration) << std::endl;
 
     std::cout << "Norm of u = " << unorm << std::endl;
     std::cout << "Norm of y = " << ynorm << std::endl;
@@ -279,7 +289,7 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
   // Output vector
   spdlog::info("Create vector y");
   dolfinx::la::Vector<T> y(map, 1);
-  std::ranges::fill(u.array(), T{0});
+  std::ranges::fill(y.array(), T{0});
 
   // Create matrix free operator
   spdlog::info("Create MatFreeLaplacian");
@@ -301,16 +311,8 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
 
   BenchmarkResults b_results = {0};
   // Matrix free
-  auto start = std::chrono::high_resolution_clock::now();
-  if (use_cg)
-    cg_solve(op, y, u, nreps, T(0.0));
-  else
-  {
-    for (int i = 0; i < nreps; ++i)
-      op.apply(u, y);
-  }
-  auto stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> duration = stop - start;
+  double duration = timed_run(op, u, y, nreps, use_cg, V->mesh()->comm());
+  b_results.mat_free_time = duration;
 
   T unorm = dolfinx::la::norm(u);
   T ynorm = dolfinx::la::norm(y);
@@ -321,14 +323,12 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
   int rank = dolfinx::MPI::rank(V->mesh()->comm());
   if (rank == 0)
   {
-    b_results.mat_free_time = duration.count();
-
     std::int64_t ndofs_global = V->dofmap()->index_map->size_global();
     std::string comp_type = use_cg ? "CG" : "Action";
-    std::cout << "Computation time (" << comp_type << "): " << duration.count()
-              << "s" << std::endl;
+    std::cout << "Computation time (" << comp_type << "): " << duration << "s"
+              << std::endl;
     std::cout << "Computation rate (Gdofs/s): "
-              << ndofs_global * nreps / (1e9 * duration.count()) << std::endl;
+              << ndofs_global * nreps / (1e9 * duration) << std::endl;
 
     std::cout << "Norm of u = " << unorm << std::endl;
     std::cout << "Norm of y = " << ynorm << std::endl;
@@ -364,14 +364,7 @@ BenchmarkResults benchdolfinx::laplace_action_cpu(
     T znorm = dolfinx::la::norm(z);
     // Compute error
     dolfinx::la::Vector<T> e(map, 1);
-
-    auto axpy = [](auto&& r, auto alpha, auto&& x, auto&& y)
-    {
-      std::ranges::transform(x.array(), y.array(), r.array().begin(),
-                             [alpha](auto x, auto y) { return alpha * x + y; });
-    };
-
-    axpy(e, T{-1}, y, z);
+    detail::axpy(e, T{-1}, y, z);
     T enorm = dolfinx::la::norm(e);
 
     b_results.znorm = znorm;

@@ -2,28 +2,34 @@
 // Garth N. Wells
 // SPDX-License-Identifier:    MIT
 
-#include <dolfinx/common/MPI.h>
+#pragma once
+
+#include <algorithm>
+#include <dolfinx/common/log.h>
+#include <dolfinx/la/Vector.h>
+#include <type_traits>
+#include <vector>
 
 #if defined(USE_CUDA) || defined(USE_HIP)
 #include "vector.hpp"
-#include <thrust/device_vector.h>
-#include <thrust/execution_policy.h>
-#include <thrust/inner_product.h>
-#include <thrust/transform_reduce.h>
-#include <type_traits>
 #endif
-
-#include <algorithm>
-#include <numeric>
 
 namespace detail
 {
+/// True if `Vector` stores its data on the host (`std::vector`), false
+/// if on a GPU device.
+template <typename Vector>
+constexpr bool is_host_vector
+    = std::is_same_v<typename Vector::container_type,
+                     std::vector<typename Vector::value_type>>;
+
+/// @brief Compute r = alpha * x + y on the owned entries, for a host
+/// or device vector.
 template <typename S, typename Vector>
 void axpy(Vector& r, S alpha, const Vector& x, const Vector& y)
 {
   using T = typename Vector::value_type;
-
-  if constexpr (std::is_same<typename Vector::container_type, std::vector<T>>())
+  if constexpr (is_host_vector<Vector>)
   {
     std::transform(
         x.array().begin(), x.array().begin() + x.index_map()->size_local(),
@@ -33,55 +39,34 @@ void axpy(Vector& r, S alpha, const Vector& x, const Vector& y)
   else
   {
 #if defined(USE_CUDA) || defined(USE_HIP)
-    thrust::transform(thrust::device, x.array().begin(),
-                      x.array().begin() + x.index_map()->size_local(),
-                      y.array().begin(), r.array().begin(),
-                      [alpha] __host__ __device__(const T& vx, const T& vy)
-                      { return vx * alpha + vy; });
+    benchdolfinx::axpy(r, alpha, x, y);
 #endif
   }
 }
 
-/// Compute the inner product of two vectors. The two vectors must have
-/// the same parallel layout
+/// @brief Compute the inner product of two host or device vectors.
+///
+/// The two vectors must have the same parallel layout.
+///
 /// @note Collective MPI operation
-/// @param a A vector
-/// @param b A vector
 /// @return Returns `a^{H} b` (`a^{T} b` if `a` and `b` are real)
 template <typename Vector>
 auto inner_product(const Vector& a, const Vector& b)
 {
-  using T = typename Vector::value_type;
-
-  const std::int32_t local_size = a.bs() * a.index_map()->size_local();
-  if (local_size != b.bs() * b.index_map()->size_local())
-    throw std::runtime_error("Incompatible vector sizes");
-
-  T local = 0;
-  if constexpr (std::is_same<typename Vector::container_type, std::vector<T>>())
-  {
-    local
-        = std::inner_product(a.array().begin(), a.array().begin() + local_size,
-                             b.array().begin(), T{0.0});
-  }
+  if constexpr (is_host_vector<Vector>)
+    return dolfinx::la::inner_product(a, b);
   else
   {
 #if defined(USE_CUDA) || defined(USE_HIP)
-    local = thrust::inner_product(thrust::device, a.array().begin(),
-                                  a.array().begin() + local_size,
-                                  b.array().begin(), T{0.0});
+    return benchdolfinx::inner_product(a, b);
 #endif
   }
-  T result;
-  MPI_Allreduce(&local, &result, 1, dolfinx::MPI::mpi_t<T>, MPI_SUM,
-                a.index_map()->comm());
-  return result;
 }
-
 } // namespace detail
 
 /// Solve Ax = b using unpreconditioned CG
-/// @param A Operator (with apply method) computes y=A.x
+/// @param A Operator (with apply method) computes y=A.x. `apply` must
+/// update the ghost entries of x before using them.
 /// @param x Vector solution
 /// @param b Vector RHS
 /// @param max_iter Maximum number of iterations
@@ -122,22 +107,8 @@ int cg_solve(Operator& A, Vector& x, const Vector& b, int max_iter,
   {
     ++k;
 
-    if constexpr (std::is_same<typename Vector::container_type,
-                               std::vector<T>>())
-    {
-      p.scatter_fwd();
-    }
-    else
-    {
-#if defined(USE_CUDA) || defined(USE_HIP)
-      p.scatter_fwd_begin(benchdolfinx::get_pack_fn<T>(512),
-                          [](auto&& x) { return x.data().get(); });
-      p.scatter_fwd_end(benchdolfinx::get_unpack_insert_fn<T>(512));
-#endif
-    }
-
-    // MatVec
-    // y = A.p;
+    // MatVec: y = A.p. The operator updates the ghost entries of p
+    // (forward scatter) itself.
     A.apply(p, y);
 
     // Calculate alpha = r.r/p.y

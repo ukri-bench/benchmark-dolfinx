@@ -7,8 +7,6 @@
 #include "util.hpp"
 #include "vector.hpp"
 #include <dolfinx/la/MatrixCSR.h>
-#include <limits>
-#include <thrust/count.h>
 #include <thrust/device_vector.h>
 
 namespace benchdolfinx::impl
@@ -45,96 +43,6 @@ __global__ void spmv_impl(int N, const T* values, const std::int32_t* row_begin,
   }
 }
 
-/// @brief Computes y += A^T*x for a local CSR matrix A and local dense
-/// vectors x,y.
-//
-/// @param N number of rows
-/// @param[in] values Nonzero values of A
-/// @param[in] row_begin First index of each row in the arrays values
-/// and indices.
-/// @param[in] row_end Last index of each row in the arrays values and
-/// indices.
-/// @param[in] indices Column indices for each non-zero element of the
-/// matrix A
-/// @param[in] x Input vector
-/// @param[in, out] y Output vector
-template <typename T>
-__global__ void spmvT_impl(int N, const T* values,
-                           const std::int32_t* row_begin,
-                           const std::int32_t* row_end,
-                           const std::int32_t* indices, const T* x, T* y)
-{
-  // Calculate the row index for this thread
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-
-  // Check if the row index is out of bounds
-  if (i < N)
-  {
-    // Perform the transpose sparse matrix-vector multiplication for
-    // this row
-    for (std::int32_t j = row_begin[i]; j < row_end[i]; j++)
-      atomicAdd(&y[indices[j]], values[j] * x[i]);
-  }
-}
-
-/// @brief Extract the diagonal of a CSR matrix, one thread per row.
-///
-/// Rows without a stored diagonal entry get 0.
-///
-/// @param[in] N Number of rows
-/// @param[in] values Matrix values
-/// @param[in] row_ptr Row offsets into `cols` and `values`
-/// @param[in] cols Local column indices
-/// @param[out] diag Diagonal entries (length `N`)
-template <typename T>
-__global__ void diag_impl(int N, const T* values, const std::int32_t* row_ptr,
-                          const std::int32_t* cols, T* diag)
-{
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < N)
-  {
-    T d = 0;
-    for (std::int32_t j = row_ptr[i]; j < row_ptr[i + 1]; ++j)
-    {
-      if (cols[j] == i)
-      {
-        d = values[j];
-        break;
-      }
-    }
-    diag[i] = d;
-  }
-}
-
-/// @brief Compute the inverse of the diagonal of a CSR matrix.
-/// @throws std::runtime_error if a diagonal entry is zero or missing
-template <typename T>
-thrust::device_vector<T>
-compute_diag_inv(dolfinx::la::MatrixCSR<T, thrust::device_vector<T>,
-                                        thrust::device_vector<std::int32_t>,
-                                        thrust::device_vector<std::int32_t>>& A)
-{
-  int num_rows = A.index_map(0)->size_local();
-  thrust::device_vector<T> diag_inv(num_rows);
-  if (num_rows == 0)
-    return diag_inv;
-
-  dim3 block_size(256);
-  dim3 grid_size((num_rows + block_size.x - 1) / block_size.x);
-  diag_impl<T><<<grid_size, block_size, 0, 0>>>(
-      num_rows, A.values().data().get(), A.row_ptr().data().get(),
-      A.cols().data().get(), diag_inv.data().get());
-  check_device_last_error();
-
-  if (thrust::count(thrust::device, diag_inv.begin(), diag_inv.end(), T(0)) > 0)
-    throw std::runtime_error("Matrix has a zero or missing diagonal entry");
-
-  thrust::transform(thrust::device, diag_inv.begin(), diag_inv.end(),
-                    diag_inv.begin(),
-                    [] __host__ __device__(T x) { return 1 / x; });
-  return diag_inv;
-}
-
 } // namespace benchdolfinx::impl
 
 namespace benchdolfinx
@@ -159,10 +67,6 @@ public:
     dolfinx::common::Timer t0("~setup phase MatrixOperator");
 
     spdlog::info("A norm = {}", norm());
-
-    // Get inverse diagonal entries (for Jacobi preconditioning)
-    _diag_inv = impl::compute_diag_inv<T>(_A);
-
     spdlog::info("Created device CSR matrix");
   }
 
@@ -180,16 +84,6 @@ public:
     return std::sqrt(n0);
   }
 
-  /// @brief Get the inverse of the diagonal values of the matrix.
-  /// @param diag_inv [in/out] A Vector to copy the inverse diagonal
-  /// values into.
-  /// @note Vector must be the correct size.
-  template <typename Vector>
-  void get_diag_inverse(Vector& diag_inv)
-  {
-    thrust::copy(_diag_inv.begin(), _diag_inv.end(), diag_inv.array().begin());
-  }
-
   /// @brief The matrix-vector multiplication operator, y=Ax,
   /// multiplying the matrix with the input vector and stores the result
   /// in the output vector.
@@ -198,10 +92,9 @@ public:
   ///
   /// @param x The input vector. See note.
   /// @param y The output vector.
-  /// @param transpose If true, perform the transpose operation y=A^T x
   /// @note x is not const because a scatter_fwd is done on it
   template <typename Vector>
-  void apply(Vector& x, Vector& y, bool transpose = false)
+  void apply(Vector& x, Vector& y)
   {
     dolfinx::common::Timer t0("% MatrixOperator application");
 
@@ -209,42 +102,21 @@ public:
     T* _x = x.array().data().get();
     T* _y = y.array().data().get();
 
-    if (transpose)
-    {
-      int num_rows = _A.index_map(0)->size_local();
-      dim3 block_size(256);
-      dim3 grid_size((num_rows + block_size.x - 1) / block_size.x);
-      x.scatter_fwd_begin(get_pack_fn<T>(512),
-                          [](auto&& x) { return x.data().get(); });
-      impl::spmvT_impl<T><<<grid_size, block_size, 0, 0>>>(
-          num_rows, _A.values().data().get(), _A.row_ptr().data().get(),
-          _A.off_diag_offset().data().get(), _A.cols().data().get(), _x, _y);
-      check_device_last_error();
-      x.scatter_fwd_end(get_unpack_insert_fn<T>(512));
+    int num_rows = _A.index_map(0)->size_local();
+    dim3 block_size(256);
+    dim3 grid_size((num_rows + block_size.x - 1) / block_size.x);
+    x.scatter_fwd_begin(get_pack_fn<T>(512),
+                        [](auto&& x) { return x.data().get(); });
+    impl::spmv_impl<T><<<grid_size, block_size, 0, 0>>>(
+        num_rows, _A.values().data().get(), _A.row_ptr().data().get(),
+        _A.off_diag_offset().data().get(), _A.cols().data().get(), _x, _y);
+    check_device_last_error();
+    x.scatter_fwd_end(get_unpack_insert_fn<T>(512));
 
-      impl::spmvT_impl<T><<<grid_size, block_size, 0, 0>>>(
-          num_rows, _A.values().data().get(), _A.off_diag_offset().data().get(),
-          _A.row_ptr().data().get() + 1, _A.cols().data().get(), _x, _y);
-      check_device_last_error();
-    }
-    else
-    {
-      int num_rows = _A.index_map(0)->size_local();
-      dim3 block_size(256);
-      dim3 grid_size((num_rows + block_size.x - 1) / block_size.x);
-      x.scatter_fwd_begin(get_pack_fn<T>(512),
-                          [](auto&& x) { return x.data().get(); });
-      impl::spmv_impl<T><<<grid_size, block_size, 0, 0>>>(
-          num_rows, _A.values().data().get(), _A.row_ptr().data().get(),
-          _A.off_diag_offset().data().get(), _A.cols().data().get(), _x, _y);
-      check_device_last_error();
-      x.scatter_fwd_end(get_unpack_insert_fn<T>(512));
-
-      impl::spmv_impl<T><<<grid_size, block_size, 0, 0>>>(
-          num_rows, _A.values().data().get(), _A.off_diag_offset().data().get(),
-          _A.row_ptr().data().get() + 1, _A.cols().data().get(), _x, _y);
-      check_device_last_error();
-    }
+    impl::spmv_impl<T><<<grid_size, block_size, 0, 0>>>(
+        num_rows, _A.values().data().get(), _A.off_diag_offset().data().get(),
+        _A.row_ptr().data().get() + 1, _A.cols().data().get(), _x, _y);
+    check_device_last_error();
 
     device_synchronize();
   }
@@ -255,9 +127,5 @@ private:
                          thrust::device_vector<std::int32_t>,
                          thrust::device_vector<std::int32_t>>
       _A;
-
-  // Copy of the inverse of the diagonal entries of the matrix - may be
-  // used for Jacobi preconditioning.
-  thrust::device_vector<T> _diag_inv;
 };
 } // namespace benchdolfinx

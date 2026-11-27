@@ -37,48 +37,38 @@ namespace benchdolfinx
 /// operator G for each entity
 /// @param entity_dofmap Array of size (n_entities, ndofs) with the
 /// dofmap for each entity
-/// @param phi0 Array of size (nq, ndofs) with the interpolation basis
-/// functions in 1D. u1_i = phi0_(ij) u_j, where u are the dofs
-/// associated with the element (degree P), and u1 are the dofs for the
-/// finite elment (degree >= P) that u is interpolated into.
 /// @param dphi1 Array of size (nq, nq) with the 1D basis function
 /// derivatives. FIXME: layout is (point_idx, dphi_i)?
 /// @param entities List of entities to compute on
 /// @param n_entities Number of entries in `entities`
 /// @param bc_marker Array of size (ndofs,) with the boundary condition
 /// marker
-/// @param identity If 1, the basis functions are the identity for the
-/// given quadrature points
 ///
-/// @note The kernel is launched with a 3D grid of 1D blocks, where each
-/// block is responsible for computing the stiffness operator for a
-/// single entity. The block size is (P+1, P+1, P+1) and the shared
-/// memory 2 * (P+1)^3 * sizeof(T).
+/// @note Supports Q = P + 1 (qmode=0) only, for which the element
+/// basis is the identity at the quadrature points.
 template <typename T, int P, int Q>
 void stiffness_operator_cpu(const T* __restrict__ u,
                             const T* __restrict__ entity_constants,
                             T* __restrict__ b, const T* __restrict__ G_entity,
-                            const T* __restrict__ phi0,
                             const T* __restrict__ dphi1,
                             const std::int32_t* __restrict__ entity_dofmap,
                             const int* __restrict__ entities, int n_entities,
-                            const std::int8_t* __restrict__ bc_marker,
-                            bool identity)
+                            const std::int8_t* __restrict__ bc_marker)
 {
   constexpr int nd = (P + 1);
   constexpr int cube_nd = nd * nd * nd;
   constexpr int nq = Q;
   constexpr int cube_nq = nq * nq * nq;
 
-  // FIXME: qmode0 only
-  static_assert(Q == P + 1);
+  static_assert(Q == P + 1, "Only qmode=0 (Q = P + 1) is supported");
 
   T local_dofs[nd][nd][nd];
   for (int c = 0; c < n_entities; ++c)
   {
     int entity_index = entities[c];
     // Copy input dofs for this cell
-    const std::int32_t* dofs = entity_dofmap + entity_index * cube_nd;
+    const std::int32_t* dofs
+        = entity_dofmap + static_cast<std::int64_t>(entity_index) * cube_nd;
     for (int ix = 0; ix < nd; ++ix)
       for (int iy = 0; iy < nd; ++iy)
         for (int iz = 0; iz < nd; ++iz)
@@ -93,7 +83,8 @@ void stiffness_operator_cpu(const T* __restrict__ u,
             local_dofs[ix][iy][iz] = u[dof];
         }
 
-    T coeff = entity_constants[c];
+    // Constants are stored by cell index
+    T coeff = entity_constants[entity_index];
 
     T scratch1[nq][nq][nq];
     T scratch2[nq][nq][nq];
@@ -104,7 +95,9 @@ void stiffness_operator_cpu(const T* __restrict__ u,
       for (int iy = 0; iy < nq; ++iy)
         for (int iz = 0; iz < nq; ++iz)
         {
-          const T* G = G_entity + c * cube_nq * 6 + ix * nq * nq + iy * nq + iz;
+          // Geometry data is stored by position in `entities`
+          const T* G = G_entity + static_cast<std::int64_t>(c) * cube_nq * 6
+                       + ix * nq * nq + iy * nq + iz;
           const T G0 = G[0];
           const T G1 = G[cube_nq];
           const T G2 = G[2 * cube_nq];

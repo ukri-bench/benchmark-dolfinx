@@ -11,9 +11,16 @@ with open(filename, "r") as f:
 
 pprint.pprint(data)
 
-# Check size is correct and matrix-free and CSR agree
-assert data["output"]["ndofs_global"] == 1000
-assert np.isclose(data["output"]["y_norm"], data["output"]["z_norm"])
+input, output = data["input"], data["output"]
+
+# Check size is correct
+assert output["ndofs_global"] == 1000
+
+# Check matrix-free and assembled matrix results agree. Compare the
+# vectors (relative norm of the difference), not just their norms.
+assert input["mat_comp"], "Run with --mat_comp to check correctness"
+rtol = 1e-10 if input["scalar_size"] == 64 else 1e-4
+assert output["e_norm_rel"] < rtol, f"Relative error {output['e_norm_rel']} >= {rtol}"
 
 # Compare to known result
-assert np.isclose(data["output"]["y_norm"], 9.912865833415553)
+assert np.isclose(output["y_norm"], 9.912865833415553)
