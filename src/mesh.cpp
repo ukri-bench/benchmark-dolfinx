@@ -3,6 +3,7 @@
 // SPDX-License-Identifier:    MIT
 
 #include "mesh.hpp"
+#include <algorithm>
 #include <basix/finite-element.h>
 #include <dolfinx/fem/CoordinateElement.h>
 #include <dolfinx/fem/DofMap.h>
@@ -124,7 +125,8 @@ benchdolfinx::compute_mesh_size(std::int64_t ndofs_global, int degree)
 {
   double nx_approx = (std::pow(ndofs_global, 1. / 3.) - 1) / degree;
   spdlog::info("nx_approx={}", nx_approx);
-  std::int64_t n0 = static_cast<std::int64_t>(nx_approx + 0.5);
+  std::int64_t n0
+      = std::max(std::int64_t{1}, static_cast<std::int64_t>(nx_approx + 0.5));
   std::array<std::int64_t, 3> nx = {n0, n0, n0};
 
   // Try to improve fit to ndofs +/- 5 in each direction
