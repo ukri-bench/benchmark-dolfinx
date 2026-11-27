@@ -146,7 +146,7 @@ public:
         basix::polyset::type::standard, q_map(_degree + qmode));
 
     const dolfinx::fem::CoordinateElement<T>& cmap
-        = V.mesh()->geometry().cmap();
+        = V.mesh()->geometry().cmaps().front();
     std::array<std::size_t, 4> phi_shape
         = cmap.tabulate_shape(1, Gweights.size());
     std::vector<T> phi_b(
@@ -510,7 +510,7 @@ public:
         basix::polyset::type::standard, q_map(_degree + qmode));
 
     const dolfinx::fem::CoordinateElement<T>& cmap
-        = V.mesh()->geometry().cmap();
+        = V.mesh()->geometry().cmaps().front();
     std::array<std::size_t, 4> phi_shape
         = cmap.tabulate_shape(1, Gweights.size());
     std::vector<T> phi_b(

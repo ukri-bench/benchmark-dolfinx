@@ -1,7 +1,7 @@
 # DOLFINx benchmark
 
-[![Spack build and run](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/spack.yml/badge.svg)](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/spack.yml)
-[![Test benchmark](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/ci.yml/badge.svg)](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/ci.yml)
+[![Benchmark build and run](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/ci.yml/badge.svg?event=merge_group)](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/ci.yml?query=event%3Amerge_group)
+[![Lint](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/lint.yml/badge.svg?event=merge_group)](https://github.com/ukri-bench/benchmark-dolfinx/actions/workflows/lint.yml?query=event%3Amerge_group)
 
 This benchmark tests the performance of an unstructured grid finite
 element solver. It solves the Poisson equation on a mesh of hexahedral
@@ -83,7 +83,7 @@ spack env activate bench
 ### CMake
 
 The benchmark depends on the library
-[DOLFINx](https://github.com/fenics/dolfinx) v0.10.0 and can be built using
+[DOLFINx](https://github.com/fenics/dolfinx) v0.11 and can be built using
 CMake. See the benchmark Spack package
 [file](https://github.com/ukri-bench/spack-packages/blob/main/spack_pkgs/spack_repo/ukri_bench/packages/bench_dolfinx/package.py) and the Spack dependencies for a comprehensive list of dependencies.
 
@@ -100,11 +100,11 @@ benchmark-specific CMake options are available:
   this; when building with Spack on Cray systems, add it with `spack repo
   add https://github.com/FEniCS/spack-fenics.git`.
 
-- The version of `mdspan.hpp` distributed in `basix` v0.10.0 is not
-  compatible with CUDA 13. When building manually with CUDA 13.0 or higher,
-  apply the
-  [patch](https://github.com/spack/spack-packages/blob/develop/repos/spack_repo/builtin/packages/fenics_basix/mdspan.patch)
-  to Basix. Spack applies this patch automatically.
+- nvcc 13 aborts with an internal error when compiling the DOLFINx 0.11
+  header `dolfinx/mesh/EntityMap.h`. When building manually with CUDA, apply
+  the
+  [patch](https://github.com/ukri-bench/spack-packages/blob/main/spack_pkgs/spack_repo/ukri_bench/packages/fenics_dolfinx/0.11-entitymap-nvcc.patch)
+  to DOLFINx. The Spack package applies this patch automatically.
 
 - A C++20 compiler capable of handling `std::format` is required. On some systems, it is necessary to explicitly pass this to `nvcc` or `hipcc` through a command line argument, e.g. `--gcc-toolchain=/opt/rh/gcc-toolset-13/root/usr`.
 
