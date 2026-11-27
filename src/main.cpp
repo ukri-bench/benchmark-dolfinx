@@ -129,6 +129,16 @@ json::value run_benchmark(MPI_Comm comm, std::array<std::int64_t, 3> nx,
          {"gdof_per_second", dofmap->index_map->size_global() * nreps
                                  / (1e9 * results.mat_free_time)}};
 
+  // Difference between the matrix-free (y) and assembled matrix (z)
+  // results
+  if (matrix_comparison)
+  {
+    json::object& obj = output.as_object();
+    obj["e_norm"] = results.enorm;
+    obj["e_norm_rel"]
+        = results.znorm > 0 ? results.enorm / results.znorm : results.enorm;
+  }
+
   return output;
 }
 } // namespace

@@ -81,7 +81,8 @@ auto inner_product(const Vector& a, const Vector& b)
 } // namespace detail
 
 /// Solve Ax = b using unpreconditioned CG
-/// @param A Operator (with apply method) computes y=A.x
+/// @param A Operator (with apply method) computes y=A.x. `apply` must
+/// update the ghost entries of x before using them.
 /// @param x Vector solution
 /// @param b Vector RHS
 /// @param max_iter Maximum number of iterations
@@ -122,22 +123,8 @@ int cg_solve(Operator& A, Vector& x, const Vector& b, int max_iter,
   {
     ++k;
 
-    if constexpr (std::is_same<typename Vector::container_type,
-                               std::vector<T>>())
-    {
-      p.scatter_fwd();
-    }
-    else
-    {
-#if defined(USE_CUDA) || defined(USE_HIP)
-      p.scatter_fwd_begin(benchdolfinx::get_pack_fn<T>(512),
-                          [](auto&& x) { return x.data().get(); });
-      p.scatter_fwd_end(benchdolfinx::get_unpack_insert_fn<T>(512));
-#endif
-    }
-
-    // MatVec
-    // y = A.p;
+    // MatVec: y = A.p. The operator updates the ghost entries of p
+    // (forward scatter) itself.
     A.apply(p, y);
 
     // Calculate alpha = r.r/p.y
