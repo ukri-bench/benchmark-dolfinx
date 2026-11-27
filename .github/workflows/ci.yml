@@ -13,6 +13,8 @@ name: Benchmark build and run
 # dependencies as the CPU build.
 
 on:
+  push:
+    branches: [main]
   pull_request:
   merge_group:
     branches: [main]
