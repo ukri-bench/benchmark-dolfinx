@@ -159,7 +159,8 @@ __launch_bounds__(Q * Q * Q) __global__ void stiffness_operator_gpu(
   {
     int dof_thread_id = tx * square_nd + ty * nd + tz;
     int entity_index = entities[block_id];
-    dof = entity_dofmap[entity_index * cube_nd + dof_thread_id];
+    dof = entity_dofmap[static_cast<std::int64_t>(entity_index) * cube_nd
+                        + dof_thread_id];
     if (bc_marker[dof])
     {
       b[dof] = u[dof];
@@ -262,7 +263,9 @@ __launch_bounds__(Q * Q * Q) __global__ void stiffness_operator_gpu(
   const T G4 = non_temp_load(&G_entity[gid + cube_nq * 4]);
   const T G5 = non_temp_load(&G_entity[gid + cube_nq * 5]);
 
-  const T coeff = entity_constants[block_id];
+  // Constants are stored by cell index (geometry data above is stored
+  // by position in `entities`)
+  const T coeff = entity_constants[entities[block_id]];
 
   // Store values at quadrature points: scratch2, scratchy, scratchz all
   // have dimensions (nq, nq, nq)
